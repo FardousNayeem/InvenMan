@@ -7,7 +7,7 @@ import 'db.dart';
 class ThemeProvider with ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
 
-  ThemeMode get themeMode => ThemeMode.dark;
+  ThemeMode get themeMode => _themeMode;
 
   ThemeProvider() {
     _loadThemeMode();

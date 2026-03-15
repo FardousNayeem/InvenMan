@@ -16,6 +16,12 @@ class _InventoryPageState extends State<InventoryPage> {
 
   final DateFormat dateFormat = DateFormat('h.mma, d MMMM, yyyy');
 
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   void _showAddItemDialog() {
     final nameController = TextEditingController();
     final descController = TextEditingController();
@@ -25,7 +31,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
     showDialog(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text("Add New Item"),
         content: SingleChildScrollView(
           child: Column(
@@ -41,7 +47,7 @@ class _InventoryPageState extends State<InventoryPage> {
               TextField(
                 controller: priceController,
                 decoration: const InputDecoration(labelText: "Price"),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
               TextField(
                 controller: categoryController,
@@ -58,30 +64,59 @@ class _InventoryPageState extends State<InventoryPage> {
         actions: [
           ElevatedButton(
             onPressed: () async {
+              final name = nameController.text.trim();
+              final description = descController.text.trim();
+              final category = categoryController.text.trim();
+              final price = double.tryParse(priceController.text.trim());
+              final quantity = int.tryParse(quantityController.text.trim());
+
+              if (name.isEmpty ||
+                  description.isEmpty ||
+                  category.isEmpty ||
+                  price == null ||
+                  quantity == null) {
+                _showMessage('Please fill all fields with valid values.');
+                return;
+              }
+
+              if (price < 0) {
+                _showMessage('Price cannot be negative.');
+                return;
+              }
+
+              if (quantity < 0) {
+                _showMessage('Quantity cannot be negative.');
+                return;
+              }
+
               final item = Item(
-                name: nameController.text.trim(),
-                description: descController.text.trim(),
-                price: double.parse(priceController.text.trim()),
-                category: categoryController.text.trim(),
-                quantity: int.parse(quantityController.text.trim()),
+                name: name,
+                description: description,
+                price: price,
+                category: category,
+                quantity: quantity,
                 createdAt: DateTime.now(),
                 updatedAt: null,
               );
+
               await DBHelper.insertItem(item);
-              Navigator.pop(context);
+
+              if (!mounted) return;
+              Navigator.pop(dialogContext);
               setState(() {});
+              _showMessage('Item added successfully.');
             },
-            child: const Text("Add Item"),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple, 
-              foregroundColor: Colors.white,     
+              backgroundColor: Colors.deepPurple,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              textStyle: const TextStyle(fontWeight: FontWeight.w600), 
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
             ),
-          )
+            child: const Text("Add Item"),
+          ),
         ],
       ),
     );
@@ -93,7 +128,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
     showDialog(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text("Edit Item"),
         content: SingleChildScrollView(
           child: Column(
@@ -123,67 +158,105 @@ class _InventoryPageState extends State<InventoryPage> {
         actions: [
           TextButton(
             onPressed: () async {
+              final description = descController.text.trim();
+              final quantity = int.tryParse(quantityController.text.trim());
+
+              if (description.isEmpty || quantity == null) {
+                _showMessage('Please enter valid description and quantity.');
+                return;
+              }
+
+              if (quantity < 0) {
+                _showMessage('Quantity cannot be negative.');
+                return;
+              }
+
               final updatedItem = Item(
                 id: item.id,
                 name: item.name,
-                description: descController.text.trim(),
+                description: description,
                 price: item.price,
                 category: item.category,
-                quantity: int.parse(quantityController.text.trim()),
+                quantity: quantity,
                 createdAt: item.createdAt,
                 updatedAt: DateTime.now(),
               );
+
               await DBHelper.updateItem(updatedItem);
-              Navigator.pop(context);
+
+              if (!mounted) return;
+              Navigator.pop(dialogContext);
               setState(() {});
+              _showMessage('Item updated successfully.');
             },
             child: const Text("Update"),
-          )
+          ),
         ],
       ),
     );
   }
 
   Future<void> _sellItem(Item item) async {
+    if (item.quantity <= 0) {
+      _showMessage('This item is out of stock.');
+      return;
+    }
+
     final sellController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
         title: Text("Sell ${item.name}"),
         content: TextField(
           controller: sellController,
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(labelText: "Selling Price"),
         ),
         actions: [
           TextButton(
             onPressed: () async {
-              final sellPrice = double.parse(sellController.text.trim());
-              if (item.quantity > 0) {
-                final updatedItem = Item(
-                  id: item.id,
-                  name: item.name,
-                  description: item.description,
-                  price: item.price,
-                  category: item.category,
-                  quantity: item.quantity - 1,
-                  createdAt: item.createdAt,
-                  updatedAt: DateTime.now(),
-                );
-                await DBHelper.updateItem(updatedItem);
-                await DBHelper.insertSoldItem(SoldItem(
+              final sellPrice = double.tryParse(sellController.text.trim());
+
+              if (sellPrice == null) {
+                _showMessage('Please enter a valid selling price.');
+                return;
+              }
+
+              if (sellPrice < 0) {
+                _showMessage('Selling price cannot be negative.');
+                return;
+              }
+
+              final updatedItem = Item(
+                id: item.id,
+                name: item.name,
+                description: item.description,
+                price: item.price,
+                category: item.category,
+                quantity: item.quantity - 1,
+                createdAt: item.createdAt,
+                updatedAt: DateTime.now(),
+              );
+
+              await DBHelper.updateItem(updatedItem);
+
+              await DBHelper.insertSoldItem(
+                SoldItem(
                   name: item.name,
                   costPrice: item.price,
                   sellPrice: sellPrice,
                   date: DateFormat.yMd().add_jm().format(DateTime.now()),
-                ));
-              }
-              Navigator.pop(context);
+                ),
+              );
+
+              if (!mounted) return;
+              Navigator.pop(dialogContext);
               setState(() {});
+              _showMessage('Item sold successfully.');
             },
             child: const Text("Confirm"),
-          )
+          ),
         ],
       ),
     );
@@ -209,31 +282,23 @@ class _InventoryPageState extends State<InventoryPage> {
                   isExpanded: true,
                   value: sortBy,
                   onChanged: (value) => setState(() => sortBy = value!),
-                  alignment: Alignment.center, 
+                  alignment: Alignment.center,
                   items: const [
                     DropdownMenuItem(
                       value: 'name',
-                      child: Center(
-                        child: Text("Name"),
-                      ),
+                      child: Center(child: Text("Name")),
                     ),
                     DropdownMenuItem(
                       value: 'price_asc',
-                      child: Center(
-                        child: Text("Price: Low to High"),
-                      ),
+                      child: Center(child: Text("Price: Low to High")),
                     ),
                     DropdownMenuItem(
                       value: 'price_desc',
-                      child: Center(
-                        child: Text("Price: High to Low"),
-                      ),
+                      child: Center(child: Text("Price: High to Low")),
                     ),
                     DropdownMenuItem(
                       value: 'category',
-                      child: Center(
-                        child: Text("Category"),
-                      ),
+                      child: Center(child: Text("Category")),
                     ),
                   ],
                   underline: Container(),
@@ -254,7 +319,10 @@ class _InventoryPageState extends State<InventoryPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  textStyle: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
+                  textStyle: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -264,11 +332,16 @@ class _InventoryPageState extends State<InventoryPage> {
           child: FutureBuilder<List<Item>>(
             future: DBHelper.fetchItems(sortBy: sortBy),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
               final items = snapshot.data!;
+
               if (items.isEmpty) {
                 return const Center(child: Text('No Products Found'));
               }
+
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 itemCount: items.length,
@@ -278,7 +351,9 @@ class _InventoryPageState extends State<InventoryPage> {
                   return Card(
                     elevation: 3,
                     margin: const EdgeInsets.symmetric(vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onLongPress: () async {
@@ -288,12 +363,15 @@ class _InventoryPageState extends State<InventoryPage> {
                             title: const Text("Choose Action:"),
                             actions: [
                               TextButton(
-                                child: const Text("Edit"),
                                 onPressed: () => Navigator.pop(context, 'edit'),
+                                child: const Text("Edit"),
                               ),
                               TextButton(
-                                child: const Text("Delete", style: TextStyle(color: Colors.red)),
                                 onPressed: () => Navigator.pop(context, 'delete'),
+                                child: const Text(
+                                  "Delete",
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ),
                             ],
                           ),
@@ -309,20 +387,25 @@ class _InventoryPageState extends State<InventoryPage> {
                               content: Text("Are you sure to delete '${item.name}'?"),
                               actions: [
                                 TextButton(
-                                  child: const Text("Delete", style: TextStyle(color: Colors.red)),
                                   onPressed: () => Navigator.pop(context, true),
+                                  child: const Text(
+                                    "Delete",
+                                    style: TextStyle(color: Colors.red),
+                                  ),
                                 ),
                                 TextButton(
-                                  child: const Text("Cancel"),
                                   onPressed: () => Navigator.pop(context, false),
+                                  child: const Text("Cancel"),
                                 ),
                               ],
                             ),
                           );
+
                           if (shouldDelete == true) {
                             await DBHelper.deleteItem(item.id!, item.name);
                             if (!mounted) return;
                             setState(() {});
+                            _showMessage('Item deleted successfully.');
                           }
                         }
                       },
@@ -350,7 +433,6 @@ class _InventoryPageState extends State<InventoryPage> {
                                     ),
                                   ),
                                 ),
-
                                 Flexible(
                                   flex: 3,
                                   child: Column(
@@ -381,12 +463,18 @@ class _InventoryPageState extends State<InventoryPage> {
                                         children: [
                                           Text(
                                             "Price:  \$${item.price.toStringAsFixed(0)} BDT,",
-                                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                           const SizedBox(width: 20),
                                           Text(
                                             "Quantity: ${item.quantity}",
-                                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -395,13 +483,20 @@ class _InventoryPageState extends State<InventoryPage> {
                                       const SizedBox(height: 6),
                                       Text(
                                         "Added: ${_formatDate(item.createdAt)}",
-                                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
+                                        ),
                                       ),
                                       if (item.updatedAt != null) ...[
                                         const SizedBox(height: 4),
                                         Text(
                                           "Edited: ${_formatDate(item.updatedAt!)}",
-                                          style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.grey),
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontStyle: FontStyle.italic,
+                                            color: Colors.grey,
+                                          ),
                                         ),
                                       ],
                                       const SizedBox(height: 10),
@@ -411,8 +506,13 @@ class _InventoryPageState extends State<InventoryPage> {
                                         label: const Text("Sell"),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.deepPurple,
-                                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 24,
+                                            vertical: 10,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -420,7 +520,6 @@ class _InventoryPageState extends State<InventoryPage> {
                                 ),
                               ],
                             ),
-                            
                           ],
                         ),
                       ),
