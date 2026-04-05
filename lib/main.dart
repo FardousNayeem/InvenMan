@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/homescreen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'db.dart'; 
+
+import 'package:invenman/db.dart';
+import 'package:invenman/screens/homescreen.dart';
 
 class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
+  static const String _themeKey = 'isDark';
+
+  ThemeMode _themeMode = ThemeMode.light;
 
   ThemeMode get themeMode => _themeMode;
 
@@ -13,22 +16,25 @@ class ThemeProvider with ChangeNotifier {
     _loadThemeMode();
   }
 
-  void toggleTheme() async {
-    _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+  Future<void> toggleTheme() async {
+    _themeMode =
+        _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+
     notifyListeners();
+
     final prefs = await SharedPreferences.getInstance();
-    prefs.setBool('isDark', _themeMode == ThemeMode.dark);
+    await prefs.setBool(_themeKey, _themeMode == ThemeMode.dark);
   }
 
   Future<void> _loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('isDark') ?? false;
+    final isDark = prefs.getBool(_themeKey) ?? false;
     _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
   }
 }
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DBHelper.db;
 
@@ -45,14 +51,22 @@ class InventoryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = context.watch<ThemeProvider>();
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Inventory Manager',
+      title: 'InvenMan',
       themeMode: themeProvider.themeMode,
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.deepPurple,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.deepPurple,
+        brightness: Brightness.dark,
+      ),
       home: const HomeScreen(),
     );
   }
