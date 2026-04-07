@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/item.dart';
 
 class InventoryCard extends StatelessWidget {
@@ -197,30 +198,31 @@ class _InventoryCardWide extends StatelessWidget {
                   _MetricChip(
                     icon: Icons.shopping_bag_outlined,
                     label: 'Cost',
-                    value: item.costPrice.toStringAsFixed(0),
+                    sensitiveText: item.costPrice.toStringAsFixed(0),
+                    isSensitive: true,
                   ),
                   _MetricChip(
                     icon: Icons.sell_outlined,
                     label: 'MRP',
-                    value: item.sellingPrice.toStringAsFixed(0),
+                    valueText: item.sellingPrice.toStringAsFixed(0),
                   ),
                   _MetricChip(
                     icon: Icons.inventory_2_outlined,
                     label: 'Stock',
-                    value: '${item.quantity}',
+                    valueText: '${item.quantity}',
                     valueColor: stockColor,
                   ),
                   if (item.warranties.isNotEmpty)
                     _MetricChip(
                       icon: Icons.verified_outlined,
                       label: 'Warranty',
-                      value: '${item.warranties.length} type(s)',
+                      valueText: '${item.warranties.length} type(s)',
                     ),
                   if (item.imagePaths.isNotEmpty)
                     _MetricChip(
                       icon: Icons.image_outlined,
                       label: 'Images',
-                      value: '${item.imagePaths.length}',
+                      valueText: '${item.imagePaths.length}',
                     ),
                 ],
               ),
@@ -462,30 +464,31 @@ class _InventoryCardCompact extends StatelessWidget {
             _MetricChip(
               icon: Icons.shopping_bag_outlined,
               label: 'Cost',
-              value: item.costPrice.toStringAsFixed(0),
+              sensitiveText: item.costPrice.toStringAsFixed(0),
+              isSensitive: true,
             ),
             _MetricChip(
               icon: Icons.sell_outlined,
               label: 'MRP',
-              value: item.sellingPrice.toStringAsFixed(0),
+              valueText: item.sellingPrice.toStringAsFixed(0),
             ),
             _MetricChip(
               icon: Icons.inventory_2_outlined,
               label: 'Stock',
-              value: '${item.quantity}',
+              valueText: '${item.quantity}',
               valueColor: stockColor,
             ),
             if (item.warranties.isNotEmpty)
               _MetricChip(
                 icon: Icons.verified_outlined,
                 label: 'Warranty',
-                value: '${item.warranties.length} type(s)',
+                valueText: '${item.warranties.length} type(s)',
               ),
             if (item.imagePaths.isNotEmpty)
               _MetricChip(
                 icon: Icons.image_outlined,
                 label: 'Images',
-                value: '${item.imagePaths.length}',
+                valueText: '${item.imagePaths.length}',
               ),
           ],
         ),
@@ -531,13 +534,17 @@ class _ItemImagePreview extends StatelessWidget {
 class _MetricChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
+  final String? valueText;
+  final String? sensitiveText;
+  final bool isSensitive;
   final Color? valueColor;
 
   const _MetricChip({
     required this.icon,
     required this.label,
-    required this.value,
+    this.valueText,
+    this.sensitiveText,
+    this.isSensitive = false,
     this.valueColor,
   });
 
@@ -564,14 +571,24 @@ class _MetricChip extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: valueColor ?? cs.onSurface,
+          if (isSensitive)
+            SensitiveValueText(
+              visibleText: sensitiveText ?? '',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? cs.onSurface,
+              ),
+            )
+          else
+            Text(
+              valueText ?? '',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? cs.onSurface,
+              ),
             ),
-          ),
         ],
       ),
     );

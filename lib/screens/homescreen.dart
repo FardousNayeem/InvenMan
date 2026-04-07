@@ -50,7 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final privacyProvider = context.watch<PrivacyProvider>();
     final isDark = themeProvider.themeMode == ThemeMode.dark;
+    final hideSensitive = privacyProvider.hideSensitiveValues;
     final cs = Theme.of(context).colorScheme;
 
     final screens = [
@@ -136,6 +138,59 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.04),
+                  ),
+                ],
+              ),
+              child: IconButton.filledTonal(
+                tooltip: hideSensitive
+                    ? 'Show sensitive values'
+                    : 'Hide sensitive values',
+                style: IconButton.styleFrom(
+                  backgroundColor: cs.surfaceContainerHighest,
+                  foregroundColor: cs.onSurface,
+                ),
+                onPressed: () async {
+                  final wasHidden = hideSensitive;
+                  await privacyProvider.toggleSensitiveVisibility();
+
+                  if (!context.mounted) return;
+
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      behavior: SnackBarBehavior.floating,
+                      content: Text(
+                        wasHidden
+                            ? 'Sensitive values are now visible.'
+                            : 'Sensitive values are now hidden.',
+                      ),
+                    ),
+                  );
+                },
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, animation) =>
+                      ScaleTransition(scale: animation, child: child),
+                  child: Icon(
+                    hideSensitive
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    key: ValueKey(hideSensitive),
+                  ),
+                ),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: DecoratedBox(

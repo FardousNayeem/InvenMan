@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/sale_record.dart';
 
 class SaleCard extends StatelessWidget {
@@ -120,7 +121,8 @@ class _SaleCardWide extends StatelessWidget {
                               children: [
                                 _DetailLine(
                                   label: 'Cost',
-                                  value: sale.costPrice.toStringAsFixed(0),
+                                  sensitiveValue: sale.costPrice.toStringAsFixed(0),
+                                  isSensitive: true,
                                 ),
                                 const SizedBox(height: 8),
                                 _DetailLine(
@@ -141,7 +143,8 @@ class _SaleCardWide extends StatelessWidget {
                                 const SizedBox(height: 8),
                                 _DetailLine(
                                   label: 'Profit',
-                                  value: sale.profit.toStringAsFixed(0),
+                                  sensitiveValue: sale.profit.toStringAsFixed(0),
+                                  isSensitive: true,
                                   valueColor: profitColor,
                                 ),
                               ],
@@ -318,7 +321,8 @@ class _SaleCardCompact extends StatelessWidget {
               const SizedBox(height: 12),
               _DetailLine(
                 label: 'Cost',
-                value: sale.costPrice.toStringAsFixed(0),
+                sensitiveValue: sale.costPrice.toStringAsFixed(0),
+                isSensitive: true,
               ),
               const SizedBox(height: 8),
               _DetailLine(
@@ -333,7 +337,8 @@ class _SaleCardCompact extends StatelessWidget {
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Profit',
-                value: sale.profit.toStringAsFixed(0),
+                sensitiveValue: sale.profit.toStringAsFixed(0),
+                isSensitive: true,
                 valueColor: profitColor,
               ),
             ],
@@ -435,13 +440,17 @@ class _SaleCardCompact extends StatelessWidget {
 
 class _DetailLine extends StatelessWidget {
   final String label;
-  final String value;
+  final String? value;
+  final String? sensitiveValue;
+  final bool isSensitive;
   final bool multiline;
   final Color? valueColor;
 
   const _DetailLine({
     required this.label,
-    required this.value,
+    this.value,
+    this.sensitiveValue,
+    this.isSensitive = false,
     this.multiline = false,
     this.valueColor,
   });
@@ -465,15 +474,26 @@ class _DetailLine extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.4,
-              color: valueColor ?? cs.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          child: isSensitive
+              ? SensitiveValueText(
+                  visibleText: sensitiveValue ?? '',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.4,
+                    color: valueColor ?? cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: multiline ? 10 : 1,
+                )
+              : Text(
+                  value ?? '',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.4,
+                    color: valueColor ?? cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
       ],
     );

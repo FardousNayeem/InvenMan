@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/sale_record.dart';
 
 class SaleDetailsScreen extends StatefulWidget {
@@ -132,7 +133,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                             ),
                             _TopPill(
                               icon: Icons.trending_up_rounded,
-                              label: 'Profit ${sale.profit.toStringAsFixed(0)}',
+                              label: 'Profit',
                               accentColor: profitColor,
                             ),
                             _TopPill(
@@ -438,7 +439,8 @@ class _SaleOverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Cost',
-                  value: sale.costPrice.toStringAsFixed(0),
+                  sensitiveText: sale.costPrice.toStringAsFixed(0),
+                  isSensitive: true,
                   icon: Icons.shopping_bag_outlined,
                 ),
               ),
@@ -446,7 +448,7 @@ class _SaleOverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'MRP',
-                  value: sale.sellPrice.toStringAsFixed(0),
+                  valueText: sale.sellPrice.toStringAsFixed(0),
                   icon: Icons.sell_outlined,
                 ),
               ),
@@ -458,7 +460,7 @@ class _SaleOverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Qty',
-                  value: '${sale.quantitySold}',
+                  valueText: '${sale.quantitySold}',
                   icon: Icons.inventory_2_outlined,
                 ),
               ),
@@ -466,7 +468,8 @@ class _SaleOverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Profit',
-                  value: sale.profit.toStringAsFixed(0),
+                  sensitiveText: sale.profit.toStringAsFixed(0),
+                  isSensitive: true,
                   icon: Icons.trending_up_rounded,
                   valueColor: profitColor,
                 ),
@@ -689,13 +692,17 @@ class _GlassSection extends StatelessWidget {
 
 class _InfoTile extends StatelessWidget {
   final String label;
-  final String value;
+  final String? valueText;
+  final String? sensitiveText;
+  final bool isSensitive;
   final IconData icon;
   final Color? valueColor;
 
   const _InfoTile({
     required this.label,
-    required this.value,
+    this.valueText,
+    this.sensitiveText,
+    this.isSensitive = false,
     required this.icon,
     this.valueColor,
   });
@@ -727,14 +734,24 @@ class _InfoTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: valueColor ?? cs.onSurface,
+                if (isSensitive)
+                  SensitiveValueText(
+                    visibleText: sensitiveText ?? '',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: valueColor ?? cs.onSurface,
+                    ),
+                  )
+                else
+                  Text(
+                    valueText ?? '',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: valueColor ?? cs.onSurface,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

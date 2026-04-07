@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/item.dart';
 
 class ItemDetailsScreen extends StatefulWidget {
@@ -566,7 +567,8 @@ class _OverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Cost',
-                  value: item.costPrice.toStringAsFixed(0),
+                  sensitiveText: item.costPrice.toStringAsFixed(0),
+                  isSensitive: true,
                   icon: Icons.shopping_bag_outlined,
                 ),
               ),
@@ -574,7 +576,7 @@ class _OverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'MRP',
-                  value: item.sellingPrice.toStringAsFixed(0),
+                  valueText: item.sellingPrice.toStringAsFixed(0),
                   icon: Icons.sell_outlined,
                 ),
               ),
@@ -586,7 +588,8 @@ class _OverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Margin',
-                  value: marginAmount.toStringAsFixed(0),
+                  sensitiveText: marginAmount.toStringAsFixed(0),
+                  isSensitive: true,
                   icon: Icons.trending_up_rounded,
                   valueColor: marginAmount >= 0 ? Colors.green.shade700 : Colors.red.shade700,
                 ),
@@ -595,7 +598,8 @@ class _OverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Markup',
-                  value: marginPercent,
+                  sensitiveText: marginPercent,
+                  isSensitive: true,
                   icon: Icons.percent_rounded,
                 ),
               ),
@@ -607,7 +611,7 @@ class _OverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Stock',
-                  value: '${item.quantity}',
+                  valueText: '${item.quantity}',
                   icon: Icons.inventory_2_outlined,
                   valueColor: stockColor,
                 ),
@@ -616,7 +620,7 @@ class _OverviewCard extends StatelessWidget {
               Expanded(
                 child: _InfoTile(
                   label: 'Images',
-                  value: '${item.imagePaths.length}',
+                  valueText: '${item.imagePaths.length}',
                   icon: Icons.image_outlined,
                 ),
               ),
@@ -785,13 +789,17 @@ class _GlassSection extends StatelessWidget {
 
 class _InfoTile extends StatelessWidget {
   final String label;
-  final String value;
+  final String? valueText;
+  final String? sensitiveText;
+  final bool isSensitive;
   final IconData icon;
   final Color? valueColor;
 
   const _InfoTile({
     required this.label,
-    required this.value,
+    this.valueText,
+    this.sensitiveText,
+    this.isSensitive = false,
     required this.icon,
     this.valueColor,
   });
@@ -823,14 +831,24 @@ class _InfoTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: valueColor ?? cs.onSurface,
+                if (isSensitive)
+                  SensitiveValueText(
+                    visibleText: sensitiveText ?? '',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: valueColor ?? cs.onSurface,
+                    ),
+                  )
+                else
+                  Text(
+                    valueText ?? '',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: valueColor ?? cs.onSurface,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
