@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:invenman/models/sale_record.dart';
 
 class SaleCard extends StatelessWidget {
@@ -16,182 +15,409 @@ class SaleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final profitColor =
-        sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
+    final compact = MediaQuery.of(context).size.width < 820;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(28),
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: cs.outlineVariant),
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           boxShadow: [
             BoxShadow(
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
               color: Colors.black.withOpacity(0.05),
             ),
           ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                runSpacing: 8,
-                spacing: 10,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: cs.secondaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      sale.category,
-                      style: TextStyle(
-                        color: cs.onSecondaryContainer,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    formattedDate,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                sale.itemName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
+          child: compact
+              ? _SaleCardCompact(
+                  sale: sale,
+                  formattedDate: formattedDate,
+                )
+              : _SaleCardWide(
+                  sale: sale,
+                  formattedDate: formattedDate,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _SaleMetricChip(
-                    icon: Icons.inventory_2_outlined,
-                    label: 'Qty',
-                    value: '${sale.quantitySold}',
-                  ),
-                  _SaleMetricChip(
-                    icon: Icons.shopping_bag_outlined,
-                    label: 'Cost',
-                    value: sale.costPrice.toStringAsFixed(0),
-                  ),
-                  _SaleMetricChip(
-                    icon: Icons.sell_outlined,
-                    label: 'Sell',
-                    value: sale.sellPrice.toStringAsFixed(0),
-                  ),
-                  _SaleMetricChip(
-                    icon: Icons.trending_up_rounded,
-                    label: 'Profit',
-                    value: sale.profit.toStringAsFixed(0),
-                    valueColor: profitColor,
-                  ),
-                ],
-              ),
-              if ((sale.customerName ?? '').trim().isNotEmpty ||
-                  (sale.customerPhone ?? '').trim().isNotEmpty ||
-                  (sale.customerAddress ?? '').trim().isNotEmpty ||
-                  sale.warranties.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Divider(color: cs.outlineVariant),
-                const SizedBox(height: 10),
-              ],
-              if ((sale.customerName ?? '').trim().isNotEmpty)
-                Text(
-                  'Customer: ${sale.customerName}',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              if ((sale.customerPhone ?? '').trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Phone: ${sale.customerPhone}',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-              if ((sale.customerAddress ?? '').trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Address: ${sale.customerAddress}',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: cs.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-              if (sale.warranties.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: sale.warranties.entries.map((entry) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text(
-                        '${entry.key}: ${entry.value} mo',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ],
-          ),
         ),
       ),
     );
   }
 }
 
-class _SaleMetricChip extends StatelessWidget {
-  final IconData icon;
+class _SaleCardWide extends StatelessWidget {
+  final SaleRecord sale;
+  final String formattedDate;
+
+  const _SaleCardWide({
+    required this.sale,
+    required this.formattedDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final profitColor = sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withOpacity(0.75),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Purchase details',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 10,
+                        runSpacing: 6,
+                        children: [
+                          Text(
+                            sale.itemName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          Text(
+                            '(${sale.category})',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _DetailLine(
+                        label: 'Cost',
+                        value: sale.costPrice.toStringAsFixed(0),
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
+                        label: 'Selling',
+                        value: sale.sellPrice.toStringAsFixed(0),
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
+                        label: 'Qty',
+                        value: '${sale.quantitySold}',
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
+                        label: 'Profit',
+                        value: sale.profit.toStringAsFixed(0),
+                        valueColor: profitColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withOpacity(0.75),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Customer details',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _DetailLine(
+                        label: 'Name',
+                        value: (sale.customerName ?? '').trim().isEmpty
+                            ? 'Not provided'
+                            : sale.customerName!,
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
+                        label: 'Phone',
+                        value: (sale.customerPhone ?? '').trim().isEmpty
+                            ? 'Not provided'
+                            : sale.customerPhone!,
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
+                        label: 'Address',
+                        value: (sale.customerAddress ?? '').trim().isEmpty
+                            ? 'Not provided'
+                            : sale.customerAddress!,
+                        multiline: true,
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
+                        label: 'Date',
+                        value: formattedDate,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (sale.warranties.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Warranty Remaining:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: sale.warranties.entries.map((entry) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        '${entry.key}: ${_remainingWarrantyLabel(sale.soldAt, entry.value)}',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SaleCardCompact extends StatelessWidget {
+  final SaleRecord sale;
+  final String formattedDate;
+
+  const _SaleCardCompact({
+    required this.sale,
+    required this.formattedDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final profitColor = sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Purchase details',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 10,
+                runSpacing: 6,
+                children: [
+                  Text(
+                    sale.itemName,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.35,
+                    ),
+                  ),
+                  Text(
+                    '(${sale.category})',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _DetailLine(
+                label: 'Cost',
+                value: sale.costPrice.toStringAsFixed(0),
+              ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Selling',
+                value: sale.sellPrice.toStringAsFixed(0),
+              ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Qty',
+                value: '${sale.quantitySold}',
+              ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Profit',
+                value: sale.profit.toStringAsFixed(0),
+                valueColor: profitColor,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Customer details',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _DetailLine(
+                label: 'Name',
+                value: (sale.customerName ?? '').trim().isEmpty
+                    ? 'Not provided'
+                    : sale.customerName!,
+              ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Phone',
+                value: (sale.customerPhone ?? '').trim().isEmpty
+                    ? 'Not provided'
+                    : sale.customerPhone!,
+              ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Address',
+                value: (sale.customerAddress ?? '').trim().isEmpty
+                    ? 'Not provided'
+                    : sale.customerAddress!,
+                multiline: true,
+              ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Date',
+                value: formattedDate,
+              ),
+            ],
+          ),
+        ),
+        if (sale.warranties.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            'Warranty Remaining',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: sale.warranties.entries.map((entry) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  '${entry.key}: ${_remainingWarrantyLabel(sale.soldAt, entry.value)}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DetailLine extends StatelessWidget {
   final String label;
   final String value;
+  final bool multiline;
   final Color? valueColor;
 
-  const _SaleMetricChip({
-    required this.icon,
+  const _DetailLine({
     required this.label,
     required this.value,
+    this.multiline = false,
     this.valueColor,
   });
 
@@ -199,35 +425,87 @@ class _SaleMetricChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: cs.surfaceContainerHighest,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: cs.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 12.5,
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Text(
-            value,
+    return Row(
+      crossAxisAlignment: multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 62,
+          child: Text(
+            '$label:',
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              color: valueColor ?? cs.onSurface,
+              color: cs.onSurfaceVariant,
             ),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.4,
+              color: valueColor ?? cs.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
+}
+
+String _remainingWarrantyLabel(DateTime soldAt, int months) {
+  final now = DateTime.now();
+  final expiry = _addMonths(soldAt, months);
+
+  if (!expiry.isAfter(now)) {
+    return 'Expired';
+  }
+
+  final diff = _differenceInMonthsAndDays(now, expiry);
+
+  if (diff.$1 > 0 && diff.$2 > 0) {
+    return '${diff.$1} mo ${diff.$2} day left';
+  }
+  if (diff.$1 > 0) {
+    return '${diff.$1} mo left';
+  }
+  if (diff.$2 > 0) {
+    return '${diff.$2} day left';
+  }
+  return 'Less than 1 day left';
+}
+
+(int, int) _differenceInMonthsAndDays(DateTime from, DateTime to) {
+  var months = (to.year - from.year) * 12 + (to.month - from.month);
+  var candidate = _addMonths(from, months);
+
+  if (candidate.isAfter(to)) {
+    months--;
+    candidate = _addMonths(from, months);
+  }
+
+  final days = to.difference(candidate).inDays;
+  return (months, days);
+}
+
+DateTime _addMonths(DateTime date, int monthsToAdd) {
+  final totalMonths = (date.year * 12 + date.month - 1) + monthsToAdd;
+  final newYear = totalMonths ~/ 12;
+  final newMonth = (totalMonths % 12) + 1;
+
+  final lastDayOfTargetMonth = DateTime(newYear, newMonth + 1, 0).day;
+  final newDay = date.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : date.day;
+
+  return DateTime(
+    newYear,
+    newMonth,
+    newDay,
+    date.hour,
+    date.minute,
+    date.second,
+    date.millisecond,
+    date.microsecond,
+  );
 }

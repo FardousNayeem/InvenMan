@@ -49,20 +49,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       : 'History',
               style: const TextStyle(
                 fontSize: 24,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
               ),
             ),
             Text(
               _currentIndex == 0
-                  ? 'Track items, pricing, stock, and sales'
+                  ? 'Track items, pricing, stock, supplier, and sales'
                   : _currentIndex == 1
-                      ? 'View completed sales and customer details'
+                      ? 'Review transactions, customers, and warranty status'
                       : 'Recent activity and inventory timeline',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

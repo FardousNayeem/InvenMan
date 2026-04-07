@@ -23,6 +23,9 @@ class _SellItemDialogState extends State<SellItemDialog> {
   late final TextEditingController _customerNameController;
   late final TextEditingController _customerPhoneController;
   late final TextEditingController _customerAddressController;
+  late final TextEditingController _installmentMonthsController;
+
+  String _paymentType = 'direct';
 
   @override
   void initState() {
@@ -33,6 +36,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
     _customerNameController = TextEditingController();
     _customerPhoneController = TextEditingController();
     _customerAddressController = TextEditingController();
+    _installmentMonthsController = TextEditingController();
   }
 
   @override
@@ -42,6 +46,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
     _customerNameController.dispose();
     _customerPhoneController.dispose();
     _customerAddressController.dispose();
+    _installmentMonthsController.dispose();
     super.dispose();
   }
 
@@ -167,6 +172,51 @@ class _SellItemDialogState extends State<SellItemDialog> {
                   hint: 'Optional',
                   maxLines: 2,
                 ),
+                const SizedBox(height: 16),
+                Text(
+                  'Payment type',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment<String>(
+                      value: 'direct',
+                      label: Text('Direct'),
+                      icon: Icon(Icons.payments_outlined),
+                    ),
+                    ButtonSegment<String>(
+                      value: 'installment',
+                      label: Text('Installment'),
+                      icon: Icon(Icons.calendar_month_outlined),
+                    ),
+                  ],
+                  selected: {_paymentType},
+                  onSelectionChanged: (value) {
+                    setState(() {
+                      _paymentType = value.first;
+                      if (_paymentType == 'direct') {
+                        _installmentMonthsController.clear();
+                      }
+                    });
+                  },
+                ),
+                if (_paymentType == 'installment') ...[
+                  const SizedBox(height: 14),
+                  AppTextField(
+                    controller: _installmentMonthsController,
+                    label: 'Installment duration (months)',
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (_paymentType != 'installment') return null;
+                      final parsed = int.tryParse(value?.trim() ?? '');
+                      if (parsed == null || parsed <= 0) return 'Invalid';
+                      return null;
+                    },
+                  ),
+                ],
                 if (item.warranties.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text(
@@ -212,8 +262,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
                           await DBHelper.sellItem(
                             item: item,
                             quantitySold: int.parse(_quantityController.text.trim()),
-                            sellPricePerUnit:
-                                double.parse(_sellPriceController.text.trim()),
+                            sellPricePerUnit: double.parse(_sellPriceController.text.trim()),
                             customerName: _customerNameController.text.trim().isEmpty
                                 ? null
                                 : _customerNameController.text.trim(),
@@ -223,6 +272,10 @@ class _SellItemDialogState extends State<SellItemDialog> {
                             customerAddress: _customerAddressController.text.trim().isEmpty
                                 ? null
                                 : _customerAddressController.text.trim(),
+                            paymentType: _paymentType,
+                            installmentMonths: _paymentType == 'installment'
+                                ? int.parse(_installmentMonthsController.text.trim())
+                                : null,
                           );
 
                           if (!mounted) return;

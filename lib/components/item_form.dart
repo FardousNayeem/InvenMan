@@ -28,6 +28,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
 
   final List<_WarrantyFieldData> _warrantyFields = [];
   List<String> _imagePaths = [];
+  List<String> _categorySuggestions = [];
 
   bool get _isEditing => widget.existingItem != null;
 
@@ -64,6 +65,16 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         );
       }
     }
+
+    _loadCategorySuggestions();
+  }
+
+  Future<void> _loadCategorySuggestions() async {
+    final categories = await DBHelper.fetchDistinctCategories();
+    if (!mounted) return;
+    setState(() {
+      _categorySuggestions = categories;
+    });
   }
 
   @override
@@ -262,11 +273,52 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: AppTextField(
-                        controller: _categoryController,
-                        label: 'Category',
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty ? 'Required' : null,
+                      child: Autocomplete<String>(
+                        optionsBuilder: (textEditingValue) {
+                          final input = textEditingValue.text.trim().toLowerCase();
+                          if (_categorySuggestions.isEmpty) return const Iterable<String>.empty();
+                          if (input.isEmpty) return _categorySuggestions;
+                          return _categorySuggestions.where(
+                            (category) => category.toLowerCase().contains(input),
+                          );
+                        },
+                        initialValue: TextEditingValue(text: _categoryController.text),
+                        onSelected: (value) {
+                          _categoryController.text = value;
+                        },
+                        fieldViewBuilder: (
+                          context,
+                          controller,
+                          focusNode,
+                          onFieldSubmitted,
+                        ) {
+                          controller.text = _categoryController.text;
+                          controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: controller.text.length),
+                          );
+
+                          controller.addListener(() {
+                            _categoryController.text = controller.text;
+                          });
+
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Category',
+                              filled: true,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                                borderSide: BorderSide(color: cs.outlineVariant),
+                              ),
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty ? 'Required' : null,
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -293,7 +345,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                     Expanded(
                       child: AppTextField(
                         controller: _sellingPriceController,
-                        label: 'Selling price',
+                        label: 'MRP',
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: _validateMoney,
                       ),

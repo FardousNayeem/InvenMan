@@ -12,7 +12,7 @@ class DBHelper {
   static bool _isInitialized = false;
 
   static const String _databaseName = 'inventory.db';
-  static const int _databaseVersion = 6;
+  static const int _databaseVersion = 8;
 
   static Future<void> _initPlatform() async {
     if (_isInitialized) return;
@@ -85,7 +85,7 @@ class DBHelper {
     await db.execute('''
       CREATE TABLE sale_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id INTEGER NOT NULL,
+        item_id INTEGER,
         item_name TEXT NOT NULL,
         category TEXT NOT NULL,
         quantity_sold INTEGER NOT NULL CHECK (quantity_sold > 0),
@@ -95,9 +95,18 @@ class DBHelper {
         customer_name TEXT,
         customer_phone TEXT,
         customer_address TEXT,
+        payment_type TEXT NOT NULL DEFAULT 'direct'
+          CHECK (payment_type IN ('direct', 'installment')),
+        installment_months INTEGER
+          CHECK (installment_months IS NULL OR installment_months > 0),
         warranties_json TEXT NOT NULL DEFAULT '{}',
+        image_paths_json TEXT NOT NULL DEFAULT '[]',
         sold_at TEXT NOT NULL,
-        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT
+        CHECK (
+          (payment_type = 'direct' AND installment_months IS NULL) OR
+          (payment_type = 'installment' AND installment_months IS NOT NULL)
+        ),
+        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
       )
     ''');
 
@@ -125,7 +134,7 @@ class DBHelper {
     if (warranties.isEmpty) return 'No warranty';
 
     return warranties.entries
-        .map((entry) => '${entry.key}: ${entry.value} month${entry.value == 1 ? '' : 's'}')
+        .map((e) => '${e.key}: ${e.value} month${e.value == 1 ? '' : 's'}')
         .join(', ');
   }
 
@@ -183,7 +192,7 @@ class DBHelper {
       whereArgs: [id],
     );
 
-    await logHistory(name, 'Deleted', 'Item deleted');
+    await logHistory(name, 'Deleted', 'Item deleted from inventory');
   }
 
   static Future<List<Item>> fetchItems({String sortBy = 'name'}) async {
@@ -219,17 +228,11 @@ class DBHelper {
       case 'created_at_desc':
         orderBy = 'created_at DESC';
         break;
-      case 'name':
       default:
         orderBy = 'name ASC';
-        break;
     }
 
-    final maps = await dbClient.query(
-      'items',
-      orderBy: orderBy,
-    );
-
+    final maps = await dbClient.query('items', orderBy: orderBy);
     return maps.map((map) => Item.fromMap(map)).toList();
   }
 
@@ -247,39 +250,65 @@ class DBHelper {
     return Item.fromMap(maps.first);
   }
 
-  static Future<void> insertSaleRecord(SaleRecord sale) async {
+  static Future<List<String>> fetchDistinctCategories() async {
     final dbClient = await db;
 
+    final result = await dbClient.rawQuery('''
+      SELECT DISTINCT category
+      FROM items
+      WHERE TRIM(category) != ''
+      ORDER BY category COLLATE NOCASE ASC
+    ''');
+
+    return result
+        .map((e) => (e['category'] as String?)?.trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  static Future<void> insertSaleRecord(SaleRecord sale) async {
+    final dbClient = await db;
     await dbClient.insert('sale_records', sale.toMap());
 
     final details = StringBuffer()
       ..write('Qty: ${sale.quantitySold}, Sell: ${sale.sellPrice}, Profit: ${sale.profit}');
 
-    if (sale.customerName != null && sale.customerName!.trim().isNotEmpty) {
+    if ((sale.customerName ?? '').trim().isNotEmpty) {
       details.write(', Customer: ${sale.customerName}');
     }
-    if (sale.customerPhone != null && sale.customerPhone!.trim().isNotEmpty) {
+    if ((sale.customerPhone ?? '').trim().isNotEmpty) {
       details.write(', Phone: ${sale.customerPhone}');
     }
 
-    details.write(', Warranties: ${_formatWarranties(sale.warranties)}');
+    details.write(', Payment: ${sale.paymentType}');
+    if (sale.paymentType == 'installment' && sale.installmentMonths != null) {
+      details.write(', Installment: ${sale.installmentMonths} month(s)');
+    }
 
-    await logHistory(
-      sale.itemName,
-      'Sold',
-      details.toString(),
-    );
+    details.write(', Warranties: ${_formatWarranties(sale.warranties)}');
+    details.write(', Images: ${_formatImageCount(sale.imagePaths)}');
+
+    await logHistory(sale.itemName, 'Sold', details.toString());
   }
 
   static Future<List<SaleRecord>> fetchSaleRecords() async {
     final dbClient = await db;
+    final maps = await dbClient.query('sale_records', orderBy: 'sold_at DESC');
+    return maps.map((map) => SaleRecord.fromMap(map)).toList();
+  }
+
+  static Future<SaleRecord?> fetchSaleRecordById(int id) async {
+    final dbClient = await db;
 
     final maps = await dbClient.query(
       'sale_records',
-      orderBy: 'sold_at DESC',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
     );
 
-    return maps.map((map) => SaleRecord.fromMap(map)).toList();
+    if (maps.isEmpty) return null;
+    return SaleRecord.fromMap(maps.first);
   }
 
   static Future<void> logHistory(
@@ -288,7 +317,6 @@ class DBHelper {
     String details,
   ) async {
     final dbClient = await db;
-
     await dbClient.insert('history_entries', {
       'item_name': itemName,
       'action': action,
@@ -299,12 +327,7 @@ class DBHelper {
 
   static Future<List<HistoryEntry>> fetchHistoryEntries() async {
     final dbClient = await db;
-
-    final maps = await dbClient.query(
-      'history_entries',
-      orderBy: 'created_at DESC',
-    );
-
+    final maps = await dbClient.query('history_entries', orderBy: 'created_at DESC');
     return maps.map((map) => HistoryEntry.fromMap(map)).toList();
   }
 
@@ -315,6 +338,8 @@ class DBHelper {
     String? customerName,
     String? customerPhone,
     String? customerAddress,
+    required String paymentType,
+    int? installmentMonths,
   }) async {
     final dbClient = await db;
 
@@ -328,6 +353,19 @@ class DBHelper {
 
     if (item.quantity < quantitySold) {
       throw Exception('Not enough stock available.');
+    }
+
+    if (paymentType != 'direct' && paymentType != 'installment') {
+      throw Exception('Payment type must be either direct or installment.');
+    }
+
+    if (paymentType == 'installment' &&
+        (installmentMonths == null || installmentMonths <= 0)) {
+      throw Exception('Installment duration must be greater than zero.');
+    }
+
+    if (paymentType == 'direct') {
+      installmentMonths = null;
     }
 
     final updatedItem = item.copyWith(
@@ -348,7 +386,10 @@ class DBHelper {
       customerName: customerName,
       customerPhone: customerPhone,
       customerAddress: customerAddress,
+      paymentType: paymentType,
+      installmentMonths: installmentMonths,
       warranties: item.warranties,
+      imagePaths: item.imagePaths,
       soldAt: DateTime.now().toUtc(),
     );
 
@@ -365,14 +406,20 @@ class DBHelper {
       final details = StringBuffer()
         ..write('Qty: $quantitySold, Sell: $sellPricePerUnit, Profit: $profit');
 
-      if (customerName != null && customerName.trim().isNotEmpty) {
+      if ((customerName ?? '').trim().isNotEmpty) {
         details.write(', Customer: $customerName');
       }
-      if (customerPhone != null && customerPhone.trim().isNotEmpty) {
+      if ((customerPhone ?? '').trim().isNotEmpty) {
         details.write(', Phone: $customerPhone');
       }
 
+      details.write(', Payment: $paymentType');
+      if (paymentType == 'installment' && installmentMonths != null) {
+        details.write(', Installment: $installmentMonths month(s)');
+      }
+
       details.write(', Warranties: ${_formatWarranties(item.warranties)}');
+      details.write(', Images: ${_formatImageCount(item.imagePaths)}');
 
       await txn.insert('history_entries', {
         'item_name': item.name,
@@ -385,7 +432,6 @@ class DBHelper {
 
   static Future<void> clearAllData() async {
     final dbClient = await db;
-
     await dbClient.delete('history_entries');
     await dbClient.delete('sale_records');
     await dbClient.delete('items');
