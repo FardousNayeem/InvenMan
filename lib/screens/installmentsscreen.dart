@@ -6,6 +6,7 @@ import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/components/installment_card.dart';
 import 'package:invenman/components/installments_top_controls.dart';
+import 'package:invenman/screens/installment_details_screen.dart';
 
 class InstallmentsPage extends StatefulWidget {
   final int refreshToken;
@@ -147,6 +148,19 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
           plan.status.toLowerCase().contains(_searchQuery) ||
           entry.thisMonthStatus.toLowerCase().contains(_searchQuery);
     }).toList();
+  }
+
+  void _openInstallmentDetails(InstallmentPlan plan) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InstallmentDetailsScreen(plan: plan),
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(_loadInstallments);
+      }
+    });
   }
 
   @override
@@ -308,7 +322,7 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
                             formattedNextDueDate: plan.nextDueDate != null
                                 ? _formatDateTime(plan.nextDueDate!)
                                 : 'No remaining dues',
-                            onTap: null,
+                            onTap: () => _openInstallmentDetails(plan),
                           );
                         },
                       ),
