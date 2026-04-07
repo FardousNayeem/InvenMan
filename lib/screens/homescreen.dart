@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:invenman/main.dart';
 import 'package:invenman/screens/historyscreen.dart';
+import 'package:invenman/screens/installmentsscreen.dart';
 import 'package:invenman/screens/inventoryscreen.dart';
 import 'package:invenman/screens/salesscreen.dart';
 
@@ -38,6 +39,12 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.point_of_sale_rounded,
         );
       case 2:
+        return const _PageMeta(
+          title: 'Installments',
+          subtitle: 'Monitor due dates, payment progress, balances, and overdue plans',
+          icon: Icons.calendar_month_rounded,
+        );
+      case 3:
       default:
         return const _PageMeta(
           title: 'History',
@@ -58,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final screens = [
       InventoryPage(onDataChanged: _handleDataChanged),
       SalesPage(refreshToken: _refreshToken),
+      InstallmentsPage(refreshToken: _refreshToken),
       HistoryPage(refreshToken: _refreshToken),
     ];
 
@@ -270,6 +278,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icon(Icons.point_of_sale_outlined),
                   selectedIcon: Icon(Icons.point_of_sale_rounded),
                   label: 'Sales',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.calendar_month_outlined),
+                  selectedIcon: Icon(Icons.calendar_month_rounded),
+                  label: 'Installments',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.history_outlined),
