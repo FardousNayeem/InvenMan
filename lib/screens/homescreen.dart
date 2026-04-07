@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:invenman/main.dart';
 import 'package:invenman/screens/historyscreen.dart';
 import 'package:invenman/screens/inventoryscreen.dart';
+import 'package:invenman/screens/salesscreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final screens = [
       InventoryPage(onDataChanged: _handleDataChanged),
+      SalesPage(refreshToken: _refreshToken),
       HistoryPage(refreshToken: _refreshToken),
     ];
 
@@ -40,7 +42,11 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _currentIndex == 0 ? 'Inventory' : 'History',
+              _currentIndex == 0
+                  ? 'Inventory'
+                  : _currentIndex == 1
+                      ? 'Sales'
+                      : 'History',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
@@ -50,7 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               _currentIndex == 0
                   ? 'Track items, pricing, stock, and sales'
-                  : 'Recent activity and inventory timeline',
+                  : _currentIndex == 1
+                      ? 'View completed sales and customer details'
+                      : 'Recent activity and inventory timeline',
               style: TextStyle(
                 fontSize: 12,
                 color: cs.onSurfaceVariant,
@@ -94,6 +102,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icon(Icons.inventory_2_outlined),
                 selectedIcon: Icon(Icons.inventory_2_rounded),
                 label: 'Inventory',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.point_of_sale_outlined),
+                selectedIcon: Icon(Icons.point_of_sale_rounded),
+                label: 'Sales',
               ),
               NavigationDestination(
                 icon: Icon(Icons.history_outlined),
