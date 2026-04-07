@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -19,37 +20,64 @@ class SaleDetailsScreen extends StatefulWidget {
 class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
   int _selectedImageIndex = 0;
 
+  SaleRecord get sale => widget.sale;
+
   String _formatDate(DateTime date) {
     return DateFormat('d MMM yyyy • h:mm a').format(date.toLocal());
   }
 
+  String get _paymentLabel {
+    if (sale.isInstallment) {
+      return 'Installment (${sale.installmentMonths ?? '-'} months)';
+    }
+    return 'Direct';
+  }
+
+  Color _profitColor() {
+    return sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
+  }
+
+  int get _safeSelectedIndex {
+    if (sale.imagePaths.isEmpty) return 0;
+    return math.min(_selectedImageIndex, sale.imagePaths.length - 1);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final sale = widget.sale;
     final cs = Theme.of(context).colorScheme;
     final width = MediaQuery.of(context).size.width;
-    final isCompact = width < 860;
-
-    final profitColor = sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
+    final isCompact = width < 900;
     final selectedImagePath =
-        sale.imagePaths.isNotEmpty ? sale.imagePaths[_selectedImageIndex] : null;
+        sale.imagePaths.isNotEmpty ? sale.imagePaths[_safeSelectedIndex] : null;
+    final profitColor = _profitColor();
 
     return Scaffold(
+      backgroundColor: cs.surface,
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
+          SliverAppBar(
             pinned: true,
-            expandedHeight: 360,
+            stretch: true,
+            expandedHeight: 390,
             backgroundColor: cs.surface,
+            surfaceTintColor: cs.surfaceTint,
+            leading: _HeaderIconButton(
+              icon: Icons.arrow_back_rounded,
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(start: 20, bottom: 18, end: 20),
+              titlePadding: const EdgeInsetsDirectional.only(
+                start: 20,
+                end: 20,
+                bottom: 18,
+              ),
               title: Text(
                 sale.itemName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
+                  letterSpacing: -0.7,
                 ),
               ),
               background: Stack(
@@ -76,7 +104,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.black.withOpacity(0.08),
-                          Colors.black.withOpacity(0.5),
+                          Colors.black.withOpacity(0.58),
                         ],
                       ),
                     ),
@@ -84,24 +112,48 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                   Positioned(
                     left: 18,
                     right: 18,
-                    bottom: 92,
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+                    bottom: 94,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _TopPill(
-                          icon: Icons.category_rounded,
-                          label: sale.category,
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            _TopPill(
+                              icon: Icons.category_rounded,
+                              label: sale.category,
+                            ),
+                            _TopPill(
+                              icon: sale.isInstallment
+                                  ? Icons.calendar_month_rounded
+                                  : Icons.payments_rounded,
+                              label: _paymentLabel,
+                            ),
+                            _TopPill(
+                              icon: Icons.trending_up_rounded,
+                              label: 'Profit ${sale.profit.toStringAsFixed(0)}',
+                              accentColor: profitColor,
+                            ),
+                            _TopPill(
+                              icon: Icons.schedule_rounded,
+                              label: _formatDate(sale.soldAt),
+                            ),
+                          ],
                         ),
-                        _TopPill(
-                          icon: Icons.point_of_sale_rounded,
-                          label: sale.paymentType == 'installment'
-                              ? 'Installment'
-                              : 'Direct',
-                        ),
-                        _TopPill(
-                          icon: Icons.trending_up_rounded,
-                          label: 'Profit ${sale.profit.toStringAsFixed(0)}',
+                        const SizedBox(height: 14),
+                        Text(
+                          (sale.customerName ?? '').trim().isNotEmpty
+                              ? 'Sold to ${sale.customerName}'
+                              : 'Transaction details and warranty coverage for this sale.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
+                          ),
                         ),
                       ],
                     ),
@@ -110,7 +162,6 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
               ),
             ),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
@@ -118,54 +169,17 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (sale.imagePaths.length > 1) ...[
-                    SizedBox(
-                      height: 92,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: sale.imagePaths.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (_, index) {
-                          final path = sale.imagePaths[index];
-                          final isSelected = _selectedImageIndex == index;
-
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedImageIndex = index;
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              width: 92,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: isSelected ? cs.primary : cs.outlineVariant,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.file(
-                                  File(path),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: cs.surfaceContainerHighest,
-                                    child: Icon(
-                                      Icons.broken_image_rounded,
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                    _ThumbnailRail(
+                      imagePaths: sale.imagePaths,
+                      selectedIndex: _safeSelectedIndex,
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedImageIndex = index;
+                        });
+                      },
                     ),
                     const SizedBox(height: 18),
                   ],
-
                   if (isCompact)
                     Column(
                       children: [
@@ -175,14 +189,11 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                           profitColor: profitColor,
                         ),
                         const SizedBox(height: 14),
-                        _CustomerCard(
-                          sale: sale,
-                          formattedDate: _formatDate(sale.soldAt),
-                        ),
+                        _CustomerCard(sale: sale),
                         const SizedBox(height: 14),
-                        _SaleWarrantyCard(
-                          sale: sale,
-                        ),
+                        _PaymentCard(sale: sale),
+                        const SizedBox(height: 14),
+                        _SaleWarrantyCard(sale: sale),
                       ],
                     )
                   else
@@ -190,7 +201,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          flex: 5,
+                          flex: 6,
                           child: Column(
                             children: [
                               _SaleOverviewCard(
@@ -206,9 +217,12 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                         const SizedBox(width: 14),
                         Expanded(
                           flex: 4,
-                          child: _CustomerCard(
-                            sale: sale,
-                            formattedDate: _formatDate(sale.soldAt),
+                          child: Column(
+                            children: [
+                              _CustomerCard(sale: sale),
+                              const SizedBox(height: 14),
+                              _PaymentCard(sale: sale),
+                            ],
                           ),
                         ),
                       ],
@@ -218,6 +232,184 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _HeaderIconButton({
+    required this.icon,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: IconButton.filledTonal(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.black.withOpacity(0.18),
+          foregroundColor: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroPlaceholder extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HeroPlaceholder({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.surfaceContainerHighest,
+            cs.surfaceContainer,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 72, color: cs.onSurfaceVariant),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? accentColor;
+
+  const _TopPill({
+    required this.icon,
+    required this.label,
+    this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = accentColor ?? Colors.white;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThumbnailRail extends StatelessWidget {
+  final List<String> imagePaths;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  const _ThumbnailRail({
+    required this.imagePaths,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: 94,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: imagePaths.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, index) {
+          final path = imagePaths[index];
+          final isSelected = selectedIndex == index;
+
+          return GestureDetector(
+            onTap: () => onSelected(index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 94,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected ? cs.primary : cs.outlineVariant,
+                  width: isSelected ? 2 : 1,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                          color: cs.primary.withOpacity(0.18),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.file(
+                  File(path),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: cs.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.broken_image_rounded,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -238,6 +430,7 @@ class _SaleOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _GlassSection(
       title: 'Purchase details',
+      subtitle: 'Transaction pricing, quantity, and outcome',
       child: Column(
         children: [
           Row(
@@ -281,14 +474,12 @@ class _SaleOverviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _LineItem(
-            label: 'Payment',
-            value: sale.isInstallment
-                ? 'Installment (${sale.installmentMonths ?? '-'} months)'
-                : 'Direct',
-          ),
-          const SizedBox(height: 8),
           _LineItem(label: 'Date', value: formattedDate),
+          const SizedBox(height: 8),
+          _LineItem(
+            label: 'Category',
+            value: sale.category,
+          ),
         ],
       ),
     );
@@ -297,17 +488,16 @@ class _SaleOverviewCard extends StatelessWidget {
 
 class _CustomerCard extends StatelessWidget {
   final SaleRecord sale;
-  final String formattedDate;
 
   const _CustomerCard({
     required this.sale,
-    required this.formattedDate,
   });
 
   @override
   Widget build(BuildContext context) {
     return _GlassSection(
       title: 'Customer details',
+      subtitle: 'Buyer information captured at the time of sale',
       child: Column(
         children: [
           _LineItem(
@@ -336,6 +526,37 @@ class _CustomerCard extends StatelessWidget {
   }
 }
 
+class _PaymentCard extends StatelessWidget {
+  final SaleRecord sale;
+
+  const _PaymentCard({
+    required this.sale,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassSection(
+      title: 'Payment details',
+      subtitle: 'Settlement mode and installment terms',
+      child: Column(
+        children: [
+          _LineItem(
+            label: 'Type',
+            value: sale.isInstallment ? 'Installment' : 'Direct',
+          ),
+          const SizedBox(height: 8),
+          _LineItem(
+            label: 'Duration',
+            value: sale.isInstallment
+                ? '${sale.installmentMonths ?? '-'} month(s)'
+                : 'Not applicable',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SaleWarrantyCard extends StatelessWidget {
   final SaleRecord sale;
 
@@ -347,6 +568,7 @@ class _SaleWarrantyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _GlassSection(
       title: 'Warranty remaining',
+      subtitle: 'Current coverage left from the purchase date',
       child: sale.warranties.isEmpty
           ? Text(
               'No warranty included.',
@@ -355,21 +577,47 @@ class _SaleWarrantyCard extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             )
-          : Wrap(
-              spacing: 10,
-              runSpacing: 10,
+          : Column(
               children: sale.warranties.entries.map((entry) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    '${entry.key}: ${_remainingWarrantyLabel(sale.soldAt, entry.value)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                final remaining = _remainingWarrantyLabel(sale.soldAt, entry.value);
+                final expired = remaining == 'Expired';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          expired ? Icons.gpp_bad_outlined : Icons.verified_outlined,
+                          size: 18,
+                          color: expired ? Colors.red.shade700 : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            entry.key,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          remaining,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: expired
+                                ? Colors.red.shade700
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -379,85 +627,15 @@ class _SaleWarrantyCard extends StatelessWidget {
   }
 }
 
-class _HeroPlaceholder extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _HeroPlaceholder({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      color: cs.surfaceContainerHighest,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 64, color: cs.onSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TopPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _TopPill({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _GlassSection extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final Widget child;
 
   const _GlassSection({
     required this.title,
     required this.child,
+    this.subtitle,
   });
 
   @override
@@ -469,7 +647,7 @@ class _GlassSection extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(color: cs.outlineVariant),
         boxShadow: [
           BoxShadow(
@@ -490,6 +668,17 @@ class _GlassSection extends StatelessWidget {
               letterSpacing: 0.2,
             ),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           child,
         ],

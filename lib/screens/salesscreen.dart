@@ -5,6 +5,7 @@ import 'package:invenman/db.dart';
 import 'package:invenman/models/sale_record.dart';
 import 'package:invenman/components/sale_card.dart';
 import 'package:invenman/components/sales_top_controls.dart';
+import 'package:invenman/screens/sale_details_screen.dart';
 
 class SalesPage extends StatefulWidget {
   final int refreshToken;
@@ -129,6 +130,15 @@ class _SalesPageState extends State<SalesPage> {
     return sorted;
   }
 
+  void _openSaleDetails(SaleRecord sale) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SaleDetailsScreen(sale: sale),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -174,64 +184,76 @@ class _SalesPageState extends State<SalesPage> {
               final searched = _applySearch(allSales);
               final sales = _applySort(searched);
 
-              if (sales.isEmpty) {
-                final emptyText =
-                    _searchQuery.isNotEmpty ? 'No matching sales found' : 'No sales yet';
+              final totalSales = allSales.length;
+              final totalUnitsSold = allSales.fold<int>(
+                0,
+                (sum, sale) => sum + sale.quantitySold,
+              );
+              final installmentCount = allSales
+                  .where((sale) => sale.paymentType == 'installment')
+                  .length;
+              final directCount = allSales.length - installmentCount;
 
-                final emptySubText = _searchQuery.isNotEmpty
-                    ? 'Try searching by item, category, customer, phone, or address.'
-                    : 'Completed sales will appear here.';
+              if (sales.isEmpty) {
+                final isSearching = _searchQuery.isNotEmpty;
 
                 return RefreshIndicator(
                   onRefresh: _refresh,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     children: [
-                      const SizedBox(height: 90),
-                      Icon(
-                        _searchQuery.isNotEmpty
-                            ? Icons.search_off_rounded
-                            : Icons.point_of_sale_outlined,
-                        size: 72,
-                        color: cs.outline,
-                      ),
-                      const SizedBox(height: 18),
-                      const Center(
-                        child: Text(
-                          'Sales',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.1,
-                          ),
+                      const SizedBox(height: 70),
+                      Container(
+                        width: 86,
+                        height: 86,
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isSearching
+                              ? Icons.search_off_rounded
+                              : Icons.point_of_sale_outlined,
+                          size: 40,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          emptyText,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
+                      const SizedBox(height: 20),
+                      Text(
+                        isSearching ? 'No matching sales found' : 'No sales yet',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
                         ),
                       ),
                       const SizedBox(height: 10),
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 28),
-                          child: Text(
-                            emptySubText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: cs.onSurfaceVariant,
-                              height: 1.45,
-                            ),
-                            textAlign: TextAlign.center,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        child: Text(
+                          isSearching
+                              ? 'Try searching by item, category, customer, phone, or address.'
+                              : 'Completed sales will appear here with payment type, customer details, warranties, and product image snapshots.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            height: 1.5,
+                            color: cs.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
+                      const SizedBox(height: 20),
+                      if (isSearching)
+                        Center(
+                          child: OutlinedButton.icon(
+                            onPressed: _cancelSearch,
+                            icon: const Icon(Icons.close_rounded),
+                            label: const Text('Clear search'),
+                          ),
+                        ),
                     ],
                   ),
                 );
@@ -239,27 +261,252 @@ class _SalesPageState extends State<SalesPage> {
 
               return RefreshIndicator(
                 onRefresh: _refresh,
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  itemCount: sales.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 14),
-                  itemBuilder: (_, i) {
-                    final sale = sales[i];
+                child: CustomScrollView(
+                  key: const PageStorageKey('sales_list'),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+                        child: _SalesInsightBar(
+                          totalSales: totalSales,
+                          totalUnitsSold: totalUnitsSold,
+                          directCount: directCount,
+                          installmentCount: installmentCount,
+                          isSearching: _searchQuery.isNotEmpty,
+                          resultCount: sales.length,
+                        ),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      sliver: SliverList.separated(
+                        itemCount: sales.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 14),
+                        itemBuilder: (_, i) {
+                          final sale = sales[i];
 
-                    return SaleCard(
-                      sale: sale,
-                      formattedDate: _formatDate(sale.soldAt),
-                      onTap: () {
-                        // later: sale details page
-                      },
-                    );
-                  },
+                          return SaleCard(
+                            sale: sale,
+                            formattedDate: _formatDate(sale.soldAt),
+                            onTap: () => _openSaleDetails(sale),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SalesInsightBar extends StatelessWidget {
+  final int totalSales;
+  final int totalUnitsSold;
+  final int directCount;
+  final int installmentCount;
+  final bool isSearching;
+  final int resultCount;
+
+  const _SalesInsightBar({
+    required this.totalSales,
+    required this.totalUnitsSold,
+    required this.directCount,
+    required this.installmentCount,
+    required this.isSearching,
+    required this.resultCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final compact = MediaQuery.of(context).size.width < 760;
+
+    if (compact) {
+      return Column(
+        children: [
+          if (isSearching)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: cs.secondaryContainer,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.filter_alt_rounded, size: 18, color: cs.onSecondaryContainer),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$resultCount result${resultCount == 1 ? '' : 's'} found',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: _InsightTile(
+                  label: 'Sales',
+                  value: '$totalSales',
+                  icon: Icons.receipt_long_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InsightTile(
+                  label: 'Units',
+                  value: '$totalUnitsSold',
+                  icon: Icons.inventory_2_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _InsightTile(
+                  label: 'Direct',
+                  value: '$directCount',
+                  icon: Icons.payments_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InsightTile(
+                  label: 'Installment',
+                  value: '$installmentCount',
+                  icon: Icons.calendar_month_outlined,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _InsightTile(
+            label: 'Sales',
+            value: '$totalSales',
+            icon: Icons.receipt_long_outlined,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _InsightTile(
+            label: 'Units',
+            value: '$totalUnitsSold',
+            icon: Icons.inventory_2_outlined,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _InsightTile(
+            label: 'Direct',
+            value: '$directCount',
+            icon: Icons.payments_outlined,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _InsightTile(
+            label: isSearching ? 'Results' : 'Installment',
+            value: isSearching ? '$resultCount' : '$installmentCount',
+            icon: isSearching
+                ? Icons.search_rounded
+                : Icons.calendar_month_outlined,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InsightTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _InsightTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.035),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, size: 18, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

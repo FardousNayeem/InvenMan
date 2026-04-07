@@ -7,6 +7,7 @@ import 'package:invenman/components/top_controls.dart';
 import 'package:invenman/components/inventory_card.dart';
 import 'package:invenman/components/item_form.dart';
 import 'package:invenman/components/sell_form.dart';
+import 'package:invenman/screens/item_details_screen.dart';
 
 class InventoryPage extends StatefulWidget {
   final VoidCallback? onDataChanged;
@@ -143,7 +144,9 @@ class _InventoryPageState extends State<InventoryPage> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           title: const Text('Delete item'),
-          content: Text('Are you sure you want to delete "${item.name}"?'),
+          content: Text(
+            'Are you sure you want to delete "${item.name}"?\n\nSales and history will be preserved.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -163,13 +166,25 @@ class _InventoryPageState extends State<InventoryPage> {
 
     if (shouldDelete == true) {
       await DBHelper.deleteItem(item.id!, item.name);
+      if (!mounted) return;
       _notifyChanged();
       _showMessage('Item deleted successfully.');
     }
   }
 
+  void _openItemDetails(Item item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ItemDetailsScreen(item: item),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         Padding(
@@ -204,7 +219,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 return Center(
                   child: Text(
                     'Something went wrong.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(color: cs.error),
                   ),
                 );
               }
@@ -212,51 +227,81 @@ class _InventoryPageState extends State<InventoryPage> {
               final allItems = snapshot.data ?? [];
               final items = _applySearch(allItems);
 
-              if (items.isEmpty) {
-                final emptyText =
-                    _searchQuery.isNotEmpty ? 'No matching items found' : 'No items yet';
+              final lowStockCount =
+                  allItems.where((item) => item.quantity > 0 && item.quantity <= 3).length;
+              final outOfStockCount =
+                  allItems.where((item) => item.quantity <= 0).length;
+              final totalUnits =
+                  allItems.fold<int>(0, (sum, item) => sum + item.quantity);
 
-                final emptySubText = _searchQuery.isNotEmpty
-                    ? 'Try searching by a different item name, description, category, or supplier.'
-                    : 'Add your first item to start building your inventory.';
+              if (items.isEmpty) {
+                final isSearching = _searchQuery.isNotEmpty;
 
                 return RefreshIndicator(
                   onRefresh: _refresh,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     children: [
-                      const SizedBox(height: 90),
-                      Icon(
-                        _searchQuery.isNotEmpty
-                            ? Icons.search_off_rounded
-                            : Icons.inventory_2_outlined,
-                        size: 68,
-                        color: Theme.of(context).colorScheme.outline,
+                      const SizedBox(height: 70),
+                      Container(
+                        width: 86,
+                        height: 86,
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isSearching
+                              ? Icons.search_off_rounded
+                              : Icons.inventory_2_outlined,
+                          size: 40,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Center(
+                      const SizedBox(height: 20),
+                      Text(
+                        isSearching ? 'No matching items found' : 'Inventory is empty',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
                         child: Text(
-                          emptyText,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
+                          isSearching
+                              ? 'Try a different item name, description, category, or supplier.'
+                              : 'Add your first product to start tracking stock, warranties, images, and sales.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            height: 1.5,
+                            color: cs.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            emptySubText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.center,
+                      const SizedBox(height: 20),
+                      if (isSearching)
+                        Center(
+                          child: OutlinedButton.icon(
+                            onPressed: _cancelSearch,
+                            icon: const Icon(Icons.close_rounded),
+                            label: const Text('Clear search'),
+                          ),
+                        )
+                      else
+                        Center(
+                          child: FilledButton.icon(
+                            onPressed: _showAddItemDialog,
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Add first item'),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 );
@@ -264,28 +309,256 @@ class _InventoryPageState extends State<InventoryPage> {
 
               return RefreshIndicator(
                 onRefresh: _refresh,
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) {
-                    final item = items[i];
+                child: CustomScrollView(
+                  key: const PageStorageKey('inventory_list'),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+                        child: _InventoryInsightBar(
+                          totalItems: allItems.length,
+                          totalUnits: totalUnits,
+                          lowStockCount: lowStockCount,
+                          outOfStockCount: outOfStockCount,
+                          isSearching: _searchQuery.isNotEmpty,
+                          resultCount: items.length,
+                        ),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      sliver: SliverList.separated(
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (_, i) {
+                          final item = items[i];
 
-                    return InventoryCard(
-                      item: item,
-                      formattedCreatedAt: _formatDate(item.createdAt),
-                      formattedUpdatedAt: _formatDate(item.updatedAt),
-                      onSell: () => _showSellItemDialog(item),
-                      onEdit: () => _showEditItemDialog(item),
-                      onDelete: () => _confirmDelete(item),
-                    );
-                  },
+                          return InventoryCard(
+                            item: item,
+                            formattedCreatedAt: _formatDate(item.createdAt),
+                            formattedUpdatedAt: _formatDate(item.updatedAt),
+                            onSell: () => _showSellItemDialog(item),
+                            onEdit: () => _showEditItemDialog(item),
+                            onDelete: () => _confirmDelete(item),
+                            onTap: () => _openItemDetails(item),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class _InventoryInsightBar extends StatelessWidget {
+  final int totalItems;
+  final int totalUnits;
+  final int lowStockCount;
+  final int outOfStockCount;
+  final bool isSearching;
+  final int resultCount;
+
+  const _InventoryInsightBar({
+    required this.totalItems,
+    required this.totalUnits,
+    required this.lowStockCount,
+    required this.outOfStockCount,
+    required this.isSearching,
+    required this.resultCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final compact = MediaQuery.of(context).size.width < 760;
+
+    if (compact) {
+      return Column(
+        children: [
+          if (isSearching)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: cs.secondaryContainer,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.filter_alt_rounded, size: 18, color: cs.onSecondaryContainer),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$resultCount result${resultCount == 1 ? '' : 's'} found',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: _InsightTile(
+                  label: 'Items',
+                  value: '$totalItems',
+                  icon: Icons.widgets_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InsightTile(
+                  label: 'Units',
+                  value: '$totalUnits',
+                  icon: Icons.inventory_2_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _InsightTile(
+                  label: 'Low stock',
+                  value: '$lowStockCount',
+                  icon: Icons.warning_amber_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InsightTile(
+                  label: 'Out',
+                  value: '$outOfStockCount',
+                  icon: Icons.remove_shopping_cart_outlined,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _InsightTile(
+            label: 'Items',
+            value: '$totalItems',
+            icon: Icons.widgets_outlined,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _InsightTile(
+            label: 'Units',
+            value: '$totalUnits',
+            icon: Icons.inventory_2_outlined,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _InsightTile(
+            label: 'Low stock',
+            value: '$lowStockCount',
+            icon: Icons.warning_amber_rounded,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _InsightTile(
+            label: isSearching ? 'Results' : 'Out of stock',
+            value: isSearching ? '$resultCount' : '$outOfStockCount',
+            icon: isSearching
+                ? Icons.search_rounded
+                : Icons.remove_shopping_cart_outlined,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InsightTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _InsightTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.035),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, size: 18, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
