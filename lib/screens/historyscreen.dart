@@ -5,6 +5,10 @@ import 'package:intl/intl.dart';
 
 import 'package:invenman/db.dart';
 import 'package:invenman/models/history.dart';
+import 'package:invenman/theme/app_ui.dart';
+import 'package:invenman/theme/app_sort_button.dart';
+import 'package:invenman/theme/app_top_bar_buttons.dart';
+
 
 class HistoryPage extends StatefulWidget {
   final int refreshToken;
@@ -102,6 +106,9 @@ class _HistoryPageState extends State<HistoryPage> {
         return Colors.orange.shade700;
       case 'sold':
         return Colors.blue.shade700;
+      case 'installment':
+      case 'installment payment':
+        return Colors.purple.shade700;
       case 'deleted':
         return Colors.red.shade700;
       default:
@@ -117,6 +124,9 @@ class _HistoryPageState extends State<HistoryPage> {
         return Icons.edit_rounded;
       case 'sold':
         return Icons.point_of_sale_rounded;
+      case 'installment':
+      case 'installment payment':
+        return Icons.calendar_month_rounded;
       case 'deleted':
         return Icons.delete_rounded;
       default:
@@ -143,14 +153,16 @@ class _HistoryPageState extends State<HistoryPage> {
         break;
       case 'action':
         sorted.sort((a, b) {
-          final byAction = a.action.toLowerCase().compareTo(b.action.toLowerCase());
+          final byAction =
+              a.action.toLowerCase().compareTo(b.action.toLowerCase());
           if (byAction != 0) return byAction;
           return b.createdAt.compareTo(a.createdAt);
         });
         break;
       case 'item':
         sorted.sort((a, b) {
-          final byName = a.itemName.toLowerCase().compareTo(b.itemName.toLowerCase());
+          final byName =
+              a.itemName.toLowerCase().compareTo(b.itemName.toLowerCase());
           if (byName != 0) return byName;
           return b.createdAt.compareTo(a.createdAt);
         });
@@ -164,7 +176,9 @@ class _HistoryPageState extends State<HistoryPage> {
     return sorted;
   }
 
-  LinkedHashMap<String, List<HistoryEntry>> _groupEntries(List<HistoryEntry> entries) {
+  LinkedHashMap<String, List<HistoryEntry>> _groupEntries(
+    List<HistoryEntry> entries,
+  ) {
     final grouped = LinkedHashMap<String, List<HistoryEntry>>();
 
     for (final entry in entries) {
@@ -198,7 +212,12 @@ class _HistoryPageState extends State<HistoryPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          padding: const EdgeInsets.fromLTRB(
+            AppUi.pageHPadding,
+            AppUi.pageTopPadding,
+            AppUi.pageHPadding,
+            8,
+          ),
           child: _HistoryTopControls(
             sortBy: _sortBy,
             isSearchActive: _isSearchActive,
@@ -250,59 +269,31 @@ class _HistoryPageState extends State<HistoryPage> {
                   onRefresh: _refresh,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppUi.pageHPadding,
+                      8,
+                      AppUi.pageHPadding,
+                      AppUi.pageBottomPadding,
+                    ),
                     children: [
-                      const SizedBox(height: 70),
-                      Container(
-                        width: 86,
-                        height: 86,
-                        decoration: BoxDecoration(
-                          color: cs.surfaceContainerHighest,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isSearching
-                              ? Icons.search_off_rounded
-                              : Icons.history_toggle_off_rounded,
-                          size: 40,
-                          color: cs.onSurfaceVariant,
-                        ),
+                      AppEmptyState(
+                        icon: isSearching
+                            ? Icons.search_off_rounded
+                            : Icons.history_toggle_off_rounded,
+                        title: isSearching
+                            ? 'No matching activity found'
+                            : 'No history yet',
+                        message: isSearching
+                            ? 'Try searching by item, event type, or activity details.'
+                            : 'Sales, edits, additions, deletions, and installment updates will appear here as one clean timeline.',
+                        action: isSearching
+                            ? OutlinedButton.icon(
+                                onPressed: _cancelSearch,
+                                icon: const Icon(Icons.close_rounded),
+                                label: const Text('Clear search'),
+                              )
+                            : null,
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        isSearching ? 'No matching activity found' : 'No history yet',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.6,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: Text(
-                          isSearching
-                              ? 'Try searching by item, event type, or activity details.'
-                              : 'Sales, edits, additions, and deletions will appear here as a clean activity timeline.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            height: 1.5,
-                            color: cs.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      if (isSearching)
-                        Center(
-                          child: OutlinedButton.icon(
-                            onPressed: _cancelSearch,
-                            icon: const Icon(Icons.close_rounded),
-                            label: const Text('Clear search'),
-                          ),
-                        ),
                     ],
                   ),
                 );
@@ -316,7 +307,12 @@ class _HistoryPageState extends State<HistoryPage> {
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+                        padding: const EdgeInsets.fromLTRB(
+                          AppUi.pageHPadding,
+                          2,
+                          AppUi.pageHPadding,
+                          12,
+                        ),
                         child: _HistoryInsightBar(
                           totalEvents: totalEvents,
                           todayCount: todayCount,
@@ -329,7 +325,12 @@ class _HistoryPageState extends State<HistoryPage> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppUi.pageHPadding,
+                        0,
+                        AppUi.pageHPadding,
+                        AppUi.pageBottomPadding,
+                      ),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate.fixed([
                           for (final group in grouped.entries) ...[
@@ -341,7 +342,9 @@ class _HistoryPageState extends State<HistoryPage> {
 
                               return Padding(
                                 padding: EdgeInsets.only(
-                                  bottom: index == group.value.length - 1 ? 18 : 12,
+                                  bottom: index == group.value.length - 1
+                                      ? 18
+                                      : AppUi.listGap,
                                 ),
                                 child: _HistoryEventCard(
                                   entry: entry,
@@ -388,11 +391,11 @@ class _HistoryTopControls extends StatelessWidget {
     required this.onCancelSearch,
   });
 
-  @override
+    @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 760;
-    final rowHeight = compact ? 64.0 : 72.0;
-    final gap = compact ? 8.0 : 12.0;
+    final rowHeight = compact ? 46.0 : 52.0;
+    final gap = compact ? 8.0 : 10.0;
 
     if (compact) {
       return Column(
@@ -413,9 +416,10 @@ class _HistoryTopControls extends StatelessWidget {
                 SizedBox(
                   height: rowHeight,
                   width: rowHeight,
-                  child: IconButton.filledTonal(
+                  child: AppTopBarIconButton(
                     onPressed: onActivateSearch,
-                    icon: const Icon(Icons.search_rounded),
+                    icon: Icons.search_rounded,
+                    tooltip: 'Search history',
                   ),
                 ),
               ],
@@ -468,9 +472,10 @@ class _HistoryTopControls extends StatelessWidget {
                     onChanged: onSearchChanged,
                     onClear: onCancelSearch,
                   )
-                : IconButton.filledTonal(
+                : AppTopBarIconButton(
                     onPressed: onActivateSearch,
-                    icon: const Icon(Icons.search_rounded),
+                    icon: Icons.search_rounded,
+                    tooltip: 'Search history',
                   ),
           ),
         ),
@@ -488,35 +493,33 @@ class _HistorySortControl extends StatelessWidget {
     required this.onChanged,
   });
 
+  String _label(String value) {
+    switch (value) {
+      case 'oldest':
+        return 'Oldest First';
+      case 'action':
+        return 'Action Type';
+      case 'item':
+        return 'Item Name';
+      case 'latest':
+      default:
+        return 'Latest First';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Center(
-        child: DropdownButtonFormField<String>(
-          value: value,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Sort history by',
-            border: InputBorder.none,
-            isDense: true,
-          ),
-          items: const [
-            DropdownMenuItem(value: 'latest', child: Text('Latest First')),
-            DropdownMenuItem(value: 'oldest', child: Text('Oldest First')),
-            DropdownMenuItem(value: 'action', child: Text('Action Type')),
-            DropdownMenuItem(value: 'item', child: Text('Item Name')),
-          ],
-          onChanged: onChanged,
-        ),
-      ),
+    return AppSortButton<String>(
+      value: value,
+      tooltip: 'Sort history',
+      labelBuilder: _label,
+      onSelected: (selected) => onChanged(selected),
+      items: const [
+        PopupMenuItem(value: 'latest', child: Text('Latest First')),
+        PopupMenuItem(value: 'oldest', child: Text('Oldest First')),
+        PopupMenuItem(value: 'action', child: Text('Action Type')),
+        PopupMenuItem(value: 'item', child: Text('Item Name')),
+      ],
     );
   }
 }
@@ -537,15 +540,15 @@ class _HistorySearchBar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, color: cs.onSurfaceVariant),
+          Icon(Icons.search_rounded, size: 20, color: cs.onSurfaceVariant),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -553,20 +556,37 @@ class _HistorySearchBar extends StatelessWidget {
               onChanged: onChanged,
               autofocus: true,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 14.5,
                 fontWeight: FontWeight.w600,
               ),
-              decoration: const InputDecoration(
-                hintText: 'Search item, action, or details',
-                border: InputBorder.none,
+              decoration: InputDecoration(
+                hintText: 'Search history',
+                hintStyle: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurfaceVariant,
+                ),
                 isDense: true,
+                isCollapsed: true,
+                filled: false,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
               ),
             ),
           ),
           IconButton(
             onPressed: onClear,
-            icon: const Icon(Icons.close_rounded),
             tooltip: 'Cancel search',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.close_rounded, size: 20),
           ),
         ],
       ),
@@ -600,20 +620,19 @@ class _HistoryInsightBar extends StatelessWidget {
     if (compact) {
       return Column(
         children: [
-          if (isSearching)
-            _HistoryInsightNotice(resultCount: resultCount),
+          if (isSearching) AppSearchNotice(resultCount: resultCount),
           Row(
             children: [
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Events',
                   value: '$totalEvents',
                   icon: Icons.history_rounded,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Today',
                   value: '$todayCount',
                   icon: Icons.today_rounded,
@@ -621,19 +640,19 @@ class _HistoryInsightBar extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppUi.tileGap),
           Row(
             children: [
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Sold',
                   value: '$soldCount',
                   icon: Icons.point_of_sale_rounded,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Edited',
                   value: '$editedCount',
                   icon: Icons.edit_rounded,
@@ -641,17 +660,17 @@ class _HistoryInsightBar extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppUi.tileGap),
           Row(
             children: [
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Deleted',
                   value: '$deletedCount',
                   icon: Icons.delete_rounded,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               const Expanded(child: SizedBox()),
             ],
           ),
@@ -662,40 +681,40 @@ class _HistoryInsightBar extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: 'Events',
             value: '$totalEvents',
             icon: Icons.history_rounded,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppUi.tileGap),
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: 'Today',
             value: '$todayCount',
             icon: Icons.today_rounded,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppUi.tileGap),
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: 'Sold',
             value: '$soldCount',
             icon: Icons.point_of_sale_rounded,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppUi.tileGap),
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: isSearching ? 'Results' : 'Edited',
             value: isSearching ? '$resultCount' : '$editedCount',
             icon: isSearching ? Icons.search_rounded : Icons.edit_rounded,
           ),
         ),
         if (!isSearching) ...[
-          const SizedBox(width: 10),
+          const SizedBox(width: AppUi.tileGap),
           Expanded(
-            child: _InsightTile(
+            child: AppInsightTile(
               label: 'Deleted',
               value: '$deletedCount',
               icon: Icons.delete_rounded,
@@ -703,117 +722,6 @@ class _HistoryInsightBar extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _HistoryInsightNotice extends StatelessWidget {
-  final int resultCount;
-
-  const _HistoryInsightNotice({
-    required this.resultCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: cs.secondaryContainer,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.filter_alt_rounded, size: 18, color: cs.onSecondaryContainer),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '$resultCount result${resultCount == 1 ? '' : 's'} found',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: cs.onSecondaryContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InsightTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _InsightTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-            color: Colors.black.withOpacity(0.035),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, size: 18, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -835,12 +743,12 @@ class _HistoryGroupHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(AppUi.pillRadius),
           ),
           child: Text(
             title,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 12.3,
               fontWeight: FontWeight.w800,
               color: cs.onSurfaceVariant,
             ),
@@ -872,148 +780,25 @@ class _HistoryEventCard extends StatelessWidget {
     final compact = MediaQuery.of(context).size.width < 760;
 
     if (compact) {
-      return Container(
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: cs.outlineVariant),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-              color: Colors.black.withOpacity(0.05),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(icon, color: color),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        Text(
-                          entry.itemName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.25,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            entry.action,
-                            style: TextStyle(
-                              color: color,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                entry.details,
-                style: TextStyle(
-                  fontSize: 14.5,
-                  height: 1.5,
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  _MetaPill(
-                    icon: Icons.access_time_rounded,
-                    label: formattedTime,
-                  ),
-                  _MetaPill(
-                    icon: Icons.event_outlined,
-                    label: formattedDate,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cs.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-            color: Colors.black.withOpacity(0.05),
-          ),
-        ],
-      ),
-      child: Padding(
+      return AppSurfaceCard(
         padding: const EdgeInsets.all(18),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
+            Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                   child: Icon(icon, color: color),
                 ),
-                const SizedBox(height: 10),
-                Container(
-                  width: 2,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: cs.outlineVariant.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 7,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 10,
                     runSpacing: 8,
@@ -1021,16 +806,19 @@ class _HistoryEventCard extends StatelessWidget {
                       Text(
                         entry.itemName,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 17.5,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.25,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.circular(AppUi.pillRadius),
                         ),
                         child: Text(
                           entry.action,
@@ -1043,64 +831,162 @@ class _HistoryEventCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              entry.details,
+              style: TextStyle(
+                fontSize: 14.25,
+                height: 1.5,
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                _MetaPill(
+                  icon: Icons.access_time_rounded,
+                  label: formattedTime,
+                ),
+                _MetaPill(
+                  icon: Icons.event_outlined,
+                  label: formattedDate,
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppSurfaceCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: 2,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(AppUi.pillRadius),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    Text(
+                      entry.itemName,
+                      style: const TextStyle(
+                        fontSize: 17.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(AppUi.pillRadius),
+                      ),
+                      child: Text(
+                        entry.action,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  entry.details,
+                  style: TextStyle(
+                    fontSize: 14.25,
+                    height: 1.5,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 18),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 126, maxWidth: 164),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withOpacity(0.82),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    entry.details,
+                    'Event time',
                     style: TextStyle(
-                      fontSize: 14.5,
-                      height: 1.5,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.35,
                       color: cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    formattedTime,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    DateFormat('d MMM yyyy').format(entry.createdAt.toLocal()),
+                    style: TextStyle(
+                      fontSize: 12.3,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 18),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 130, maxWidth: 170),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Event time',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      formattedTime,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.25,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      DateFormat('d MMM yyyy').format(entry.createdAt.toLocal()),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

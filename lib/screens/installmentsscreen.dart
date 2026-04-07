@@ -7,6 +7,7 @@ import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/components/installment_card.dart';
 import 'package:invenman/components/installments_top_controls.dart';
 import 'package:invenman/screens/installment_details_screen.dart';
+import 'package:invenman/theme/app_ui.dart';
 
 class InstallmentsPage extends StatefulWidget {
   final int refreshToken;
@@ -170,7 +171,12 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          padding: const EdgeInsets.fromLTRB(
+            AppUi.pageHPadding,
+            AppUi.pageTopPadding,
+            AppUi.pageHPadding,
+            8,
+          ),
           child: InstallmentsTopControls(
             sortBy: _sortBy,
             isSearchActive: _isSearchActive,
@@ -227,61 +233,31 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
                   onRefresh: _refresh,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppUi.pageHPadding,
+                      8,
+                      AppUi.pageHPadding,
+                      AppUi.pageBottomPadding,
+                    ),
                     children: [
-                      const SizedBox(height: 70),
-                      Container(
-                        width: 86,
-                        height: 86,
-                        decoration: BoxDecoration(
-                          color: cs.surfaceContainerHighest,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isSearching
-                              ? Icons.search_off_rounded
-                              : Icons.calendar_month_outlined,
-                          size: 40,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        isSearching
+                      AppEmptyState(
+                        icon: isSearching
+                            ? Icons.search_off_rounded
+                            : Icons.calendar_month_outlined,
+                        title: isSearching
                             ? 'No matching installment plans found'
                             : 'No installment plans yet',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.6,
-                        ),
+                        message: isSearching
+                            ? 'Try searching by item, customer, phone, address, or status.'
+                            : 'When an item is sold using installment payment, its plan will appear here with progress, balance, and due tracking.',
+                        action: isSearching
+                            ? OutlinedButton.icon(
+                                onPressed: _cancelSearch,
+                                icon: const Icon(Icons.close_rounded),
+                                label: const Text('Clear search'),
+                              )
+                            : null,
                       ),
-                      const SizedBox(height: 10),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: Text(
-                          isSearching
-                              ? 'Try searching by item, customer, phone, address, or status.'
-                              : 'When an item is sold using installment payment, its plan will appear here with progress, balance, and due tracking.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            height: 1.5,
-                            color: cs.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      if (isSearching)
-                        Center(
-                          child: OutlinedButton.icon(
-                            onPressed: _cancelSearch,
-                            icon: const Icon(Icons.close_rounded),
-                            label: const Text('Clear search'),
-                          ),
-                        ),
                     ],
                   ),
                 );
@@ -295,7 +271,12 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+                        padding: const EdgeInsets.fromLTRB(
+                          AppUi.pageHPadding,
+                          2,
+                          AppUi.pageHPadding,
+                          12,
+                        ),
                         child: _InstallmentsInsightBar(
                           totalPlans: totalPlans,
                           activeCount: activeCount,
@@ -307,10 +288,16 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppUi.pageHPadding,
+                        0,
+                        AppUi.pageHPadding,
+                        AppUi.pageBottomPadding,
+                      ),
                       sliver: SliverList.separated(
                         itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 14),
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: AppUi.listGap),
                         itemBuilder: (_, i) {
                           final entry = items[i];
                           final plan = entry.plan;
@@ -357,53 +344,24 @@ class _InstallmentsInsightBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final compact = MediaQuery.of(context).size.width < 760;
 
     if (compact) {
       return Column(
         children: [
-          if (isSearching)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: cs.secondaryContainer,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.filter_alt_rounded,
-                    size: 18,
-                    color: cs.onSecondaryContainer,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '$resultCount result${resultCount == 1 ? '' : 's'} found',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: cs.onSecondaryContainer,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          if (isSearching) AppSearchNotice(resultCount: resultCount),
           Row(
             children: [
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Plans',
                   value: '$totalPlans',
                   icon: Icons.receipt_long_outlined,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Active',
                   value: '$activeCount',
                   icon: Icons.play_circle_outline_rounded,
@@ -411,19 +369,19 @@ class _InstallmentsInsightBar extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppUi.tileGap),
           Row(
             children: [
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Overdue',
                   value: '$overdueCount',
                   icon: Icons.warning_amber_rounded,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InsightTile(
+                child: AppInsightTile(
                   label: 'Due now',
                   value: '$dueNowCount',
                   icon: Icons.calendar_month_outlined,
@@ -438,31 +396,31 @@ class _InstallmentsInsightBar extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: 'Plans',
             value: '$totalPlans',
             icon: Icons.receipt_long_outlined,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppUi.tileGap),
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: 'Active',
             value: '$activeCount',
             icon: Icons.play_circle_outline_rounded,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppUi.tileGap),
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: 'Overdue',
             value: '$overdueCount',
             icon: Icons.warning_amber_rounded,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppUi.tileGap),
         Expanded(
-          child: _InsightTile(
+          child: AppInsightTile(
             label: isSearching ? 'Results' : 'Due now',
             value: isSearching ? '$resultCount' : '$dueNowCount',
             icon: isSearching
@@ -471,79 +429,6 @@ class _InstallmentsInsightBar extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _InsightTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _InsightTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-            color: Colors.black.withOpacity(0.035),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, size: 18, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

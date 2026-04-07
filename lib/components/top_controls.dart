@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:invenman/theme/app_sort_button.dart';
+import 'package:invenman/theme/app_top_bar_buttons.dart';
 
 class InventoryTopControls extends StatelessWidget {
   final String sortBy;
@@ -24,11 +26,11 @@ class InventoryTopControls extends StatelessWidget {
     required this.onAddItem,
   });
 
-  @override
+    @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 760;
-    final rowHeight = compact ? 64.0 : 72.0;
-    final gap = compact ? 8.0 : 12.0;
+    final rowHeight = compact ? 46.0 : 52.0;
+    final gap = compact ? 8.0 : 10.0;
 
     if (compact) {
       return Column(
@@ -39,7 +41,7 @@ class InventoryTopControls extends StatelessWidget {
                 Expanded(
                   child: SizedBox(
                     height: rowHeight,
-                    child: _SortControl(
+                    child: _InventorySortControl(
                       value: sortBy,
                       onChanged: onSortChanged,
                     ),
@@ -49,23 +51,18 @@ class InventoryTopControls extends StatelessWidget {
                 SizedBox(
                   height: rowHeight,
                   width: rowHeight,
-                  child: IconButton.filledTonal(
+                  child: AppTopBarIconButton(
                     onPressed: onActivateSearch,
-                    icon: const Icon(Icons.search_rounded),
+                    icon: Icons.search_rounded,
+                    tooltip: 'Search inventory',
                   ),
                 ),
                 SizedBox(width: gap),
                 SizedBox(
                   height: rowHeight,
-                  child: FilledButton.icon(
+                  child: AppTopBarAddButton(
                     onPressed: onAddItem,
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Add'),
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                    ),
+                    label: 'Add',
                   ),
                 ),
               ],
@@ -73,7 +70,7 @@ class InventoryTopControls extends StatelessWidget {
           else ...[
             SizedBox(
               height: rowHeight,
-              child: _SearchBarControl(
+              child: _InventorySearchBar(
                 controller: searchController,
                 onChanged: onSearchChanged,
                 onClear: onCancelSearch,
@@ -85,7 +82,7 @@ class InventoryTopControls extends StatelessWidget {
                 Expanded(
                   child: SizedBox(
                     height: rowHeight,
-                    child: _SortControl(
+                    child: _InventorySortControl(
                       value: sortBy,
                       onChanged: onSortChanged,
                     ),
@@ -94,15 +91,9 @@ class InventoryTopControls extends StatelessWidget {
                 SizedBox(width: gap),
                 SizedBox(
                   height: rowHeight,
-                  child: FilledButton.icon(
+                  child: AppTopBarAddButton(
                     onPressed: onAddItem,
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Add'),
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                    ),
+                    label: 'Add',
                   ),
                 ),
               ],
@@ -122,7 +113,7 @@ class InventoryTopControls extends StatelessWidget {
           flex: sortFlex,
           child: SizedBox(
             height: rowHeight,
-            child: _SortControl(
+            child: _InventorySortControl(
               value: sortBy,
               onChanged: onSortChanged,
             ),
@@ -134,14 +125,15 @@ class InventoryTopControls extends StatelessWidget {
           child: SizedBox(
             height: rowHeight,
             child: isSearchActive
-                ? _SearchBarControl(
+                ? _InventorySearchBar(
                     controller: searchController,
                     onChanged: onSearchChanged,
                     onClear: onCancelSearch,
                   )
-                : IconButton.filledTonal(
+                : AppTopBarIconButton(
                     onPressed: onActivateSearch,
-                    icon: const Icon(Icons.search_rounded),
+                    icon: Icons.search_rounded,
+                    tooltip: 'Search inventory',
                   ),
           ),
         ),
@@ -150,18 +142,9 @@ class InventoryTopControls extends StatelessWidget {
           flex: addFlex,
           child: SizedBox(
             height: rowHeight,
-            child: FilledButton.icon(
+            child: AppTopBarAddButton(
               onPressed: onAddItem,
-              icon: const Icon(Icons.add_rounded),
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(isSearchActive ? 'Add' : 'Add Item'),
-              ),
-              style: FilledButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
+              label: isSearchActive ? 'Add' : 'Add Item',
             ),
           ),
         ),
@@ -170,77 +153,70 @@ class InventoryTopControls extends StatelessWidget {
   }
 }
 
-class _SortControl extends StatelessWidget {
+class _InventorySortControl extends StatelessWidget {
   final String value;
   final ValueChanged<String?> onChanged;
 
-  const _SortControl({
+  const _InventorySortControl({
     required this.value,
     required this.onChanged,
   });
 
+  String _label(String value) {
+    switch (value) {
+      case 'cost_price_asc':
+        return 'Cost: Low to High';
+      case 'cost_price_desc':
+        return 'Cost: High to Low';
+      case 'selling_price_asc':
+        return 'MRP: Low to High';
+      case 'selling_price_desc':
+        return 'MRP: High to Low';
+      case 'quantity_desc':
+        return 'Stock: High to Low';
+      case 'quantity_asc':
+        return 'Stock: Low to High';
+      case 'category':
+        return 'Category';
+      case 'updated_at_desc':
+        return 'Recently Updated';
+      case 'created_at_desc':
+        return 'Recently Added';
+      case 'name':
+      default:
+        return 'Name';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Center(
-        child: DropdownButtonFormField<String>(
-          value: value,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Sort by',
-            border: InputBorder.none,
-            isDense: true,
-          ),
-          items: const [
-            DropdownMenuItem(value: 'name', child: Text('Name')),
-            DropdownMenuItem(
-              value: 'cost_price_asc',
-              child: Text('Cost: Low to High'),
-            ),
-            DropdownMenuItem(
-              value: 'cost_price_desc',
-              child: Text('Cost: High to Low'),
-            ),
-            DropdownMenuItem(
-              value: 'selling_price_asc',
-              child: Text('Selling: Low to High'),
-            ),
-            DropdownMenuItem(
-              value: 'selling_price_desc',
-              child: Text('Selling: High to Low'),
-            ),
-            DropdownMenuItem(
-              value: 'quantity_desc',
-              child: Text('Stock: High to Low'),
-            ),
-            DropdownMenuItem(
-              value: 'quantity_asc',
-              child: Text('Stock: Low to High'),
-            ),
-            DropdownMenuItem(value: 'category', child: Text('Category')),
-            DropdownMenuItem(value: 'updated_at_desc', child: Text('Recently Updated')),
-          ],
-          onChanged: onChanged,
-        ),
-      ),
+    return AppSortButton<String>(
+      value: value,
+      tooltip: 'Sort inventory',
+      labelBuilder: _label,
+      onSelected: (selected) => onChanged(selected),
+      items: const [
+        PopupMenuItem(value: 'name', child: Text('Name')),
+        PopupMenuItem(value: 'cost_price_asc', child: Text('Cost: Low to High')),
+        PopupMenuItem(value: 'cost_price_desc', child: Text('Cost: High to Low')),
+        PopupMenuItem(value: 'selling_price_asc', child: Text('MRP: Low to High')),
+        PopupMenuItem(value: 'selling_price_desc', child: Text('MRP: High to Low')),
+        PopupMenuItem(value: 'quantity_desc', child: Text('Stock: High to Low')),
+        PopupMenuItem(value: 'quantity_asc', child: Text('Stock: Low to High')),
+        PopupMenuItem(value: 'category', child: Text('Category')),
+        PopupMenuItem(value: 'updated_at_desc', child: Text('Recently Updated')),
+        PopupMenuItem(value: 'created_at_desc', child: Text('Recently Added')),
+      ],
     );
   }
 }
 
-class _SearchBarControl extends StatelessWidget {
+class _InventorySearchBar extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
 
-  const _SearchBarControl({
+  const _InventorySearchBar({
     required this.controller,
     required this.onChanged,
     required this.onClear,
@@ -251,32 +227,53 @@ class _SearchBarControl extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, color: cs.onSurfaceVariant),
+          Icon(Icons.search_rounded, size: 20, color: cs.onSurfaceVariant),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
               autofocus: true,
-              decoration: const InputDecoration(
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
                 hintText: 'Search inventory',
-                border: InputBorder.none,
+                hintStyle: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurfaceVariant,
+                ),
                 isDense: true,
+                isCollapsed: true,
+                filled: false,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
               ),
             ),
           ),
           IconButton(
             onPressed: onClear,
-            icon: const Icon(Icons.close_rounded),
             tooltip: 'Cancel search',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.close_rounded, size: 20),
           ),
         ],
       ),

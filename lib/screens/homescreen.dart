@@ -6,6 +6,7 @@ import 'package:invenman/screens/historyscreen.dart';
 import 'package:invenman/screens/installmentsscreen.dart';
 import 'package:invenman/screens/inventoryscreen.dart';
 import 'package:invenman/screens/salesscreen.dart';
+import 'package:invenman/theme/app_ui.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,26 +30,26 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return const _PageMeta(
           title: 'Inventory',
-          subtitle: 'Track stock, supplier, pricing, warranties, and product images',
+          subtitle: 'Stock, sourcing, pricing, and product records',
           icon: Icons.inventory_2_rounded,
         );
       case 1:
         return const _PageMeta(
           title: 'Sales',
-          subtitle: 'Review transactions, payment types, customers, and warranty status',
+          subtitle: 'Transactions, buyers, payment type, and warranty snapshots',
           icon: Icons.point_of_sale_rounded,
         );
       case 2:
         return const _PageMeta(
           title: 'Installments',
-          subtitle: 'Monitor due dates, payment progress, balances, and overdue plans',
+          subtitle: 'Due dates, balances, monthly progress, and overdue plans',
           icon: Icons.calendar_month_rounded,
         );
       case 3:
       default:
         return const _PageMeta(
           title: 'History',
-          subtitle: 'Follow every item event, edit, sale, and inventory change',
+          subtitle: 'Every addition, edit, sale, deletion, and payment trail',
           icon: Icons.history_rounded,
         );
     }
@@ -75,10 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: cs.surface,
       appBar: AppBar(
         titleSpacing: 16,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: cs.surface,
-        surfaceTintColor: cs.surfaceTint,
         title: AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
           transitionBuilder: (child, animation) {
@@ -95,14 +92,13 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           child: Row(
             key: ValueKey(_currentIndex),
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: cs.outlineVariant),
                 ),
                 child: Icon(
@@ -122,9 +118,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -0.7,
+                        letterSpacing: -0.55,
                       ),
                     ),
                     const SizedBox(height: 1),
@@ -133,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12.2,
                         color: cs.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                         height: 1.2,
@@ -150,14 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(right: 8),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                    color: Colors.black.withOpacity(0.04),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppUi.softShadow,
               ),
               child: IconButton.filledTonal(
                 tooltip: hideSensitive
@@ -176,7 +166,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      behavior: SnackBarBehavior.floating,
                       content: Text(
                         wasHidden
                             ? 'Sensitive values are now visible.'
@@ -203,14 +192,8 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(right: 12),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                    color: Colors.black.withOpacity(0.04),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppUi.softShadow,
               ),
               child: IconButton.filledTonal(
                 tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
@@ -246,22 +229,13 @@ class _HomeScreenState extends State<HomeScreen> {
         minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-                color: Colors.black.withOpacity(0.07),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AppUi.shellShadow,
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(24),
             child: NavigationBar(
-              height: 74,
               selectedIndex: _currentIndex,
-              backgroundColor: cs.surfaceContainerLow,
-              indicatorColor: cs.secondaryContainer,
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               animationDuration: const Duration(milliseconds: 220),
               onDestinationSelected: (index) {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:invenman/theme/app_sort_button.dart';
+import 'package:invenman/theme/app_top_bar_buttons.dart';
 
 class InstallmentsTopControls extends StatelessWidget {
   final String sortBy;
@@ -22,11 +24,11 @@ class InstallmentsTopControls extends StatelessWidget {
     required this.onCancelSearch,
   });
 
-  @override
+    @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 760;
-    final rowHeight = compact ? 64.0 : 72.0;
-    final gap = compact ? 8.0 : 12.0;
+    final rowHeight = compact ? 46.0 : 52.0;
+    final gap = compact ? 8.0 : 10.0;
 
     if (compact) {
       return Column(
@@ -47,9 +49,10 @@ class InstallmentsTopControls extends StatelessWidget {
                 SizedBox(
                   height: rowHeight,
                   width: rowHeight,
-                  child: IconButton.filledTonal(
+                  child: AppTopBarIconButton(
                     onPressed: onActivateSearch,
-                    icon: const Icon(Icons.search_rounded),
+                    icon: Icons.search_rounded,
+                    tooltip: 'Search installments',
                   ),
                 ),
               ],
@@ -102,9 +105,10 @@ class InstallmentsTopControls extends StatelessWidget {
                     onChanged: onSearchChanged,
                     onClear: onCancelSearch,
                   )
-                : IconButton.filledTonal(
+                : AppTopBarIconButton(
                     onPressed: onActivateSearch,
-                    icon: const Icon(Icons.search_rounded),
+                    icon: Icons.search_rounded,
+                    tooltip: 'Search installments',
                   ),
           ),
         ),
@@ -122,55 +126,39 @@ class _InstallmentsSortControl extends StatelessWidget {
     required this.onChanged,
   });
 
+  String _label(String value) {
+    switch (value) {
+      case 'next_due_desc':
+        return 'Next Due Farthest';
+      case 'customer':
+        return 'Customer Name';
+      case 'item':
+        return 'Item Name';
+      case 'status':
+        return 'Plan Status';
+      case 'latest':
+        return 'Latest Created';
+      case 'next_due_asc':
+      default:
+        return 'Next Due Soonest';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Center(
-        child: DropdownButtonFormField<String>(
-          value: value,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Sort installments by',
-            border: InputBorder.none,
-            isDense: true,
-          ),
-          items: const [
-            DropdownMenuItem(
-              value: 'next_due_asc',
-              child: Text('Next Due Soonest'),
-            ),
-            DropdownMenuItem(
-              value: 'next_due_desc',
-              child: Text('Next Due Farthest'),
-            ),
-            DropdownMenuItem(
-              value: 'customer',
-              child: Text('Customer Name'),
-            ),
-            DropdownMenuItem(
-              value: 'item',
-              child: Text('Item Name'),
-            ),
-            DropdownMenuItem(
-              value: 'status',
-              child: Text('Plan Status'),
-            ),
-            DropdownMenuItem(
-              value: 'latest',
-              child: Text('Latest Created'),
-            ),
-          ],
-          onChanged: onChanged,
-        ),
-      ),
+    return AppSortButton<String>(
+      value: value,
+      tooltip: 'Sort installment plans',
+      labelBuilder: _label,
+      onSelected: (selected) => onChanged(selected),
+      items: const [
+        PopupMenuItem(value: 'next_due_asc', child: Text('Next Due Soonest')),
+        PopupMenuItem(value: 'next_due_desc', child: Text('Next Due Farthest')),
+        PopupMenuItem(value: 'customer', child: Text('Customer Name')),
+        PopupMenuItem(value: 'item', child: Text('Item Name')),
+        PopupMenuItem(value: 'status', child: Text('Plan Status')),
+        PopupMenuItem(value: 'latest', child: Text('Latest Created')),
+      ],
     );
   }
 }
@@ -191,15 +179,15 @@ class _InstallmentsSearchBarControl extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, color: cs.onSurfaceVariant),
+          Icon(Icons.search_rounded, size: 20, color: cs.onSurfaceVariant),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -207,20 +195,37 @@ class _InstallmentsSearchBarControl extends StatelessWidget {
               onChanged: onChanged,
               autofocus: true,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 14.5,
                 fontWeight: FontWeight.w600,
               ),
-              decoration: const InputDecoration(
-                hintText: 'Search by item, customer, phone, address',
-                border: InputBorder.none,
+              decoration: InputDecoration(
+                hintText: 'Search installments',
+                hintStyle: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurfaceVariant,
+                ),
                 isDense: true,
+                isCollapsed: true,
+                filled: false,
+                fillColor: Colors.transparent,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
               ),
             ),
           ),
           IconButton(
             onPressed: onClear,
-            icon: const Icon(Icons.close_rounded),
             tooltip: 'Cancel search',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.close_rounded, size: 20),
           ),
         ],
       ),

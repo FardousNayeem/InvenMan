@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:invenman/db.dart';
 import 'package:invenman/screens/homescreen.dart';
+import 'package:invenman/theme/app_ui.dart';
 
 class ThemeProvider with ChangeNotifier {
   static const String _themeKey = 'isDark';
@@ -19,7 +20,6 @@ class ThemeProvider with ChangeNotifier {
   Future<void> toggleTheme() async {
     _themeMode =
         _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
@@ -87,16 +87,8 @@ class InventoryApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'InvenMan',
       themeMode: themeProvider.themeMode,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.deepPurple,
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.deepPurple,
-        brightness: Brightness.dark,
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       home: const HomeScreen(),
     );
   }

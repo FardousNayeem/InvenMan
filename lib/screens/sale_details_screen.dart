@@ -3,8 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/sale_record.dart';
+import 'package:invenman/theme/app_ui.dart';
 
 class SaleDetailsScreen extends StatefulWidget {
   final SaleRecord sale;
@@ -59,10 +59,10 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
           SliverAppBar(
             pinned: true,
             stretch: true,
-            expandedHeight: 390,
+            expandedHeight: 360,
             backgroundColor: cs.surface,
             surfaceTintColor: cs.surfaceTint,
-            leading: _HeaderIconButton(
+            leading: AppHeaderIconButton(
               icon: Icons.arrow_back_rounded,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
@@ -78,7 +78,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.7,
+                  letterSpacing: -0.65,
                 ),
               ),
               background: Stack(
@@ -113,7 +113,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                   Positioned(
                     left: 18,
                     right: 18,
-                    bottom: 94,
+                    bottom: 88,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -121,22 +121,22 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            _TopPill(
+                            AppHeroPill(
                               icon: Icons.category_rounded,
                               label: sale.category,
                             ),
-                            _TopPill(
+                            AppHeroPill(
                               icon: sale.isInstallment
                                   ? Icons.calendar_month_rounded
                                   : Icons.payments_rounded,
                               label: _paymentLabel,
                             ),
-                            _TopPill(
+                            AppHeroPill(
                               icon: Icons.trending_up_rounded,
                               label: 'Profit',
                               accentColor: profitColor,
                             ),
-                            _TopPill(
+                            AppHeroPill(
                               icon: Icons.schedule_rounded,
                               label: _formatDate(sale.soldAt),
                             ),
@@ -165,7 +165,12 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+              padding: const EdgeInsets.fromLTRB(
+                AppUi.pageHPadding,
+                18,
+                AppUi.pageHPadding,
+                AppUi.pageBottomPadding,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -179,7 +184,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                         });
                       },
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                   ],
                   if (isCompact)
                     Column(
@@ -189,11 +194,11 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                           formattedDate: _formatDate(sale.soldAt),
                           profitColor: profitColor,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppUi.sectionGap),
                         _CustomerCard(sale: sale),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppUi.sectionGap),
                         _PaymentCard(sale: sale),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppUi.sectionGap),
                         _SaleWarrantyCard(sale: sale),
                       ],
                     )
@@ -210,18 +215,18 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                                 formattedDate: _formatDate(sale.soldAt),
                                 profitColor: profitColor,
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: AppUi.sectionGap),
                               _SaleWarrantyCard(sale: sale),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: AppUi.sectionGap),
                         Expanded(
                           flex: 4,
                           child: Column(
                             children: [
                               _CustomerCard(sale: sale),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: AppUi.sectionGap),
                               _PaymentCard(sale: sale),
                             ],
                           ),
@@ -233,31 +238,6 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  const _HeaderIconButton({
-    required this.icon,
-    this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: IconButton.filledTonal(
-        onPressed: onPressed,
-        icon: Icon(icon),
-        style: IconButton.styleFrom(
-          backgroundColor: Colors.black.withOpacity(0.18),
-          foregroundColor: Colors.white,
-        ),
       ),
     );
   }
@@ -308,46 +288,6 @@ class _HeroPlaceholder extends StatelessWidget {
   }
 }
 
-class _TopPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? accentColor;
-
-  const _TopPill({
-    required this.icon,
-    required this.label,
-    this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final iconColor = accentColor ?? Colors.white;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ThumbnailRail extends StatelessWidget {
   final List<String> imagePaths;
   final int selectedIndex;
@@ -364,7 +304,7 @@ class _ThumbnailRail extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return SizedBox(
-      height: 94,
+      height: 92,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: imagePaths.length,
@@ -377,9 +317,9 @@ class _ThumbnailRail extends StatelessWidget {
             onTap: () => onSelected(index),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              width: 94,
+              width: 92,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: isSelected ? cs.primary : cs.outlineVariant,
                   width: isSelected ? 2 : 1,
@@ -387,15 +327,15 @@ class _ThumbnailRail extends StatelessWidget {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                          color: cs.primary.withOpacity(0.18),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
+                          color: cs.primary.withOpacity(0.16),
                         ),
                       ]
                     : null,
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(17),
                 child: Image.file(
                   File(path),
                   fit: BoxFit.cover,
@@ -429,7 +369,7 @@ class _SaleOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return AppSectionCard(
       title: 'Purchase details',
       subtitle: 'Transaction pricing, quantity, and outcome',
       child: Column(
@@ -437,16 +377,16 @@ class _SaleOverviewCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Cost',
                   sensitiveText: sale.costPrice.toStringAsFixed(0),
                   isSensitive: true,
                   icon: Icons.shopping_bag_outlined,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'MRP',
                   valueText: sale.sellPrice.toStringAsFixed(0),
                   icon: Icons.sell_outlined,
@@ -454,19 +394,19 @@ class _SaleOverviewCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppUi.tileGap),
           Row(
             children: [
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Qty',
                   valueText: '${sale.quantitySold}',
                   icon: Icons.inventory_2_outlined,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Profit',
                   sensitiveText: sale.profit.toStringAsFixed(0),
                   isSensitive: true,
@@ -477,12 +417,9 @@ class _SaleOverviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _LineItem(label: 'Date', value: formattedDate),
+          AppLineItem(label: 'Date', value: formattedDate),
           const SizedBox(height: 8),
-          _LineItem(
-            label: 'Category',
-            value: sale.category,
-          ),
+          AppLineItem(label: 'Category', value: sale.category),
         ],
       ),
     );
@@ -498,26 +435,26 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return AppSectionCard(
       title: 'Customer details',
       subtitle: 'Buyer information captured at the time of sale',
       child: Column(
         children: [
-          _LineItem(
+          AppLineItem(
             label: 'Name',
             value: (sale.customerName ?? '').trim().isEmpty
                 ? 'Not provided'
                 : sale.customerName!,
           ),
           const SizedBox(height: 8),
-          _LineItem(
+          AppLineItem(
             label: 'Phone',
             value: (sale.customerPhone ?? '').trim().isEmpty
                 ? 'Not provided'
                 : sale.customerPhone!,
           ),
           const SizedBox(height: 8),
-          _LineItem(
+          AppLineItem(
             label: 'Address',
             value: (sale.customerAddress ?? '').trim().isEmpty
                 ? 'Not provided'
@@ -538,17 +475,17 @@ class _PaymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return AppSectionCard(
       title: 'Payment details',
       subtitle: 'Settlement mode and installment terms',
       child: Column(
         children: [
-          _LineItem(
+          AppLineItem(
             label: 'Type',
             value: sale.isInstallment ? 'Installment' : 'Direct',
           ),
           const SizedBox(height: 8),
-          _LineItem(
+          AppLineItem(
             label: 'Duration',
             value: sale.isInstallment
                 ? '${sale.installmentMonths ?? '-'} month(s)'
@@ -569,14 +506,14 @@ class _SaleWarrantyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return AppSectionCard(
       title: 'Warranty remaining',
       subtitle: 'Current coverage left from the purchase date',
       child: sale.warranties.isEmpty
           ? Text(
               'No warranty included.',
               style: TextStyle(
-                fontSize: 14.5,
+                fontSize: 14.25,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             )
@@ -589,7 +526,10 @@ class _SaleWarrantyCard extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(18),
@@ -607,7 +547,7 @@ class _SaleWarrantyCard extends StatelessWidget {
                             entry.key,
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize: 13.5,
+                              fontSize: 13.4,
                             ),
                           ),
                         ),
@@ -626,180 +566,6 @@ class _SaleWarrantyCard extends StatelessWidget {
                 );
               }).toList(),
             ),
-    );
-  }
-}
-
-class _GlassSection extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final Widget child;
-
-  const _GlassSection({
-    required this.title,
-    required this.child,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: cs.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-            color: Colors.black.withOpacity(0.04),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  final String label;
-  final String? valueText;
-  final String? sensitiveText;
-  final bool isSensitive;
-  final IconData icon;
-  final Color? valueColor;
-
-  const _InfoTile({
-    required this.label,
-    this.valueText,
-    this.sensitiveText,
-    this.isSensitive = false,
-    required this.icon,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: cs.onSurfaceVariant),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                if (isSensitive)
-                  SensitiveValueText(
-                    visibleText: sensitiveText ?? '',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: valueColor ?? cs.onSurface,
-                    ),
-                  )
-                else
-                  Text(
-                    valueText ?? '',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: valueColor ?? cs.onSurface,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LineItem extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _LineItem({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 82,
-          child: Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurface,
-              height: 1.45,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

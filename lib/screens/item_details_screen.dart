@@ -3,8 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/item.dart';
+import 'package:invenman/theme/app_ui.dart';
 
 class ItemDetailsScreen extends StatefulWidget {
   final Item item;
@@ -39,7 +39,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     return 'In stock';
   }
 
-  Color _stockColor(ColorScheme cs) {
+  Color _stockColor() {
     if (item.quantity <= 0) return Colors.red.shade700;
     if (item.quantity <= 3) return Colors.orange.shade700;
     return Colors.green.shade700;
@@ -63,7 +63,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     final cs = Theme.of(context).colorScheme;
     final width = MediaQuery.of(context).size.width;
     final isCompact = width < 860;
-    final stockColor = _stockColor(cs);
+    final stockColor = _stockColor();
 
     final selectedImagePath =
         item.imagePaths.isNotEmpty ? item.imagePaths[_safeSelectedIndex] : null;
@@ -75,10 +75,10 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
           SliverAppBar(
             pinned: true,
             stretch: true,
-            expandedHeight: 390,
+            expandedHeight: 360,
             backgroundColor: cs.surface,
             surfaceTintColor: cs.surfaceTint,
-            leading: _HeaderIconButton(
+            leading: AppHeaderIconButton(
               icon: Icons.arrow_back_rounded,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
@@ -86,7 +86,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
               if (widget.onEdit != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: _HeaderIconButton(
+                  child: AppHeaderIconButton(
                     icon: Icons.edit_rounded,
                     onPressed: widget.onEdit,
                   ),
@@ -104,7 +104,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.7,
+                  letterSpacing: -0.65,
                 ),
               ),
               background: Stack(
@@ -139,7 +139,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                   Positioned(
                     left: 18,
                     right: 18,
-                    bottom: 94,
+                    bottom: 88,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -147,21 +147,21 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            _TopPill(
+                            AppHeroPill(
                               icon: Icons.category_rounded,
                               label: item.category,
                             ),
-                            _TopPill(
+                            AppHeroPill(
                               icon: Icons.inventory_2_outlined,
                               label: _stockLabel,
                               accentColor: stockColor,
                             ),
-                            _TopPill(
+                            AppHeroPill(
                               icon: Icons.sell_outlined,
                               label: 'MRP ${item.sellingPrice.toStringAsFixed(0)}',
                             ),
                             if (item.supplier.trim().isNotEmpty)
-                              _TopPill(
+                              AppHeroPill(
                                 icon: Icons.local_shipping_outlined,
                                 label: item.supplier,
                               ),
@@ -190,7 +190,12 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+              padding: const EdgeInsets.fromLTRB(
+                AppUi.pageHPadding,
+                18,
+                AppUi.pageHPadding,
+                AppUi.pageBottomPadding,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -204,17 +209,21 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                         });
                       },
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                   ],
-                  if (widget.onSell != null || widget.onEdit != null || widget.onDelete != null)
+                  if (widget.onSell != null ||
+                      widget.onEdit != null ||
+                      widget.onDelete != null)
                     _ActionStrip(
                       canSell: item.quantity > 0,
                       onSell: widget.onSell,
                       onEdit: widget.onEdit,
                       onDelete: widget.onDelete,
                     ),
-                  if (widget.onSell != null || widget.onEdit != null || widget.onDelete != null)
-                    const SizedBox(height: 18),
+                  if (widget.onSell != null ||
+                      widget.onEdit != null ||
+                      widget.onDelete != null)
+                    const SizedBox(height: 16),
                   if (isCompact)
                     Column(
                       children: [
@@ -226,9 +235,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                           marginAmount: _marginAmount,
                           marginPercent: _marginPercent,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppUi.sectionGap),
                         _DescriptionCard(description: item.description),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppUi.sectionGap),
                         _WarrantyCard(warranties: item.warranties),
                       ],
                     )
@@ -248,12 +257,12 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                 marginAmount: _marginAmount,
                                 marginPercent: _marginPercent,
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: AppUi.sectionGap),
                               _DescriptionCard(description: item.description),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: AppUi.sectionGap),
                         Expanded(
                           flex: 4,
                           child: _WarrantyCard(warranties: item.warranties),
@@ -265,31 +274,6 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  const _HeaderIconButton({
-    required this.icon,
-    this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: IconButton.filledTonal(
-        onPressed: onPressed,
-        icon: Icon(icon),
-        style: IconButton.styleFrom(
-          backgroundColor: Colors.black.withOpacity(0.18),
-          foregroundColor: Colors.white,
-        ),
       ),
     );
   }
@@ -340,46 +324,6 @@ class _HeroPlaceholder extends StatelessWidget {
   }
 }
 
-class _TopPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? accentColor;
-
-  const _TopPill({
-    required this.icon,
-    required this.label,
-    this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final iconColor = accentColor ?? Colors.white;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ThumbnailRail extends StatelessWidget {
   final List<String> imagePaths;
   final int selectedIndex;
@@ -396,7 +340,7 @@ class _ThumbnailRail extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return SizedBox(
-      height: 94,
+      height: 92,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: imagePaths.length,
@@ -409,9 +353,9 @@ class _ThumbnailRail extends StatelessWidget {
             onTap: () => onSelected(index),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              width: 94,
+              width: 92,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: isSelected ? cs.primary : cs.outlineVariant,
                   width: isSelected ? 2 : 1,
@@ -419,15 +363,15 @@ class _ThumbnailRail extends StatelessWidget {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                          color: cs.primary.withOpacity(0.18),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
+                          color: cs.primary.withOpacity(0.16),
                         ),
                       ]
                     : null,
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(17),
                 child: Image.file(
                   File(path),
                   fit: BoxFit.cover,
@@ -478,7 +422,8 @@ class _ActionStrip extends StatelessWidget {
                     label: const Text('Sell'),
                   ),
                 ),
-              if (onSell != null && onEdit != null) const SizedBox(width: 10),
+              if (onSell != null && onEdit != null)
+                const SizedBox(width: AppUi.tileGap),
               if (onEdit != null)
                 Expanded(
                   child: OutlinedButton.icon(
@@ -490,7 +435,7 @@ class _ActionStrip extends StatelessWidget {
             ],
           ),
           if (onDelete != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: AppUi.tileGap),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -514,7 +459,8 @@ class _ActionStrip extends StatelessWidget {
               label: Text(canSell ? 'Sell Item' : 'Out of Stock'),
             ),
           ),
-        if (onSell != null && onEdit != null) const SizedBox(width: 10),
+        if (onSell != null && onEdit != null)
+          const SizedBox(width: AppUi.tileGap),
         if (onEdit != null)
           Expanded(
             child: OutlinedButton.icon(
@@ -524,7 +470,7 @@ class _ActionStrip extends StatelessWidget {
             ),
           ),
         if ((onSell != null || onEdit != null) && onDelete != null)
-          const SizedBox(width: 10),
+          const SizedBox(width: AppUi.tileGap),
         if (onDelete != null)
           Expanded(
             child: OutlinedButton.icon(
@@ -557,7 +503,7 @@ class _OverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return AppSectionCard(
       title: 'Overview',
       subtitle: 'Core pricing, stock, and sourcing details',
       child: Column(
@@ -565,16 +511,16 @@ class _OverviewCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Cost',
                   sensitiveText: item.costPrice.toStringAsFixed(0),
                   isSensitive: true,
                   icon: Icons.shopping_bag_outlined,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'MRP',
                   valueText: item.sellingPrice.toStringAsFixed(0),
                   icon: Icons.sell_outlined,
@@ -582,21 +528,23 @@ class _OverviewCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppUi.tileGap),
           Row(
             children: [
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Margin',
                   sensitiveText: marginAmount.toStringAsFixed(0),
                   isSensitive: true,
                   icon: Icons.trending_up_rounded,
-                  valueColor: marginAmount >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                  valueColor: marginAmount >= 0
+                      ? Colors.green.shade700
+                      : Colors.red.shade700,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Markup',
                   sensitiveText: marginPercent,
                   isSensitive: true,
@@ -605,20 +553,20 @@ class _OverviewCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppUi.tileGap),
           Row(
             children: [
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Stock',
                   valueText: '${item.quantity}',
                   icon: Icons.inventory_2_outlined,
                   valueColor: stockColor,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppUi.tileGap),
               Expanded(
-                child: _InfoTile(
+                child: AppMetricTile(
                   label: 'Images',
                   valueText: '${item.imagePaths.length}',
                   icon: Icons.image_outlined,
@@ -627,14 +575,14 @@ class _OverviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _LineItem(
+          AppLineItem(
             label: 'Supplier',
             value: item.supplier.trim().isEmpty ? 'Not provided' : item.supplier,
           ),
           const SizedBox(height: 8),
-          _LineItem(label: 'Created', value: formattedCreatedAt),
+          AppLineItem(label: 'Created', value: formattedCreatedAt),
           const SizedBox(height: 8),
-          _LineItem(label: 'Updated', value: formattedUpdatedAt),
+          AppLineItem(label: 'Updated', value: formattedUpdatedAt),
         ],
       ),
     );
@@ -650,13 +598,13 @@ class _DescriptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return AppSectionCard(
       title: 'Description',
       subtitle: 'Product notes and descriptive context',
       child: Text(
         description.trim().isEmpty ? 'No description provided.' : description,
         style: TextStyle(
-          fontSize: 14.5,
+          fontSize: 14.25,
           height: 1.6,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w500,
@@ -675,14 +623,14 @@ class _WarrantyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassSection(
+    return AppSectionCard(
       title: 'Warranty breakdown',
       subtitle: 'Coverage by component or part',
       child: warranties.isEmpty
           ? Text(
               'No warranty added.',
               style: TextStyle(
-                fontSize: 14.5,
+                fontSize: 14.25,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             )
@@ -692,7 +640,10 @@ class _WarrantyCard extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(18),
@@ -706,7 +657,7 @@ class _WarrantyCard extends StatelessWidget {
                             entry.key,
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize: 13.5,
+                              fontSize: 13.4,
                             ),
                           ),
                         ),
@@ -723,180 +674,6 @@ class _WarrantyCard extends StatelessWidget {
                 );
               }).toList(),
             ),
-    );
-  }
-}
-
-class _GlassSection extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final Widget child;
-
-  const _GlassSection({
-    required this.title,
-    required this.child,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: cs.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-            color: Colors.black.withOpacity(0.04),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  final String label;
-  final String? valueText;
-  final String? sensitiveText;
-  final bool isSensitive;
-  final IconData icon;
-  final Color? valueColor;
-
-  const _InfoTile({
-    required this.label,
-    this.valueText,
-    this.sensitiveText,
-    this.isSensitive = false,
-    required this.icon,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: cs.onSurfaceVariant),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                if (isSensitive)
-                  SensitiveValueText(
-                    visibleText: sensitiveText ?? '',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: valueColor ?? cs.onSurface,
-                    ),
-                  )
-                else
-                  Text(
-                    valueText ?? '',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: valueColor ?? cs.onSurface,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LineItem extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _LineItem({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 82,
-          child: Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurface,
-              height: 1.45,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
