@@ -12,7 +12,7 @@ class DBHelper {
   static bool _isInitialized = false;
 
   static const String _databaseName = 'inventory.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 6;
 
   static Future<void> _initPlatform() async {
     if (_isInitialized) return;
@@ -53,8 +53,6 @@ class DBHelper {
           await _createTables(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
-          // Destructive migration for now because the old schema is very different.
-          // Replace with a proper migration later if you need to preserve old local data.
           await db.execute('DROP TABLE IF EXISTS history_entries');
           await db.execute('DROP TABLE IF EXISTS sale_records');
           await db.execute('DROP TABLE IF EXISTS item_history');
@@ -76,7 +74,9 @@ class DBHelper {
         cost_price REAL NOT NULL,
         selling_price REAL NOT NULL,
         quantity INTEGER NOT NULL CHECK (quantity >= 0),
-        warranty_months INTEGER,
+        supplier TEXT NOT NULL DEFAULT '',
+        warranties_json TEXT NOT NULL DEFAULT '{}',
+        image_paths_json TEXT NOT NULL DEFAULT '[]',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -95,7 +95,7 @@ class DBHelper {
         customer_name TEXT,
         customer_phone TEXT,
         customer_address TEXT,
-        warranty_months INTEGER,
+        warranties_json TEXT NOT NULL DEFAULT '{}',
         sold_at TEXT NOT NULL,
         FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT
       )
@@ -111,27 +111,32 @@ class DBHelper {
       )
     ''');
 
-    await db.execute(
-      'CREATE INDEX idx_items_name ON items(name)',
-    );
-    await db.execute(
-      'CREATE INDEX idx_items_category ON items(category)',
-    );
-    await db.execute(
-      'CREATE INDEX idx_items_updated_at ON items(updated_at)',
-    );
-    await db.execute(
-      'CREATE INDEX idx_sale_records_item_id ON sale_records(item_id)',
-    );
-    await db.execute(
-      'CREATE INDEX idx_sale_records_category ON sale_records(category)',
-    );
-    await db.execute(
-      'CREATE INDEX idx_sale_records_sold_at ON sale_records(sold_at)',
-    );
-    await db.execute(
-      'CREATE INDEX idx_history_entries_created_at ON history_entries(created_at)',
-    );
+    await db.execute('CREATE INDEX idx_items_name ON items(name)');
+    await db.execute('CREATE INDEX idx_items_category ON items(category)');
+    await db.execute('CREATE INDEX idx_items_supplier ON items(supplier)');
+    await db.execute('CREATE INDEX idx_items_updated_at ON items(updated_at)');
+    await db.execute('CREATE INDEX idx_sale_records_item_id ON sale_records(item_id)');
+    await db.execute('CREATE INDEX idx_sale_records_category ON sale_records(category)');
+    await db.execute('CREATE INDEX idx_sale_records_sold_at ON sale_records(sold_at)');
+    await db.execute('CREATE INDEX idx_history_entries_created_at ON history_entries(created_at)');
+  }
+
+  static String _formatWarranties(Map<String, int> warranties) {
+    if (warranties.isEmpty) return 'No warranty';
+
+    return warranties.entries
+        .map((entry) => '${entry.key}: ${entry.value} month${entry.value == 1 ? '' : 's'}')
+        .join(', ');
+  }
+
+  static String _formatImageCount(List<String> imagePaths) {
+    final count = imagePaths.length;
+    return '$count image${count == 1 ? '' : 's'}';
+  }
+
+  static String _formatSupplier(String supplier) {
+    final trimmed = supplier.trim();
+    return trimmed.isEmpty ? 'Unknown' : trimmed;
   }
 
   static Future<void> insertItem(Item item) async {
@@ -142,8 +147,10 @@ class DBHelper {
     await logHistory(
       item.name,
       'Added',
-      'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}'
-      '${item.warrantyMonths != null ? ', Warranty: ${item.warrantyMonths} months' : ''}',
+      'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}, '
+      'Supplier: ${_formatSupplier(item.supplier)}, '
+      'Warranties: ${_formatWarranties(item.warranties)}, '
+      'Images: ${_formatImageCount(item.imagePaths)}',
     );
   }
 
@@ -160,8 +167,10 @@ class DBHelper {
     await logHistory(
       item.name,
       'Edited',
-      'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}'
-      '${item.warrantyMonths != null ? ', Warranty: ${item.warrantyMonths} months' : ''}',
+      'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}, '
+      'Supplier: ${_formatSupplier(item.supplier)}, '
+      'Warranties: ${_formatWarranties(item.warranties)}, '
+      'Images: ${_formatImageCount(item.imagePaths)}',
     );
   }
 
@@ -252,9 +261,8 @@ class DBHelper {
     if (sale.customerPhone != null && sale.customerPhone!.trim().isNotEmpty) {
       details.write(', Phone: ${sale.customerPhone}');
     }
-    if (sale.warrantyMonths != null) {
-      details.write(', Warranty: ${sale.warrantyMonths} months');
-    }
+
+    details.write(', Warranties: ${_formatWarranties(sale.warranties)}');
 
     await logHistory(
       sale.itemName,
@@ -327,8 +335,7 @@ class DBHelper {
       updatedAt: DateTime.now().toUtc(),
     );
 
-    final profit =
-        (sellPricePerUnit - item.costPrice) * quantitySold;
+    final profit = (sellPricePerUnit - item.costPrice) * quantitySold;
 
     final sale = SaleRecord(
       itemId: item.id!,
@@ -341,7 +348,7 @@ class DBHelper {
       customerName: customerName,
       customerPhone: customerPhone,
       customerAddress: customerAddress,
-      warrantyMonths: item.warrantyMonths,
+      warranties: item.warranties,
       soldAt: DateTime.now().toUtc(),
     );
 
@@ -364,9 +371,8 @@ class DBHelper {
       if (customerPhone != null && customerPhone.trim().isNotEmpty) {
         details.write(', Phone: $customerPhone');
       }
-      if (item.warrantyMonths != null) {
-        details.write(', Warranty: ${item.warrantyMonths} months');
-      }
+
+      details.write(', Warranties: ${_formatWarranties(item.warranties)}');
 
       await txn.insert('history_entries', {
         'item_name': item.name,

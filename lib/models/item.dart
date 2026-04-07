@@ -8,10 +8,12 @@ class Item {
   final double costPrice;
   final double sellingPrice;
   final int quantity;
+  final String supplier;
   final Map<String, int> warranties;
   final List<String> imagePaths;
   final DateTime createdAt;
   final DateTime updatedAt;
+  
 
   Item({
     this.id,
@@ -21,6 +23,7 @@ class Item {
     required this.costPrice,
     required this.sellingPrice,
     required this.quantity,
+    required this.supplier,
     this.warranties = const {},
     this.imagePaths = const [],
     required this.createdAt,
@@ -42,6 +45,7 @@ class Item {
       costPrice: (map['cost_price'] as num).toDouble(),
       sellingPrice: (map['selling_price'] as num).toDouble(),
       quantity: map['quantity'] as int,
+      supplier: map['supplier'] as String? ?? '',
       warranties: decodedWarranties.map(
         (key, value) => MapEntry(key, (value as num).toInt()),
       ),
@@ -60,6 +64,7 @@ class Item {
       'cost_price': costPrice,
       'selling_price': sellingPrice,
       'quantity': quantity,
+      'supplier': supplier,
       'warranties_json': jsonEncode(warranties),
       'image_paths_json': jsonEncode(imagePaths),
       'created_at': createdAt.toIso8601String(),
@@ -75,6 +80,7 @@ class Item {
     double? costPrice,
     double? sellingPrice,
     int? quantity,
+    String? supplier,
     Map<String, int>? warranties,
     List<String>? imagePaths,
     DateTime? createdAt,
@@ -88,6 +94,7 @@ class Item {
       costPrice: costPrice ?? this.costPrice,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       quantity: quantity ?? this.quantity,
+      supplier: supplier ?? this.supplier,
       warranties: warranties ?? this.warranties,
       imagePaths: imagePaths ?? this.imagePaths,
       createdAt: createdAt ?? this.createdAt,
