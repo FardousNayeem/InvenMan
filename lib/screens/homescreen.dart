@@ -62,6 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = themeProvider.themeMode == ThemeMode.dark;
     final hideSensitive = privacyProvider.hideSensitiveValues;
     final cs = Theme.of(context).colorScheme;
+    final width = MediaQuery.of(context).size.width;
+    final isCompactHeader = width < 560;
 
     final screens = [
       InventoryPage(onDataChanged: _handleDataChanged),
@@ -75,7 +77,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: cs.surface,
       appBar: AppBar(
-        titleSpacing: 16,
+        titleSpacing: isCompactHeader ? 12 : 16,
+        toolbarHeight: isCompactHeader ? 72 : 82,
         title: AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
           transitionBuilder: (child, animation) {
@@ -94,20 +97,20 @@ class _HomeScreenState extends State<HomeScreen> {
             key: ValueKey(_currentIndex),
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: isCompactHeader ? 36 : 40,
+                height: isCompactHeader ? 36 : 40,
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(isCompactHeader ? 12 : 14),
                   border: Border.all(color: cs.outlineVariant),
                 ),
                 child: Icon(
                   pageMeta.icon,
-                  size: 20,
+                  size: isCompactHeader ? 18 : 20,
                   color: cs.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isCompactHeader ? 10 : 12),
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -117,10 +120,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       pageMeta.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 22,
+                      style: TextStyle(
+                        fontSize: isCompactHeader ? 18.5 : 22,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -0.55,
+                        letterSpacing: isCompactHeader ? -0.4 : -0.55,
                       ),
                     ),
                     const SizedBox(height: 1),
@@ -129,10 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12.2,
+                        fontSize: isCompactHeader ? 11.2 : 12.2,
                         color: cs.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
-                        height: 1.2,
+                        height: 1.15,
                       ),
                     ),
                   ],
@@ -143,72 +146,88 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: EdgeInsets.only(
+              right: isCompactHeader ? 6 : 8,
+            ),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(isCompactHeader ? 14 : 16),
                 boxShadow: AppUi.softShadow,
               ),
-              child: IconButton.filledTonal(
-                tooltip: hideSensitive
-                    ? 'Show sensitive values'
-                    : 'Hide sensitive values',
-                style: IconButton.styleFrom(
-                  backgroundColor: cs.surfaceContainerHighest,
-                  foregroundColor: cs.onSurface,
-                ),
-                onPressed: () async {
-                  final wasHidden = hideSensitive;
-                  await privacyProvider.toggleSensitiveVisibility();
+              child: SizedBox(
+                width: isCompactHeader ? 38 : 42,
+                height: isCompactHeader ? 38 : 42,
+                child: IconButton.filledTonal(
+                  tooltip: hideSensitive
+                      ? 'Show sensitive values'
+                      : 'Hide sensitive values',
+                  style: IconButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    backgroundColor: cs.surfaceContainerHighest,
+                    foregroundColor: cs.onSurface,
+                  ),
+                  onPressed: () async {
+                    final wasHidden = hideSensitive;
+                    await privacyProvider.toggleSensitiveVisibility();
 
-                  if (!context.mounted) return;
+                    if (!context.mounted) return;
 
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        wasHidden
-                            ? 'Sensitive values are now visible.'
-                            : 'Sensitive values are now hidden.',
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          wasHidden
+                              ? 'Sensitive values are now visible.'
+                              : 'Sensitive values are now hidden.',
+                        ),
                       ),
+                    );
+                  },
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: Icon(
+                      hideSensitive
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      size: isCompactHeader ? 19 : 21,
+                      key: ValueKey(hideSensitive),
                     ),
-                  );
-                },
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  transitionBuilder: (child, animation) =>
-                      ScaleTransition(scale: animation, child: child),
-                  child: Icon(
-                    hideSensitive
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    key: ValueKey(hideSensitive),
                   ),
                 ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: EdgeInsets.only(
+              right: isCompactHeader ? 10 : 12,
+            ),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(isCompactHeader ? 14 : 16),
                 boxShadow: AppUi.softShadow,
               ),
-              child: IconButton.filledTonal(
-                tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-                style: IconButton.styleFrom(
-                  backgroundColor: cs.surfaceContainerHighest,
-                  foregroundColor: cs.onSurface,
-                ),
-                onPressed: () => themeProvider.toggleTheme(),
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  transitionBuilder: (child, animation) =>
-                      ScaleTransition(scale: animation, child: child),
-                  child: Icon(
-                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                    key: ValueKey(isDark),
+              child: SizedBox(
+                width: isCompactHeader ? 38 : 42,
+                height: isCompactHeader ? 38 : 42,
+                child: IconButton.filledTonal(
+                  tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+                  style: IconButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    backgroundColor: cs.surfaceContainerHighest,
+                    foregroundColor: cs.onSurface,
+                  ),
+                  onPressed: () => themeProvider.toggleTheme(),
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      size: isCompactHeader ? 19 : 21,
+                      key: ValueKey(isDark),
+                    ),
                   ),
                 ),
               ),

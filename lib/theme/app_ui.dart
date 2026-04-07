@@ -3,8 +3,8 @@ import 'package:invenman/components/sensitive_value_text.dart';
 
 class AppUi {
   static const double pageHPadding = 16;
-  static const double pageTopPadding = 10;
-  static const double pageBottomPadding = 24;
+  static const double pageTopPadding = 2;
+  static const double pageBottomPadding = 16;
 
   static const double controlHeightCompact = 50;
   static const double controlHeightRegular = 56;

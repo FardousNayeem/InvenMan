@@ -24,55 +24,47 @@ class InventoryCard extends StatelessWidget {
     this.onTap,
   });
 
+  Color _stockColor() {
+    if (item.quantity <= 0) return Colors.red.shade700;
+    if (item.quantity <= 3) return Colors.orange.shade700;
+    return Colors.green.shade700;
+  }
+
+  String _stockLabel() {
+    if (item.quantity <= 0) return 'Out';
+    if (item.quantity <= 3) return 'Low';
+    return 'Good';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final compact = MediaQuery.of(context).size.width < 760;
 
-    final stockColor = item.quantity <= 0
-        ? Colors.red.shade700
-        : item.quantity <= 3
-            ? Colors.orange.shade700
-            : Colors.green.shade700;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(26),
+    return _InteractiveCardShell(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          color: cs.surfaceContainerLow,
-          border: Border.all(color: cs.outlineVariant),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-              color: Colors.black.withOpacity(0.05),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: compact
-              ? _InventoryCardCompact(
-                  item: item,
-                  formattedCreatedAt: formattedCreatedAt,
-                  formattedUpdatedAt: formattedUpdatedAt,
-                  stockColor: stockColor,
-                  onSell: onSell,
-                  onEdit: onEdit,
-                  onDelete: onDelete,
-                )
-              : _InventoryCardWide(
-                  item: item,
-                  formattedCreatedAt: formattedCreatedAt,
-                  formattedUpdatedAt: formattedUpdatedAt,
-                  stockColor: stockColor,
-                  onSell: onSell,
-                  onEdit: onEdit,
-                  onDelete: onDelete,
-                ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: compact
+            ? _InventoryCardCompact(
+                item: item,
+                formattedCreatedAt: formattedCreatedAt,
+                formattedUpdatedAt: formattedUpdatedAt,
+                stockColor: _stockColor(),
+                stockLabel: _stockLabel(),
+                onSell: onSell,
+                onEdit: onEdit,
+                onDelete: onDelete,
+              )
+            : _InventoryCardWide(
+                item: item,
+                formattedCreatedAt: formattedCreatedAt,
+                formattedUpdatedAt: formattedUpdatedAt,
+                stockColor: _stockColor(),
+                stockLabel: _stockLabel(),
+                onSell: onSell,
+                onEdit: onEdit,
+                onDelete: onDelete,
+              ),
       ),
     );
   }
@@ -83,6 +75,7 @@ class _InventoryCardWide extends StatelessWidget {
   final String formattedCreatedAt;
   final String formattedUpdatedAt;
   final Color stockColor;
+  final String stockLabel;
   final VoidCallback onSell;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -92,6 +85,7 @@ class _InventoryCardWide extends StatelessWidget {
     required this.formattedCreatedAt,
     required this.formattedUpdatedAt,
     required this.stockColor,
+    required this.stockLabel,
     required this.onSell,
     required this.onEdit,
     required this.onDelete,
@@ -102,10 +96,14 @@ class _InventoryCardWide extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (item.imagePaths.isNotEmpty) ...[
-          _ItemImagePreview(path: item.imagePaths.first),
+          _ItemImagePreview(
+            path: item.imagePaths.first,
+            width: 102,
+            height: 102,
+          ),
           const SizedBox(width: 14),
         ],
         Expanded(
@@ -115,44 +113,18 @@ class _InventoryCardWide extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: cs.secondaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      item.category,
-                      style: TextStyle(
-                        color: cs.onSecondaryContainer,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
+                  _CategoryPill(label: item.category),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Align(
                       alignment: Alignment.topRight,
                       child: Wrap(
                         alignment: WrapAlignment.end,
-                        spacing: 14,
+                        spacing: 10,
                         runSpacing: 6,
                         children: [
-                          Text(
-                            'Added: $formattedCreatedAt',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                          Text(
-                            'Updated: $formattedUpdatedAt',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
+                          _MetaText(label: 'Added', value: formattedCreatedAt),
+                          _MetaText(label: 'Updated', value: formattedUpdatedAt),
                         ],
                       ),
                     ),
@@ -162,32 +134,51 @@ class _InventoryCardWide extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: -0.4,
                 ),
               ),
               if (item.description.trim().isNotEmpty) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 Text(
                   item.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13.8,
                     height: 1.4,
                     color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
               if (item.supplier.trim().isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(
-                  'Supplier: ${item.supplier}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurfaceVariant,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.local_shipping_outlined,
+                      size: 16,
+                      color: cs.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        item.supplier,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
               const SizedBox(height: 12),
@@ -209,7 +200,7 @@ class _InventoryCardWide extends StatelessWidget {
                   _MetricChip(
                     icon: Icons.inventory_2_outlined,
                     label: 'Stock',
-                    valueText: '${item.quantity}',
+                    valueText: '${item.quantity} • $stockLabel',
                     valueColor: stockColor,
                   ),
                   if (item.warranties.isNotEmpty)
@@ -229,52 +220,22 @@ class _InventoryCardWide extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 16),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 78,
+            _ActionButton(
+              width: 76,
               height: 46,
-              child: FilledButton(
-                onPressed: item.quantity <= 0 ? null : onSell,
-                style: FilledButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Icon(Icons.point_of_sale_rounded, size: 22),
-              ),
+              icon: Icons.point_of_sale_rounded,
+              filled: true,
+              tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
+              onPressed: item.quantity <= 0 ? null : onSell,
             ),
             const SizedBox(width: 10),
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                tooltip: 'More actions',
-                icon: Icon(
-                  Icons.more_vert_rounded,
-                  color: cs.onSurfaceVariant,
-                  size: 19,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                onSelected: (value) {
-                  if (value == 'edit') onEdit();
-                  if (value == 'delete') onDelete();
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-              ),
+            _OverflowActionButton(
+              onEdit: onEdit,
+              onDelete: onDelete,
             ),
           ],
         ),
@@ -288,6 +249,7 @@ class _InventoryCardCompact extends StatelessWidget {
   final String formattedCreatedAt;
   final String formattedUpdatedAt;
   final Color stockColor;
+  final String stockLabel;
   final VoidCallback onSell;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -297,6 +259,7 @@ class _InventoryCardCompact extends StatelessWidget {
     required this.formattedCreatedAt,
     required this.formattedUpdatedAt,
     required this.stockColor,
+    required this.stockLabel,
     required this.onSell,
     required this.onEdit,
     required this.onDelete,
@@ -312,8 +275,8 @@ class _InventoryCardCompact extends StatelessWidget {
         if (item.imagePaths.isNotEmpty) ...[
           _ItemImagePreview(
             path: item.imagePaths.first,
-            height: 120,
             width: double.infinity,
+            height: 132,
           ),
           const SizedBox(height: 12),
         ],
@@ -324,60 +287,16 @@ class _InventoryCardCompact extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: cs.secondaryContainer,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          item.category,
-                          style: TextStyle(
-                            color: cs.onSecondaryContainer,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.topRight,
-                          child: Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: 10,
-                            runSpacing: 4,
-                            children: [
-                              Text(
-                                'Added: $formattedCreatedAt',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ),
-                              Text(
-                                'Updated: $formattedUpdatedAt',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _CategoryPill(label: item.category),
                   const SizedBox(height: 8),
                   Text(
                     item.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.32,
                     ),
                   ),
                 ],
@@ -387,73 +306,70 @@ class _InventoryCardCompact extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: 62,
+                _ActionButton(
+                  width: 60,
                   height: 42,
-                  child: FilledButton(
-                    onPressed: item.quantity <= 0 ? null : onSell,
-                    style: FilledButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Icon(Icons.point_of_sale_rounded, size: 20),
-                  ),
+                  icon: Icons.point_of_sale_rounded,
+                  filled: true,
+                  tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
+                  onPressed: item.quantity <= 0 ? null : onSell,
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    tooltip: 'More actions',
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      color: cs.onSurfaceVariant,
-                      size: 18,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    onSelected: (value) {
-                      if (value == 'edit') onEdit();
-                      if (value == 'delete') onDelete();
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      PopupMenuItem(value: 'delete', child: Text('Delete')),
-                    ],
-                  ),
+                _OverflowActionButton(
+                  compact: true,
+                  onEdit: onEdit,
+                  onDelete: onDelete,
                 ),
               ],
             ),
           ],
         ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          children: [
+            _MetaText(label: 'Added', value: formattedCreatedAt),
+            _MetaText(label: 'Updated', value: formattedUpdatedAt),
+          ],
+        ),
         if (item.description.trim().isNotEmpty) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             item.description,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13.8,
               height: 1.4,
               color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
         if (item.supplier.trim().isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text(
-            'Supplier: ${item.supplier}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-            ),
+          Row(
+            children: [
+              Icon(
+                Icons.local_shipping_outlined,
+                size: 16,
+                color: cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  item.supplier,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
         const SizedBox(height: 12),
@@ -475,7 +391,7 @@ class _InventoryCardCompact extends StatelessWidget {
             _MetricChip(
               icon: Icons.inventory_2_outlined,
               label: 'Stock',
-              valueText: '${item.quantity}',
+              valueText: '${item.quantity} • $stockLabel',
               valueColor: stockColor,
             ),
             if (item.warranties.isNotEmpty)
@@ -493,6 +409,78 @@ class _InventoryCardCompact extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _InteractiveCardShell extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const _InteractiveCardShell({
+    required this.child,
+    this.onTap,
+  });
+
+  @override
+  State<_InteractiveCardShell> createState() => _InteractiveCardShellState();
+}
+
+class _InteractiveCardShellState extends State<_InteractiveCardShell> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final translateY = _pressed ? 1.5 : (_hovered ? -1.5 : 0.0);
+    final scale = _pressed ? 0.992 : 1.0;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _pressed = false;
+      }),
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        offset: Offset(0, translateY / 100),
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          scale: scale,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(26),
+              onTap: widget.onTap,
+              onTapDown: (_) => setState(() => _pressed = true),
+              onTapUp: (_) => setState(() => _pressed = false),
+              onTapCancel: () => setState(() => _pressed = false),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(26),
+                  color: cs.surfaceContainerLow,
+                  border: Border.all(
+                    color: _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      blurRadius: _hovered ? 22 : 16,
+                      offset: Offset(0, _hovered ? 10 : 6),
+                      color: Colors.black.withOpacity(_hovered ? 0.07 : 0.05),
+                    ),
+                  ],
+                ),
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -531,6 +519,162 @@ class _ItemImagePreview extends StatelessWidget {
   }
 }
 
+class _CategoryPill extends StatelessWidget {
+  final String label;
+
+  const _CategoryPill({
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: cs.secondaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: cs.onSecondaryContainer,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaText extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MetaText({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Text(
+      '$label: $value',
+      style: TextStyle(
+        fontSize: 11.8,
+        color: cs.onSurfaceVariant,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final double width;
+  final double height;
+  final IconData icon;
+  final bool filled;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  const _ActionButton({
+    required this.width,
+    required this.height,
+    required this.icon,
+    required this.filled,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    final button = filled
+        ? FilledButton(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Icon(icon, size: 21),
+          )
+        : OutlinedButton(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              side: BorderSide(color: cs.outlineVariant),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Icon(icon, size: 21),
+          );
+
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: button,
+      ),
+    );
+  }
+}
+
+class _OverflowActionButton extends StatelessWidget {
+  final bool compact;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _OverflowActionButton({
+    this.compact = false,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: compact ? 38 : 42,
+      height: compact ? 38 : 42,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(compact ? 13 : 14),
+      ),
+      child: PopupMenuButton<String>(
+        padding: EdgeInsets.zero,
+        tooltip: 'More actions',
+        icon: Icon(
+          Icons.more_vert_rounded,
+          color: cs.onSurfaceVariant,
+          size: compact ? 18 : 19,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        onSelected: (value) {
+          if (value == 'edit') onEdit();
+          if (value == 'delete') onDelete();
+        },
+        itemBuilder: (context) => const [
+          PopupMenuItem(value: 'edit', child: Text('Edit')),
+          PopupMenuItem(value: 'delete', child: Text('Delete')),
+        ],
+      ),
+    );
+  }
+}
+
 class _MetricChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -552,7 +696,8 @@ class _MetricChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
@@ -566,7 +711,7 @@ class _MetricChip extends StatelessWidget {
           Text(
             '$label: ',
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 12.4,
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
@@ -575,8 +720,8 @@ class _MetricChip extends StatelessWidget {
             SensitiveValueText(
               visibleText: sensitiveText ?? '',
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
+                fontSize: 12.6,
+                fontWeight: FontWeight.w800,
                 color: valueColor ?? cs.onSurface,
               ),
             )
@@ -584,8 +729,8 @@ class _MetricChip extends StatelessWidget {
             Text(
               valueText ?? '',
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
+                fontSize: 12.6,
+                fontWeight: FontWeight.w800,
                 color: valueColor ?? cs.onSurface,
               ),
             ),

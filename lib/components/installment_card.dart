@@ -57,32 +57,41 @@ class InstallmentCard extends StatelessWidget {
     }
   }
 
+  double _progressValue() {
+    if (plan.durationMonths <= 0) return 0;
+    final value = plan.paidMonths / plan.durationMonths;
+    return value.clamp(0.0, 1.0);
+  }
+
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 820;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(28),
+    return _InteractiveCardShell(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-              color: Colors.black.withOpacity(0.05),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: compact ? _CompactCard(plan: plan, thisMonthStatus: thisMonthStatus, formattedStartDate: formattedStartDate, formattedNextDueDate: formattedNextDueDate, planStatusColor: _planStatusColor(), planStatusLabel: _planStatusLabel(), currentMonthColor: _currentMonthColor()) : _WideCard(plan: plan, thisMonthStatus: thisMonthStatus, formattedStartDate: formattedStartDate, formattedNextDueDate: formattedNextDueDate, planStatusColor: _planStatusColor(), planStatusLabel: _planStatusLabel(), currentMonthColor: _currentMonthColor()),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: compact
+            ? _CompactCard(
+                plan: plan,
+                thisMonthStatus: thisMonthStatus,
+                formattedStartDate: formattedStartDate,
+                formattedNextDueDate: formattedNextDueDate,
+                planStatusColor: _planStatusColor(),
+                planStatusLabel: _planStatusLabel(),
+                currentMonthColor: _currentMonthColor(),
+                progressValue: _progressValue(),
+              )
+            : _WideCard(
+                plan: plan,
+                thisMonthStatus: thisMonthStatus,
+                formattedStartDate: formattedStartDate,
+                formattedNextDueDate: formattedNextDueDate,
+                planStatusColor: _planStatusColor(),
+                planStatusLabel: _planStatusLabel(),
+                currentMonthColor: _currentMonthColor(),
+                progressValue: _progressValue(),
+              ),
       ),
     );
   }
@@ -96,6 +105,7 @@ class _WideCard extends StatelessWidget {
   final Color planStatusColor;
   final String planStatusLabel;
   final Color currentMonthColor;
+  final double progressValue;
 
   const _WideCard({
     required this.plan,
@@ -105,6 +115,7 @@ class _WideCard extends StatelessWidget {
     required this.planStatusColor,
     required this.planStatusLabel,
     required this.currentMonthColor,
+    required this.progressValue,
   });
 
   @override
@@ -118,25 +129,11 @@ class _WideCard extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withOpacity(0.75),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                child: _Panel(
+                  title: 'Installment details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Installment details',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
                       Wrap(
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: 10,
@@ -150,12 +147,10 @@ class _WideCard extends StatelessWidget {
                               letterSpacing: -0.4,
                             ),
                           ),
-                          Text(
-                            '(${plan.category})',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          _InlineBadge(
+                            label: plan.category,
+                            background: cs.secondaryContainer,
+                            foreground: cs.onSecondaryContainer,
                           ),
                         ],
                       ),
@@ -195,31 +190,23 @@ class _WideCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      _ProgressStrip(
+                        value: progressValue,
+                        color: planStatusColor,
+                        label: 'Completion',
+                      ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 18),
+              const SizedBox(width: 16),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withOpacity(0.75),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                child: _Panel(
+                  title: 'Customer details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Customer details',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
                       _DetailLine(
                         label: 'Name',
                         value: (plan.customerName ?? '').trim().isEmpty
@@ -281,6 +268,7 @@ class _CompactCard extends StatelessWidget {
   final Color planStatusColor;
   final String planStatusLabel;
   final Color currentMonthColor;
+  final double progressValue;
 
   const _CompactCard({
     required this.plan,
@@ -290,34 +278,20 @@ class _CompactCard extends StatelessWidget {
     required this.planStatusColor,
     required this.planStatusLabel,
     required this.currentMonthColor,
+    required this.progressValue,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withOpacity(0.75),
-            borderRadius: BorderRadius.circular(18),
-          ),
+        _Panel(
+          title: 'Installment details',
+          compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Installment details',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 10),
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 10,
@@ -326,17 +300,15 @@ class _CompactCard extends StatelessWidget {
                   Text(
                     plan.itemName,
                     style: const TextStyle(
-                      fontSize: 19,
+                      fontSize: 18.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.35,
                     ),
                   ),
-                  Text(
-                    '(${plan.category})',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  _InlineBadge(
+                    label: plan.category,
+                    background: Theme.of(context).colorScheme.secondaryContainer,
+                    foreground: Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
                 ],
               ),
@@ -365,29 +337,22 @@ class _CompactCard extends StatelessWidget {
                 label: 'Next due',
                 value: formattedNextDueDate,
               ),
+              const SizedBox(height: 12),
+              _ProgressStrip(
+                value: progressValue,
+                color: planStatusColor,
+                label: 'Completion',
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withOpacity(0.75),
-            borderRadius: BorderRadius.circular(18),
-          ),
+        const SizedBox(height: 12),
+        _Panel(
+          title: 'Customer details',
+          compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Customer details',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 10),
               _DetailLine(
                 label: 'Name',
                 value: (plan.customerName ?? '').trim().isEmpty
@@ -412,7 +377,7 @@ class _CompactCard extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -428,6 +393,146 @@ class _CompactCard extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _InteractiveCardShell extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const _InteractiveCardShell({
+    required this.child,
+    this.onTap,
+  });
+
+  @override
+  State<_InteractiveCardShell> createState() => _InteractiveCardShellState();
+}
+
+class _InteractiveCardShellState extends State<_InteractiveCardShell> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final scale = _pressed ? 0.992 : 1.0;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _pressed = false;
+      }),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        scale: scale,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: widget.onTap,
+            onTapDown: (_) => setState(() => _pressed = true),
+            onTapUp: (_) => setState(() => _pressed = false),
+            onTapCancel: () => setState(() => _pressed = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: _hovered ? 22 : 18,
+                    offset: Offset(0, _hovered ? 10 : 8),
+                    color: Colors.black.withOpacity(_hovered ? 0.07 : 0.05),
+                  ),
+                ],
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  final String title;
+  final Widget child;
+  final bool compact;
+
+  const _Panel({
+    required this.title,
+    required this.child,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: EdgeInsets.all(compact ? 14 : 15),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(compact ? 18 : 20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12.8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.45,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineBadge extends StatelessWidget {
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  const _InlineBadge({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.2,
+          fontWeight: FontWeight.w800,
+          color: foreground,
+        ),
+      ),
     );
   }
 }
@@ -466,11 +571,59 @@ class _DetailLine extends StatelessWidget {
           child: Text(
             value,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 13.4,
               height: 1.4,
               color: cs.onSurface,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProgressStrip extends StatelessWidget {
+  final double value;
+  final Color color;
+  final String label;
+
+  const _ProgressStrip({
+    required this.value,
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 7),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: value),
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeOutCubic,
+            builder: (context, animatedValue, _) {
+              return LinearProgressIndicator(
+                value: animatedValue,
+                minHeight: 8,
+                backgroundColor: cs.surfaceContainer,
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              );
+            },
           ),
         ),
       ],
@@ -489,7 +642,8 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),

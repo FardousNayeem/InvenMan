@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/sale_record.dart';
@@ -14,38 +16,35 @@ class SaleCard extends StatelessWidget {
     this.onTap,
   });
 
+  Color _profitColor() {
+    return sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
+  }
+
+  Color _paymentColor() {
+    return sale.isInstallment ? Colors.deepPurple.shade700 : Colors.blue.shade700;
+  }
+
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 820;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(28),
+    return _InteractiveCardShell(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-              color: Colors.black.withOpacity(0.05),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: compact
-              ? _SaleCardCompact(
-                  sale: sale,
-                  formattedDate: formattedDate,
-                )
-              : _SaleCardWide(
-                  sale: sale,
-                  formattedDate: formattedDate,
-                ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: compact
+            ? _SaleCardCompact(
+                sale: sale,
+                formattedDate: formattedDate,
+                profitColor: _profitColor(),
+                paymentColor: _paymentColor(),
+              )
+            : _SaleCardWide(
+                sale: sale,
+                formattedDate: formattedDate,
+                profitColor: _profitColor(),
+                paymentColor: _paymentColor(),
+              ),
       ),
     );
   }
@@ -54,43 +53,33 @@ class SaleCard extends StatelessWidget {
 class _SaleCardWide extends StatelessWidget {
   final SaleRecord sale;
   final String formattedDate;
+  final Color profitColor;
+  final Color paymentColor;
 
   const _SaleCardWide({
     required this.sale,
     required this.formattedDate,
+    required this.profitColor,
+    required this.paymentColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final profitColor = sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        
         IntrinsicHeight(
           child: Row(
             children: [
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withOpacity(0.75),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                child: _Panel(
+                  title: 'Purchase details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Purchase details',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
                       Wrap(
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: 10,
@@ -104,12 +93,10 @@ class _SaleCardWide extends StatelessWidget {
                               letterSpacing: -0.4,
                             ),
                           ),
-                          Text(
-                            '(${sale.category})',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          _InlineBadge(
+                            label: sale.category,
+                            background: cs.secondaryContainer,
+                            foreground: cs.onSecondaryContainer,
                           ),
                         ],
                       ),
@@ -156,27 +143,13 @@ class _SaleCardWide extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 18),
+              const SizedBox(width: 16),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withOpacity(0.75),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                child: _Panel(
+                  title: 'Customer details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Customer details',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
                       _DetailLine(
                         label: 'Name',
                         value: (sale.customerName ?? '').trim().isEmpty
@@ -204,6 +177,7 @@ class _SaleCardWide extends StatelessWidget {
                         value: sale.isInstallment
                             ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
                             : 'Direct',
+                        valueColor: paymentColor,
                       ),
                       const SizedBox(height: 8),
                       _DetailLine(
@@ -220,6 +194,7 @@ class _SaleCardWide extends StatelessWidget {
         if (sale.warranties.isNotEmpty) ...[
           const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Warranty Remaining:',
@@ -235,19 +210,13 @@ class _SaleCardWide extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: sale.warranties.entries.map((entry) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text(
-                        '${entry.key}: ${_remainingWarrantyLabel(sale.soldAt, entry.value)}',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                    final remaining =
+                        _remainingWarrantyLabel(sale.soldAt, entry.value);
+                    final expired = remaining == 'Expired';
+
+                    return _WarrantyChip(
+                      label: '${entry.key}: $remaining',
+                      expired: expired,
                     );
                   }).toList(),
                 ),
@@ -263,39 +232,36 @@ class _SaleCardWide extends StatelessWidget {
 class _SaleCardCompact extends StatelessWidget {
   final SaleRecord sale;
   final String formattedDate;
+  final Color profitColor;
+  final Color paymentColor;
 
   const _SaleCardCompact({
     required this.sale,
     required this.formattedDate,
+    required this.profitColor,
+    required this.paymentColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final profitColor = sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withOpacity(0.75),
-            borderRadius: BorderRadius.circular(18),
+        if (sale.imagePaths.isNotEmpty) ...[
+          _SaleImageRail(
+            imagePaths: sale.imagePaths,
+            compact: true,
           ),
+          const SizedBox(height: 12),
+        ],
+        _Panel(
+          title: 'Purchase details',
+          compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Purchase details',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 10),
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 10,
@@ -304,17 +270,15 @@ class _SaleCardCompact extends StatelessWidget {
                   Text(
                     sale.itemName,
                     style: const TextStyle(
-                      fontSize: 19,
+                      fontSize: 18.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.35,
                     ),
                   ),
-                  Text(
-                    '(${sale.category})',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  _InlineBadge(
+                    label: sale.category,
+                    background: cs.secondaryContainer,
+                    foreground: cs.onSecondaryContainer,
                   ),
                 ],
               ),
@@ -344,26 +308,13 @@ class _SaleCardCompact extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withOpacity(0.75),
-            borderRadius: BorderRadius.circular(18),
-          ),
+        const SizedBox(height: 12),
+        _Panel(
+          title: 'Customer details',
+          compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Customer details',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 10),
               _DetailLine(
                 label: 'Name',
                 value: (sale.customerName ?? '').trim().isEmpty
@@ -391,6 +342,7 @@ class _SaleCardCompact extends StatelessWidget {
                 value: sale.isInstallment
                     ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
                     : 'Direct',
+                valueColor: paymentColor,
               ),
               const SizedBox(height: 8),
               _DetailLine(
@@ -401,39 +353,214 @@ class _SaleCardCompact extends StatelessWidget {
           ),
         ),
         if (sale.warranties.isNotEmpty) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             'Warranty Remaining',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
+              letterSpacing: 0.35,
               color: cs.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: sale.warranties.entries.map((entry) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  '${entry.key}: ${_remainingWarrantyLabel(sale.soldAt, entry.value)}',
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              final remaining = _remainingWarrantyLabel(sale.soldAt, entry.value);
+              final expired = remaining == 'Expired';
+
+              return _WarrantyChip(
+                label: '${entry.key}: $remaining',
+                expired: expired,
               );
             }).toList(),
           ),
         ],
       ],
+    );
+  }
+}
+
+class _InteractiveCardShell extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const _InteractiveCardShell({
+    required this.child,
+    this.onTap,
+  });
+
+  @override
+  State<_InteractiveCardShell> createState() => _InteractiveCardShellState();
+}
+
+class _InteractiveCardShellState extends State<_InteractiveCardShell> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final scale = _pressed ? 0.992 : 1.0;
+    final borderColor = _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _pressed = false;
+      }),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        scale: scale,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: widget.onTap,
+            onTapDown: (_) => setState(() => _pressed = true),
+            onTapUp: (_) => setState(() => _pressed = false),
+            onTapCancel: () => setState(() => _pressed = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: _hovered ? 22 : 18,
+                    offset: Offset(0, _hovered ? 10 : 8),
+                    color: Colors.black.withOpacity(_hovered ? 0.07 : 0.05),
+                  ),
+                ],
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  final String title;
+  final Widget child;
+  final bool compact;
+
+  const _Panel({
+    required this.title,
+    required this.child,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: EdgeInsets.all(compact ? 14 : 15),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(compact ? 18 : 20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12.8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.45,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineBadge extends StatelessWidget {
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  const _InlineBadge({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.2,
+          fontWeight: FontWeight.w800,
+          color: foreground,
+        ),
+      ),
+    );
+  }
+}
+
+class _SaleImageRail extends StatelessWidget {
+  final List<String> imagePaths;
+  final bool compact;
+
+  const _SaleImageRail({
+    required this.imagePaths,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final count = imagePaths.length > (compact ? 3 : 4) ? (compact ? 3 : 4) : imagePaths.length;
+
+    return SizedBox(
+      height: compact ? 78 : 84,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: count,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, index) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: compact ? 78 : 84,
+              height: compact ? 78 : 84,
+              color: cs.surfaceContainerHighest,
+              child: Image.file(
+                File(imagePaths[index]),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.broken_image_outlined,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -463,7 +590,7 @@ class _DetailLine extends StatelessWidget {
       crossAxisAlignment: multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         SizedBox(
-          width: 68,
+          width: 72,
           child: Text(
             '$label:',
             style: TextStyle(
@@ -478,24 +605,58 @@ class _DetailLine extends StatelessWidget {
               ? SensitiveValueText(
                   visibleText: sensitiveValue ?? '',
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 13.4,
                     height: 1.4,
                     color: valueColor ?? cs.onSurface,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                   maxLines: multiline ? 10 : 1,
                 )
               : Text(
                   value ?? '',
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 13.4,
                     height: 1.4,
                     color: valueColor ?? cs.onSurface,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _WarrantyChip extends StatelessWidget {
+  final String label;
+  final bool expired;
+
+  const _WarrantyChip({
+    required this.label,
+    required this.expired,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = expired ? Colors.red.shade700 : Theme.of(context).colorScheme.onSurface;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: expired
+            ? Colors.red.withOpacity(0.10)
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
     );
   }
 }
