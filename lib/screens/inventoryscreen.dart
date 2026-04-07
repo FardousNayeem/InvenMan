@@ -500,7 +500,7 @@ class _InventoryPageState extends State<InventoryPage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                '${estimatedProfit.toStringAsFixed(2)}',
+                                estimatedProfit.toStringAsFixed(2),
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,
@@ -1266,12 +1266,12 @@ class _InventoryCardWide extends StatelessWidget {
                   _MetricChip(
                     icon: Icons.shopping_bag_outlined,
                     label: 'Cost',
-                    value: '${item.costPrice.toStringAsFixed(0)}',
+                    value: item.costPrice.toStringAsFixed(0),
                   ),
                   _MetricChip(
                     icon: Icons.sell_outlined,
                     label: 'Selling',
-                    value: '${item.sellingPrice.toStringAsFixed(0)}',
+                    value: item.sellingPrice.toStringAsFixed(0),
                   ),
                   _MetricChip(
                     icon: Icons.inventory_2_outlined,
@@ -1518,12 +1518,12 @@ class _InventoryCardCompact extends StatelessWidget {
             _MetricChip(
               icon: Icons.shopping_bag_outlined,
               label: 'Cost',
-              value: '${item.costPrice.toStringAsFixed(0)}',
+              value: item.costPrice.toStringAsFixed(0),
             ),
             _MetricChip(
               icon: Icons.sell_outlined,
               label: 'Selling',
-              value: '${item.sellingPrice.toStringAsFixed(0)}',
+              value: item.sellingPrice.toStringAsFixed(0),
             ),
             _MetricChip(
               icon: Icons.inventory_2_outlined,

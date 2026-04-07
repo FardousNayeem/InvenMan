@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class SaleRecord {
   final int? id;
   final int itemId;
@@ -12,7 +14,7 @@ class SaleRecord {
   final String? customerPhone;
   final String? customerAddress;
 
-  final int? warrantyMonths;
+  final Map<String, int> warranties;
 
   final DateTime soldAt;
 
@@ -28,11 +30,14 @@ class SaleRecord {
     this.customerName,
     this.customerPhone,
     this.customerAddress,
-    this.warrantyMonths,
+    this.warranties = const {},
     required this.soldAt,
   });
 
   factory SaleRecord.fromMap(Map<String, dynamic> map) {
+    final warrantiesJson = map['warranties_json'] as String? ?? '{}';
+    final decodedWarranties = jsonDecode(warrantiesJson) as Map<String, dynamic>;
+
     return SaleRecord(
       id: map['id'] as int?,
       itemId: map['item_id'] as int,
@@ -45,7 +50,9 @@ class SaleRecord {
       customerName: map['customer_name'] as String?,
       customerPhone: map['customer_phone'] as String?,
       customerAddress: map['customer_address'] as String?,
-      warrantyMonths: map['warranty_months'] as int?,
+      warranties: decodedWarranties.map(
+        (key, value) => MapEntry(key, (value as num).toInt()),
+      ),
       soldAt: DateTime.parse(map['sold_at'] as String),
     );
   }
@@ -63,7 +70,7 @@ class SaleRecord {
       'customer_name': customerName,
       'customer_phone': customerPhone,
       'customer_address': customerAddress,
-      'warranty_months': warrantyMonths,
+      'warranties_json': jsonEncode(warranties),
       'sold_at': soldAt.toIso8601String(),
     };
   }

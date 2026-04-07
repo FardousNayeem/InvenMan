@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Item {
   final int? id;
   final String name;
@@ -6,7 +8,8 @@ class Item {
   final double costPrice;
   final double sellingPrice;
   final int quantity;
-  final int? warrantyMonths;
+  final Map<String, int> warranties;
+  final List<String> imagePaths;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -18,12 +21,19 @@ class Item {
     required this.costPrice,
     required this.sellingPrice,
     required this.quantity,
-    this.warrantyMonths,
+    this.warranties = const {},
+    this.imagePaths = const [],
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory Item.fromMap(Map<String, dynamic> map) {
+    final warrantiesJson = map['warranties_json'] as String? ?? '{}';
+    final imagePathsJson = map['image_paths_json'] as String? ?? '[]';
+
+    final decodedWarranties = jsonDecode(warrantiesJson) as Map<String, dynamic>;
+    final decodedImagePaths = jsonDecode(imagePathsJson) as List<dynamic>;
+
     return Item(
       id: map['id'] as int?,
       name: map['name'] as String,
@@ -32,7 +42,10 @@ class Item {
       costPrice: (map['cost_price'] as num).toDouble(),
       sellingPrice: (map['selling_price'] as num).toDouble(),
       quantity: map['quantity'] as int,
-      warrantyMonths: map['warranty_months'] as int?,
+      warranties: decodedWarranties.map(
+        (key, value) => MapEntry(key, (value as num).toInt()),
+      ),
+      imagePaths: decodedImagePaths.map((e) => e.toString()).toList(),
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
@@ -47,7 +60,8 @@ class Item {
       'cost_price': costPrice,
       'selling_price': sellingPrice,
       'quantity': quantity,
-      'warranty_months': warrantyMonths,
+      'warranties_json': jsonEncode(warranties),
+      'image_paths_json': jsonEncode(imagePaths),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -61,7 +75,8 @@ class Item {
     double? costPrice,
     double? sellingPrice,
     int? quantity,
-    int? warrantyMonths,
+    Map<String, int>? warranties,
+    List<String>? imagePaths,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -73,7 +88,8 @@ class Item {
       costPrice: costPrice ?? this.costPrice,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       quantity: quantity ?? this.quantity,
-      warrantyMonths: warrantyMonths ?? this.warrantyMonths,
+      warranties: warranties ?? this.warranties,
+      imagePaths: imagePaths ?? this.imagePaths,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
