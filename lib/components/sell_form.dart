@@ -144,7 +144,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
                     Expanded(
                       child: AppTextField(
                         controller: _sellPriceController,
-                        label: 'Sell price per unit',
+                        label: 'MRP per unit',
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         validator: _validateMoney,
                         onChanged: (_) => setState(() {}),

@@ -55,15 +55,13 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _imagePaths = List<String>.from(item?.imagePaths ?? const []);
 
     final warranties = item?.warranties ?? const <String, int>{};
-    if (warranties.isNotEmpty) {
-      for (final entry in warranties.entries) {
-        _warrantyFields.add(
-          _WarrantyFieldData(
-            keyController: TextEditingController(text: entry.key),
-            valueController: TextEditingController(text: entry.value.toString()),
-          ),
-        );
-      }
+    for (final entry in warranties.entries) {
+      _warrantyFields.add(
+        _WarrantyFieldData(
+          keyController: TextEditingController(text: entry.key),
+          valueController: TextEditingController(text: entry.value.toString()),
+        ),
+      );
     }
 
     _loadCategorySuggestions();
@@ -276,7 +274,9 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                       child: Autocomplete<String>(
                         optionsBuilder: (textEditingValue) {
                           final input = textEditingValue.text.trim().toLowerCase();
-                          if (_categorySuggestions.isEmpty) return const Iterable<String>.empty();
+                          if (_categorySuggestions.isEmpty) {
+                            return const Iterable<String>.empty();
+                          }
                           if (input.isEmpty) return _categorySuggestions;
                           return _categorySuggestions.where(
                             (category) => category.toLowerCase().contains(input),
@@ -292,18 +292,19 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                           focusNode,
                           onFieldSubmitted,
                         ) {
-                          controller.text = _categoryController.text;
-                          controller.selection = TextSelection.fromPosition(
-                            TextPosition(offset: controller.text.length),
+                          controller.value = TextEditingValue(
+                            text: _categoryController.text,
+                            selection: TextSelection.collapsed(
+                              offset: _categoryController.text.length,
+                            ),
                           );
-
-                          controller.addListener(() {
-                            _categoryController.text = controller.text;
-                          });
 
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
+                            onChanged: (value) {
+                              _categoryController.text = value;
+                            },
                             decoration: InputDecoration(
                               labelText: 'Category',
                               filled: true,

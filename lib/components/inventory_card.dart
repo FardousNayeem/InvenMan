@@ -10,6 +10,7 @@ class InventoryCard extends StatelessWidget {
   final VoidCallback onSell;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
   const InventoryCard({
     super.key,
@@ -19,6 +20,7 @@ class InventoryCard extends StatelessWidget {
     required this.onSell,
     required this.onEdit,
     required this.onDelete,
+    this.onTap,
   });
 
   @override
@@ -32,40 +34,44 @@ class InventoryCard extends StatelessWidget {
             ? Colors.orange.shade700
             : Colors.green.shade700;
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        color: cs.surfaceContainerLow,
-        border: Border.all(color: cs.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-            color: Colors.black.withOpacity(0.05),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: compact
-            ? _InventoryCardCompact(
-                item: item,
-                formattedCreatedAt: formattedCreatedAt,
-                formattedUpdatedAt: formattedUpdatedAt,
-                stockColor: stockColor,
-                onSell: onSell,
-                onEdit: onEdit,
-                onDelete: onDelete,
-              )
-            : _InventoryCardWide(
-                item: item,
-                formattedCreatedAt: formattedCreatedAt,
-                formattedUpdatedAt: formattedUpdatedAt,
-                stockColor: stockColor,
-                onSell: onSell,
-                onEdit: onEdit,
-                onDelete: onDelete,
-              ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(26),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          color: cs.surfaceContainerLow,
+          border: Border.all(color: cs.outlineVariant),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+              color: Colors.black.withOpacity(0.05),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: compact
+              ? _InventoryCardCompact(
+                  item: item,
+                  formattedCreatedAt: formattedCreatedAt,
+                  formattedUpdatedAt: formattedUpdatedAt,
+                  stockColor: stockColor,
+                  onSell: onSell,
+                  onEdit: onEdit,
+                  onDelete: onDelete,
+                )
+              : _InventoryCardWide(
+                  item: item,
+                  formattedCreatedAt: formattedCreatedAt,
+                  formattedUpdatedAt: formattedUpdatedAt,
+                  stockColor: stockColor,
+                  onSell: onSell,
+                  onEdit: onEdit,
+                  onDelete: onDelete,
+                ),
+        ),
       ),
     );
   }
@@ -195,7 +201,7 @@ class _InventoryCardWide extends StatelessWidget {
                   ),
                   _MetricChip(
                     icon: Icons.sell_outlined,
-                    label: 'Selling',
+                    label: 'MRP',
                     value: item.sellingPrice.toStringAsFixed(0),
                   ),
                   _MetricChip(
@@ -222,58 +228,53 @@ class _InventoryCardWide extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 18),
-        Align(
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 78,
-                height: 46,
-                child: FilledButton(
-                  onPressed: item.quantity <= 0 ? null : onSell,
-                  style: FilledButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.point_of_sale_rounded, size: 22),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: PopupMenuButton<String>(
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 78,
+              height: 46,
+              child: FilledButton(
+                onPressed: item.quantity <= 0 ? null : onSell,
+                style: FilledButton.styleFrom(
                   padding: EdgeInsets.zero,
-                  tooltip: 'More actions',
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    color: cs.onSurfaceVariant,
-                    size: 19,
-                  ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  onSelected: (value) {
-                    if (value == 'edit') onEdit();
-                    if (value == 'delete') onDelete();
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
                 ),
+                child: const Icon(Icons.point_of_sale_rounded, size: 22),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                tooltip: 'More actions',
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  color: cs.onSurfaceVariant,
+                  size: 19,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                onSelected: (value) {
+                  if (value == 'edit') onEdit();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -307,7 +308,11 @@ class _InventoryCardCompact extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (item.imagePaths.isNotEmpty) ...[
-          _ItemImagePreview(path: item.imagePaths.first, height: 120, width: double.infinity),
+          _ItemImagePreview(
+            path: item.imagePaths.first,
+            height: 120,
+            width: double.infinity,
+          ),
           const SizedBox(height: 12),
         ],
         Row(
@@ -391,9 +396,7 @@ class _InventoryCardCompact extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.point_of_sale_rounded, size: 20),
-                    ),
+                    child: const Icon(Icons.point_of_sale_rounded, size: 20),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -463,7 +466,7 @@ class _InventoryCardCompact extends StatelessWidget {
             ),
             _MetricChip(
               icon: Icons.sell_outlined,
-              label: 'Selling',
+              label: 'MRP',
               value: item.sellingPrice.toStringAsFixed(0),
             ),
             _MetricChip(

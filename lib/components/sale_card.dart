@@ -69,7 +69,6 @@ class _SaleCardWide extends StatelessWidget {
       children: [
         IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Container(
@@ -106,34 +105,49 @@ class _SaleCardWide extends StatelessWidget {
                           ),
                           Text(
                             '(${sale.category})',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: cs.onSurfaceVariant,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      _DetailLine(
-                        label: 'Cost',
-                        value: sale.costPrice.toStringAsFixed(0),
-                      ),
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Selling',
-                        value: sale.sellPrice.toStringAsFixed(0),
-                      ),
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Qty',
-                        value: '${sale.quantitySold}',
-                      ),
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Profit',
-                        value: sale.profit.toStringAsFixed(0),
-                        valueColor: profitColor,
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              children: [
+                                _DetailLine(
+                                  label: 'Cost',
+                                  value: sale.costPrice.toStringAsFixed(0),
+                                ),
+                                const SizedBox(height: 8),
+                                _DetailLine(
+                                  label: 'MRP',
+                                  value: sale.sellPrice.toStringAsFixed(0),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                _DetailLine(
+                                  label: 'Qty',
+                                  value: '${sale.quantitySold}',
+                                ),
+                                const SizedBox(height: 8),
+                                _DetailLine(
+                                  label: 'Profit',
+                                  value: sale.profit.toStringAsFixed(0),
+                                  valueColor: profitColor,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -183,6 +197,13 @@ class _SaleCardWide extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       _DetailLine(
+                        label: 'Payment',
+                        value: sale.isInstallment
+                            ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
+                            : 'Direct',
+                      ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
                         label: 'Date',
                         value: formattedDate,
                       ),
@@ -196,14 +217,12 @@ class _SaleCardWide extends StatelessWidget {
         if (sale.warranties.isNotEmpty) ...[
           const SizedBox(height: 16),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'Warranty Remaining:',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
                   color: cs.onSurfaceVariant,
                 ),
               ),
@@ -289,10 +308,9 @@ class _SaleCardCompact extends StatelessWidget {
                   ),
                   Text(
                     '(${sale.category})',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -304,7 +322,7 @@ class _SaleCardCompact extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _DetailLine(
-                label: 'Selling',
+                label: 'MRP',
                 value: sale.sellPrice.toStringAsFixed(0),
               ),
               const SizedBox(height: 8),
@@ -361,6 +379,13 @@ class _SaleCardCompact extends StatelessWidget {
                     ? 'Not provided'
                     : sale.customerAddress!,
                 multiline: true,
+              ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Payment',
+                value: sale.isInstallment
+                    ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
+                    : 'Direct',
               ),
               const SizedBox(height: 8),
               _DetailLine(
@@ -429,7 +454,7 @@ class _DetailLine extends StatelessWidget {
       crossAxisAlignment: multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         SizedBox(
-          width: 62,
+          width: 68,
           child: Text(
             '$label:',
             style: TextStyle(
