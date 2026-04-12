@@ -417,7 +417,6 @@ class DBHelper {
       }
 
       details.write(', Warranties: ${_formatWarranties(sale.warranties)}');
-      details.write(', Images: ${_formatImageCount(sale.imagePaths)}');
 
       await txn.insert('history_entries', {
         'item_name': sale.itemName,
@@ -547,7 +546,6 @@ class DBHelper {
       paymentType: paymentType,
       installmentMonths: installmentMonths,
       warranties: item.warranties,
-      imagePaths: item.imagePaths,
       soldAt: now,
     );
 

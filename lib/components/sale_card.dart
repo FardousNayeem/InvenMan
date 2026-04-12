@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/sale_record.dart';
@@ -70,7 +68,6 @@ class _SaleCardWide extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        
         IntrinsicHeight(
           child: Row(
             children: [
@@ -249,13 +246,6 @@ class _SaleCardCompact extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (sale.imagePaths.isNotEmpty) ...[
-          _SaleImageRail(
-            imagePaths: sale.imagePaths,
-            compact: true,
-          ),
-          const SizedBox(height: 12),
-        ],
         _Panel(
           title: 'Purchase details',
           compact: true,
@@ -517,49 +507,6 @@ class _InlineBadge extends StatelessWidget {
           fontWeight: FontWeight.w800,
           color: foreground,
         ),
-      ),
-    );
-  }
-}
-
-class _SaleImageRail extends StatelessWidget {
-  final List<String> imagePaths;
-  final bool compact;
-
-  const _SaleImageRail({
-    required this.imagePaths,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final count = imagePaths.length > (compact ? 3 : 4) ? (compact ? 3 : 4) : imagePaths.length;
-
-    return SizedBox(
-      height: compact ? 78 : 84,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: count,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: compact ? 78 : 84,
-              height: compact ? 78 : 84,
-              color: cs.surfaceContainerHighest,
-              child: Image.file(
-                File(imagePaths[index]),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Icon(
-                  Icons.broken_image_outlined,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

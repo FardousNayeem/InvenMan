@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class InstallmentPlan {
   final int? id;
   final int saleRecordId;
@@ -8,7 +6,6 @@ class InstallmentPlan {
   final String? customerName;
   final String? customerPhone;
   final String? customerAddress;
-  final List<String> imagePaths;
 
   final double totalAmount;
   final double downPayment;
@@ -36,7 +33,6 @@ class InstallmentPlan {
     this.customerName,
     this.customerPhone,
     this.customerAddress,
-    this.imagePaths = const [],
     required this.totalAmount,
     required this.downPayment,
     required this.financedAmount,
@@ -58,9 +54,6 @@ class InstallmentPlan {
   bool get isActive => status == 'active';
 
   factory InstallmentPlan.fromMap(Map<String, dynamic> map) {
-    final imagePathsJson = map['image_paths_json'] as String? ?? '[]';
-    final decodedImagePaths = jsonDecode(imagePathsJson) as List<dynamic>;
-
     return InstallmentPlan(
       id: map['id'] as int?,
       saleRecordId: map['sale_record_id'] as int,
@@ -69,7 +62,6 @@ class InstallmentPlan {
       customerName: map['customer_name'] as String?,
       customerPhone: map['customer_phone'] as String?,
       customerAddress: map['customer_address'] as String?,
-      imagePaths: decodedImagePaths.map((e) => e.toString()).toList(),
       totalAmount: (map['total_amount'] as num).toDouble(),
       downPayment: (map['down_payment'] as num).toDouble(),
       financedAmount: (map['financed_amount'] as num).toDouble(),
@@ -98,7 +90,6 @@ class InstallmentPlan {
       'customer_name': customerName,
       'customer_phone': customerPhone,
       'customer_address': customerAddress,
-      'image_paths_json': jsonEncode(imagePaths),
       'total_amount': totalAmount,
       'down_payment': downPayment,
       'financed_amount': financedAmount,
@@ -124,7 +115,6 @@ class InstallmentPlan {
     String? customerName,
     String? customerPhone,
     String? customerAddress,
-    List<String>? imagePaths,
     double? totalAmount,
     double? downPayment,
     double? financedAmount,
@@ -149,7 +139,6 @@ class InstallmentPlan {
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
       customerAddress: customerAddress ?? this.customerAddress,
-      imagePaths: imagePaths ?? this.imagePaths,
       totalAmount: totalAmount ?? this.totalAmount,
       downPayment: downPayment ?? this.downPayment,
       financedAmount: financedAmount ?? this.financedAmount,

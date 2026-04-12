@@ -1,6 +1,3 @@
-import 'dart:io';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:invenman/models/sale_record.dart';
@@ -19,8 +16,6 @@ class SaleDetailsScreen extends StatefulWidget {
 }
 
 class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
-  int _selectedImageIndex = 0;
-
   SaleRecord get sale => widget.sale;
 
   String _formatDate(DateTime date) {
@@ -38,18 +33,11 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
     return sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
   }
 
-  int get _safeSelectedIndex {
-    if (sale.imagePaths.isEmpty) return 0;
-    return math.min(_selectedImageIndex, sale.imagePaths.length - 1);
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final width = MediaQuery.of(context).size.width;
     final isCompact = width < 900;
-    final selectedImagePath =
-        sale.imagePaths.isNotEmpty ? sale.imagePaths[_safeSelectedIndex] : null;
     final profitColor = _profitColor();
 
     return Scaffold(
@@ -84,20 +72,10 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (selectedImagePath != null)
-                    Image.file(
-                      File(selectedImagePath),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _HeroPlaceholder(
-                        icon: Icons.receipt_long_rounded,
-                        label: sale.category,
-                      ),
-                    )
-                  else
-                    _HeroPlaceholder(
-                      icon: Icons.receipt_long_rounded,
-                      label: sale.category,
-                    ),
+                  _HeroPlaceholder(
+                    icon: Icons.receipt_long_rounded,
+                    label: sale.category,
+                  ),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -174,18 +152,6 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (sale.imagePaths.length > 1) ...[
-                    _ThumbnailRail(
-                      imagePaths: sale.imagePaths,
-                      selectedIndex: _safeSelectedIndex,
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedImageIndex = index;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
                   if (isCompact)
                     Column(
                       children: [
@@ -283,74 +249,6 @@ class _HeroPlaceholder extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ThumbnailRail extends StatelessWidget {
-  final List<String> imagePaths;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  const _ThumbnailRail({
-    required this.imagePaths,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return SizedBox(
-      height: 92,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: imagePaths.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, index) {
-          final path = imagePaths[index];
-          final isSelected = selectedIndex == index;
-
-          return GestureDetector(
-            onTap: () => onSelected(index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 92,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isSelected ? cs.primary : cs.outlineVariant,
-                  width: isSelected ? 2 : 1,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          blurRadius: 12,
-                          offset: const Offset(0, 5),
-                          color: cs.primary.withOpacity(0.16),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(17),
-                child: Image.file(
-                  File(path),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: cs.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.broken_image_rounded,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

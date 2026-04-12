@@ -18,7 +18,6 @@ class SaleRecord {
   final int? installmentMonths;
 
   final Map<String, int> warranties;
-  final List<String> imagePaths;
 
   final DateTime soldAt;
 
@@ -37,7 +36,6 @@ class SaleRecord {
     required this.paymentType,
     this.installmentMonths,
     this.warranties = const {},
-    this.imagePaths = const [],
     required this.soldAt,
   });
 
@@ -45,10 +43,7 @@ class SaleRecord {
 
   factory SaleRecord.fromMap(Map<String, dynamic> map) {
     final warrantiesJson = map['warranties_json'] as String? ?? '{}';
-    final imagePathsJson = map['image_paths_json'] as String? ?? '[]';
-
     final decodedWarranties = jsonDecode(warrantiesJson) as Map<String, dynamic>;
-    final decodedImagePaths = jsonDecode(imagePathsJson) as List<dynamic>;
 
     return SaleRecord(
       id: map['id'] as int?,
@@ -67,7 +62,6 @@ class SaleRecord {
       warranties: decodedWarranties.map(
         (key, value) => MapEntry(key, (value as num).toInt()),
       ),
-      imagePaths: decodedImagePaths.map((e) => e.toString()).toList(),
       soldAt: DateTime.parse(map['sold_at'] as String),
     );
   }
@@ -88,7 +82,6 @@ class SaleRecord {
       'payment_type': paymentType,
       'installment_months': installmentMonths,
       'warranties_json': jsonEncode(warranties),
-      'image_paths_json': jsonEncode(imagePaths),
       'sold_at': soldAt.toIso8601String(),
     };
   }
@@ -108,7 +101,6 @@ class SaleRecord {
     String? paymentType,
     int? installmentMonths,
     Map<String, int>? warranties,
-    List<String>? imagePaths,
     DateTime? soldAt,
   }) {
     return SaleRecord(
@@ -126,7 +118,6 @@ class SaleRecord {
       paymentType: paymentType ?? this.paymentType,
       installmentMonths: installmentMonths ?? this.installmentMonths,
       warranties: warranties ?? this.warranties,
-      imagePaths: imagePaths ?? this.imagePaths,
       soldAt: soldAt ?? this.soldAt,
     );
   }
