@@ -20,6 +20,7 @@ class InstallmentDetailsScreen extends StatefulWidget {
 
 class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   late Future<_InstallmentDetailData> _detailFuture;
+  bool _didChange = false;
 
   @override
   void initState() {
@@ -284,17 +285,6 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       return;
                     }
 
-                    if (amount > payment.amountDue) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Payment cannot exceed ${payment.amountDue.toStringAsFixed(2)}.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-
                     await DBHelper.saveInstallmentPayment(
                       installmentPaymentId: payment.id!,
                       amountPaid: amount,
@@ -319,6 +309,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     noteController.dispose();
 
     if (didSave == true && mounted) {
+      _didChange = true;
       setState(_loadData);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -328,218 +319,230 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     }
   }
 
+  Future<bool> _handleBack() async {
+    Navigator.of(context).pop(_didChange);
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final width = MediaQuery.of(context).size.width;
     final isCompact = width < 920;
 
-    return Scaffold(
-      backgroundColor: cs.surface,
-      body: FutureBuilder<_InstallmentDetailData>(
-        future: _detailFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: cs.surface,
+        body: FutureBuilder<_InstallmentDetailData>(
+          future: _detailFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError || !snapshot.hasData) {
-            return Center(
-              child: Text(
-                'Something went wrong.',
-                style: TextStyle(color: cs.error),
-              ),
+            if (snapshot.hasError || !snapshot.hasData) {
+              return Center(
+                child: Text(
+                  'Something went wrong.',
+                  style: TextStyle(color: cs.error),
+                ),
+              );
+            }
+
+            final detail = snapshot.data!;
+            final plan = detail.plan;
+            final payments = detail.payments;
+            final planStatusColor = _planStatusColor(plan.status);
+
+            final fullyPaidAmount = payments.fold<double>(
+              0,
+              (sum, payment) => sum + payment.amountPaid,
             );
-          }
 
-          final detail = snapshot.data!;
-          final plan = detail.plan;
-          final payments = detail.payments;
-          final planStatusColor = _planStatusColor(plan.status);
+            final paidTowardInstallments = fullyPaidAmount;
+            final totalCollected = plan.downPayment + paidTowardInstallments;
 
-          final fullyPaidAmount = payments.fold<double>(
-            0,
-            (sum, payment) => sum + payment.amountPaid,
-          );
-
-          final paidTowardInstallments = fullyPaidAmount;
-          final totalCollected = plan.downPayment + paidTowardInstallments;
-
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  stretch: true,
-                  expandedHeight: 320,
-                  backgroundColor: cs.surface,
-                  surfaceTintColor: cs.surfaceTint,
-                  leading: AppHeaderIconButton(
-                    icon: Icons.arrow_back_rounded,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                  flexibleSpace: FlexibleSpaceBar(
-                    titlePadding: const EdgeInsetsDirectional.only(
-                      start: 20,
-                      end: 20,
-                      bottom: 18,
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverAppBar(
+                    pinned: true,
+                    stretch: true,
+                    expandedHeight: 320,
+                    backgroundColor: cs.surface,
+                    surfaceTintColor: cs.surfaceTint,
+                    leading: AppHeaderIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      onPressed: _handleBack,
                     ),
-                    title: Text(
-                      plan.itemName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.65,
+                    flexibleSpace: FlexibleSpaceBar(
+                      titlePadding: const EdgeInsetsDirectional.only(
+                        start: 20,
+                        end: 20,
+                        bottom: 18,
                       ),
-                    ),
-                    background: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            cs.primary.withOpacity(0.22),
-                            cs.secondaryContainer.withOpacity(0.55),
-                            cs.surfaceContainerHighest,
-                          ],
+                      title: Text(
+                        plan.itemName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.65,
                         ),
                       ),
-                      child: SafeArea(
-                        bottom: false,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 18, 18, 88),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children: [
-                                  AppHeroPill(
-                                    icon: Icons.category_rounded,
-                                    label: plan.category,
-                                  ),
-                                  AppHeroPill(
-                                    icon: Icons.flag_rounded,
-                                    label: _planStatusLabel(plan.status),
-                                    accentColor: planStatusColor,
-                                  ),
-                                  AppHeroPill(
-                                    icon: Icons.calendar_month_rounded,
-                                    label: '${plan.durationMonths} month(s)',
-                                  ),
-                                ],
-                              ),
-                              const Spacer(),
-                              Text(
-                                (plan.customerName ?? '').trim().isNotEmpty
-                                    ? 'Installment plan for ${plan.customerName}'
-                                    : 'Installment schedule and payment tracking',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: cs.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              cs.primary.withOpacity(0.22),
+                              cs.secondaryContainer.withOpacity(0.55),
+                              cs.surfaceContainerHighest,
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppUi.pageHPadding,
-                      18,
-                      AppUi.pageHPadding,
-                      AppUi.pageBottomPadding,
-                    ),
-                    child: Column(
-                      children: [
-                        if (isCompact)
-                          Column(
-                            children: [
-                              _SummaryCard(
-                                plan: plan,
-                                totalCollected: totalCollected,
-                                paidTowardInstallments: paidTowardInstallments,
-                                formatDateTime: _formatDateTime,
-                                planStatusColor: planStatusColor,
-                                planStatusLabel: _planStatusLabel(plan.status),
-                              ),
-                              const SizedBox(height: AppUi.sectionGap),
-                              _CustomerCard(plan: plan),
-                              const SizedBox(height: AppUi.sectionGap),
-                              _FinancialBreakdownCard(
-                                plan: plan,
-                                totalCollected: totalCollected,
-                                paidTowardInstallments: paidTowardInstallments,
-                              ),
-                              const SizedBox(height: AppUi.sectionGap),
-                              _ScheduleCard(
-                                payments: payments,
-                                formatDate: _formatDate,
-                                paymentStatusColor: _paymentStatusColor,
-                                paymentStatusLabel: _paymentStatusLabel,
-                                onEditPayment: (payment) =>
-                                    _openPaymentDialog(plan, payment),
-                              ),
-                            ],
-                          )
-                        else
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 6,
-                                child: Column(
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 88),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
                                   children: [
-                                    _SummaryCard(
-                                      plan: plan,
-                                      totalCollected: totalCollected,
-                                      paidTowardInstallments: paidTowardInstallments,
-                                      formatDateTime: _formatDateTime,
-                                      planStatusColor: planStatusColor,
-                                      planStatusLabel: _planStatusLabel(plan.status),
+                                    AppHeroPill(
+                                      icon: Icons.category_rounded,
+                                      label: plan.category,
                                     ),
-                                    const SizedBox(height: AppUi.sectionGap),
-                                    _FinancialBreakdownCard(
-                                      plan: plan,
-                                      totalCollected: totalCollected,
-                                      paidTowardInstallments: paidTowardInstallments,
+                                    AppHeroPill(
+                                      icon: Icons.flag_rounded,
+                                      label: _planStatusLabel(plan.status),
+                                      accentColor: planStatusColor,
                                     ),
-                                    const SizedBox(height: AppUi.sectionGap),
-                                    _ScheduleCard(
-                                      payments: payments,
-                                      formatDate: _formatDate,
-                                      paymentStatusColor: _paymentStatusColor,
-                                      paymentStatusLabel: _paymentStatusLabel,
-                                      onEditPayment: (payment) =>
-                                          _openPaymentDialog(plan, payment),
+                                    AppHeroPill(
+                                      icon: Icons.calendar_month_rounded,
+                                      label: '${plan.durationMonths} month(s)',
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: AppUi.sectionGap),
-                              Expanded(
-                                flex: 4,
-                                child: _CustomerCard(plan: plan),
-                              ),
-                            ],
+                                const Spacer(),
+                                Text(
+                                  (plan.customerName ?? '').trim().isNotEmpty
+                                      ? 'Installment plan for ${plan.customerName}'
+                                      : 'Installment schedule and payment tracking',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: cs.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                      ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppUi.pageHPadding,
+                        18,
+                        AppUi.pageHPadding,
+                        AppUi.pageBottomPadding,
+                      ),
+                      child: Column(
+                        children: [
+                          if (isCompact)
+                            Column(
+                              children: [
+                                _SummaryCard(
+                                  plan: plan,
+                                  totalCollected: totalCollected,
+                                  paidTowardInstallments: paidTowardInstallments,
+                                  formatDateTime: _formatDateTime,
+                                  planStatusColor: planStatusColor,
+                                  planStatusLabel: _planStatusLabel(plan.status),
+                                ),
+                                const SizedBox(height: AppUi.sectionGap),
+                                _CustomerCard(plan: plan),
+                                const SizedBox(height: AppUi.sectionGap),
+                                _FinancialBreakdownCard(
+                                  plan: plan,
+                                  totalCollected: totalCollected,
+                                  paidTowardInstallments: paidTowardInstallments,
+                                ),
+                                const SizedBox(height: AppUi.sectionGap),
+                                _ScheduleCard(
+                                  payments: payments,
+                                  formatDate: _formatDate,
+                                  paymentStatusColor: _paymentStatusColor,
+                                  paymentStatusLabel: _paymentStatusLabel,
+                                  onEditPayment: (payment) =>
+                                      _openPaymentDialog(plan, payment),
+                                ),
+                              ],
+                            )
+                          else
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 6,
+                                  child: Column(
+                                    children: [
+                                      _SummaryCard(
+                                        plan: plan,
+                                        totalCollected: totalCollected,
+                                        paidTowardInstallments: paidTowardInstallments,
+                                        formatDateTime: _formatDateTime,
+                                        planStatusColor: planStatusColor,
+                                        planStatusLabel: _planStatusLabel(plan.status),
+                                      ),
+                                      const SizedBox(height: AppUi.sectionGap),
+                                      _FinancialBreakdownCard(
+                                        plan: plan,
+                                        totalCollected: totalCollected,
+                                        paidTowardInstallments: paidTowardInstallments,
+                                      ),
+                                      const SizedBox(height: AppUi.sectionGap),
+                                      _ScheduleCard(
+                                        payments: payments,
+                                        formatDate: _formatDate,
+                                        paymentStatusColor: _paymentStatusColor,
+                                        paymentStatusLabel: _paymentStatusLabel,
+                                        onEditPayment: (payment) =>
+                                            _openPaymentDialog(plan, payment),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: AppUi.sectionGap),
+                                Expanded(
+                                  flex: 4,
+                                  child: _CustomerCard(plan: plan),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

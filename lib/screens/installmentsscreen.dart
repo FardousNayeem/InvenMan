@@ -11,10 +11,12 @@ import 'package:invenman/theme/app_ui.dart';
 
 class InstallmentsPage extends StatefulWidget {
   final int refreshToken;
+  final VoidCallback? onDataChanged;
 
   const InstallmentsPage({
     super.key,
     required this.refreshToken,
+    this.onDataChanged,
   });
 
   @override
@@ -151,17 +153,21 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
     }).toList();
   }
 
-  void _openInstallmentDetails(InstallmentPlan plan) {
-    Navigator.push(
+  Future<void> _openInstallmentDetails(InstallmentPlan plan) async {
+    final didChange = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => InstallmentDetailsScreen(plan: plan),
       ),
-    ).then((_) {
-      if (mounted) {
-        setState(_loadInstallments);
-      }
-    });
+    );
+
+    if (!mounted) return;
+
+    if (didChange == true) {
+      widget.onDataChanged?.call();
+    }
+
+    setState(_loadInstallments);
   }
 
   @override

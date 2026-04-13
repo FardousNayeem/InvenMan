@@ -68,7 +68,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final screens = [
       InventoryPage(onDataChanged: _handleDataChanged),
       SalesPage(refreshToken: _refreshToken),
-      InstallmentsPage(refreshToken: _refreshToken),
+      InstallmentsPage(
+        refreshToken: _refreshToken,
+        onDataChanged: _handleDataChanged,
+      ),
       HistoryPage(refreshToken: _refreshToken),
     ];
 

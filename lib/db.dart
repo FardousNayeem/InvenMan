@@ -241,6 +241,7 @@ class DBHelper {
     final today = _startOfTodayUtc();
 
     if (amountPaid >= amountDue - epsilon) return 'paid';
+    if (amountPaid > amountDue) return 'paid';
     if (amountPaid > epsilon) return 'partial';
     if (dueDate.isBefore(today)) return 'overdue';
     return 'pending';
@@ -906,10 +907,6 @@ class DBHelper {
       }
 
       final payment = InstallmentPayment.fromMap(paymentMaps.first);
-
-      if (amountPaid > payment.amountDue) {
-        throw Exception('Amount paid cannot be greater than amount due for this installment.');
-      }
 
       final normalizedPaidDate = amountPaid > 0 ? (paidDate ?? _nowUtc()) : null;
       final normalizedNote = (note ?? '').trim().isEmpty ? null : note!.trim();
