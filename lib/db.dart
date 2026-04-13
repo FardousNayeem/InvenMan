@@ -14,7 +14,7 @@ class DBHelper {
   static bool _isInitialized = false;
 
   static const String _databaseName = 'inventory.db';
-  static const int _databaseVersion = 9;
+  static const int _databaseVersion = 10;
 
   static Future<void> _initPlatform() async {
     if (_isInitialized) return;
@@ -53,19 +53,459 @@ class DBHelper {
         },
         onCreate: (db, version) async {
           await _createTables(db);
+          await _ensureIndexes(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
-          await db.execute('DROP TABLE IF EXISTS installment_payments');
-          await db.execute('DROP TABLE IF EXISTS installment_plans');
-          await db.execute('DROP TABLE IF EXISTS history_entries');
-          await db.execute('DROP TABLE IF EXISTS sale_records');
-          await db.execute('DROP TABLE IF EXISTS item_history');
-          await db.execute('DROP TABLE IF EXISTS sold_items');
-          await db.execute('DROP TABLE IF EXISTS items');
-          await _createTables(db);
+          await _runMigrations(db, oldVersion, newVersion);
         },
       ),
     );
+  }
+
+  static Future<void> _runMigrations(
+    sqflite.Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 10) {
+      await _migrateToV10(db);
+    }
+
+    // Future migrations:
+    // if (oldVersion < 11) await _migrateToV11(db);
+    // if (oldVersion < 12) await _migrateToV12(db);
+
+    await _ensureIndexes(db);
+  }
+
+  static Future<void> _migrateToV10(sqflite.Database db) async {
+    await db.transaction((txn) async {
+      final hasItems = await _tableExists(txn, 'items');
+      if (!hasItems) {
+        await txn.execute('''
+          CREATE TABLE items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            category TEXT NOT NULL,
+            cost_price REAL NOT NULL,
+            selling_price REAL NOT NULL,
+            quantity INTEGER NOT NULL CHECK (quantity >= 0),
+            supplier TEXT NOT NULL DEFAULT '',
+            warranties_json TEXT NOT NULL DEFAULT '{}',
+            image_paths_json TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          )
+        ''');
+      } else {
+        await _ensureColumn(txn, 'items', 'description', "TEXT NOT NULL DEFAULT ''");
+        await _ensureColumn(txn, 'items', 'supplier', "TEXT NOT NULL DEFAULT ''");
+        await _ensureColumn(txn, 'items', 'warranties_json', "TEXT NOT NULL DEFAULT '{}'");
+        await _ensureColumn(txn, 'items', 'image_paths_json', "TEXT NOT NULL DEFAULT '[]'");
+        await _ensureColumn(txn, 'items', 'created_at', "TEXT NOT NULL DEFAULT ''");
+        await _ensureColumn(txn, 'items', 'updated_at', "TEXT NOT NULL DEFAULT ''");
+      }
+
+      final hasSaleRecords = await _tableExists(txn, 'sale_records');
+      if (!hasSaleRecords) {
+        await txn.execute('''
+          CREATE TABLE sale_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER,
+            item_name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            quantity_sold INTEGER NOT NULL CHECK (quantity_sold > 0),
+            cost_price REAL NOT NULL,
+            sell_price REAL NOT NULL,
+            profit REAL NOT NULL,
+            customer_name TEXT,
+            customer_phone TEXT,
+            customer_address TEXT,
+            payment_type TEXT NOT NULL DEFAULT 'direct'
+              CHECK (payment_type IN ('direct', 'installment')),
+            installment_months INTEGER
+              CHECK (installment_months IS NULL OR installment_months > 0),
+            warranties_json TEXT NOT NULL DEFAULT '{}',
+            image_paths_json TEXT NOT NULL DEFAULT '[]',
+            sold_at TEXT NOT NULL,
+            CHECK (
+              (payment_type = 'direct' AND installment_months IS NULL) OR
+              (payment_type = 'installment' AND installment_months IS NOT NULL)
+            ),
+            FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
+          )
+        ''');
+      } else {
+        await _ensureColumn(txn, 'sale_records', 'item_id', 'INTEGER');
+        await _ensureColumn(txn, 'sale_records', 'customer_name', 'TEXT');
+        await _ensureColumn(txn, 'sale_records', 'customer_phone', 'TEXT');
+        await _ensureColumn(txn, 'sale_records', 'customer_address', 'TEXT');
+        await _ensureColumn(
+          txn,
+          'sale_records',
+          'payment_type',
+          "TEXT NOT NULL DEFAULT 'direct'",
+        );
+        await _ensureColumn(txn, 'sale_records', 'installment_months', 'INTEGER');
+        await _ensureColumn(
+          txn,
+          'sale_records',
+          'warranties_json',
+          "TEXT NOT NULL DEFAULT '{}'",
+        );
+        await _ensureColumn(
+          txn,
+          'sale_records',
+          'image_paths_json',
+          "TEXT NOT NULL DEFAULT '[]'",
+        );
+        await _ensureColumn(txn, 'sale_records', 'sold_at', "TEXT NOT NULL DEFAULT ''");
+      }
+
+      final hasInstallmentPlans = await _tableExists(txn, 'installment_plans');
+      if (!hasInstallmentPlans) {
+        await txn.execute('''
+          CREATE TABLE installment_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_record_id INTEGER NOT NULL,
+            item_name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            customer_name TEXT,
+            customer_phone TEXT,
+            customer_address TEXT,
+            image_paths_json TEXT NOT NULL DEFAULT '[]',
+            total_amount REAL NOT NULL CHECK (total_amount >= 0),
+            down_payment REAL NOT NULL CHECK (down_payment >= 0),
+            financed_amount REAL NOT NULL CHECK (financed_amount >= 0),
+            duration_months INTEGER NOT NULL CHECK (duration_months > 0),
+            monthly_amount REAL NOT NULL CHECK (monthly_amount >= 0),
+            start_date TEXT NOT NULL,
+            next_due_date TEXT,
+            paid_months INTEGER NOT NULL DEFAULT 0 CHECK (paid_months >= 0),
+            remaining_months INTEGER NOT NULL CHECK (remaining_months >= 0),
+            total_paid REAL NOT NULL DEFAULT 0 CHECK (total_paid >= 0),
+            remaining_balance REAL NOT NULL CHECK (remaining_balance >= 0),
+            status TEXT NOT NULL CHECK (status IN ('active', 'completed', 'overdue')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (sale_record_id) REFERENCES sale_records(id) ON DELETE CASCADE
+          )
+        ''');
+      } else {
+        await _ensureColumn(txn, 'installment_plans', 'customer_name', 'TEXT');
+        await _ensureColumn(txn, 'installment_plans', 'customer_phone', 'TEXT');
+        await _ensureColumn(txn, 'installment_plans', 'customer_address', 'TEXT');
+        await _ensureColumn(
+          txn,
+          'installment_plans',
+          'image_paths_json',
+          "TEXT NOT NULL DEFAULT '[]'",
+        );
+        await _ensureColumn(txn, 'installment_plans', 'next_due_date', 'TEXT');
+        await _ensureColumn(
+          txn,
+          'installment_plans',
+          'paid_months',
+          'INTEGER NOT NULL DEFAULT 0',
+        );
+        await _ensureColumn(
+          txn,
+          'installment_plans',
+          'total_paid',
+          'REAL NOT NULL DEFAULT 0',
+        );
+        await _ensureColumn(txn, 'installment_plans', 'created_at', "TEXT NOT NULL DEFAULT ''");
+        await _ensureColumn(txn, 'installment_plans', 'updated_at', "TEXT NOT NULL DEFAULT ''");
+      }
+
+      final hasInstallmentPayments =
+          await _tableExists(txn, 'installment_payments');
+      if (!hasInstallmentPayments) {
+        await txn.execute('''
+          CREATE TABLE installment_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            installment_plan_id INTEGER NOT NULL,
+            installment_number INTEGER NOT NULL CHECK (installment_number > 0),
+            due_date TEXT NOT NULL,
+            paid_date TEXT,
+            amount_due REAL NOT NULL CHECK (amount_due >= 0),
+            amount_paid REAL NOT NULL DEFAULT 0 CHECK (amount_paid >= 0),
+            status TEXT NOT NULL CHECK (status IN ('pending', 'partial', 'paid', 'overdue')),
+            note TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (installment_plan_id) REFERENCES installment_plans(id) ON DELETE CASCADE
+          )
+        ''');
+      } else {
+        await _ensureColumn(txn, 'installment_payments', 'paid_date', 'TEXT');
+        await _ensureColumn(
+          txn,
+          'installment_payments',
+          'amount_paid',
+          'REAL NOT NULL DEFAULT 0',
+        );
+        await _ensureColumn(txn, 'installment_payments', 'note', 'TEXT');
+        await _ensureColumn(
+          txn,
+          'installment_payments',
+          'created_at',
+          "TEXT NOT NULL DEFAULT ''",
+        );
+        await _ensureColumn(
+          txn,
+          'installment_payments',
+          'updated_at',
+          "TEXT NOT NULL DEFAULT ''",
+        );
+      }
+
+      final hasHistoryEntries = await _tableExists(txn, 'history_entries');
+      if (!hasHistoryEntries) {
+        await txn.execute('''
+          CREATE TABLE history_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_name TEXT NOT NULL,
+            action TEXT NOT NULL,
+            details TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          )
+        ''');
+      }
+
+      await _backfillMissingTimestamps(txn);
+      await _normalizeExistingInstallmentValues(txn);
+    });
+  }
+
+  static Future<bool> _tableExists(
+    sqflite.DatabaseExecutor db,
+    String tableName,
+  ) async {
+    final result = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+      [tableName],
+    );
+    return result.isNotEmpty;
+  }
+
+  static Future<bool> _columnExists(
+    sqflite.DatabaseExecutor db,
+    String tableName,
+    String columnName,
+  ) async {
+    final pragma = await db.rawQuery("PRAGMA table_info($tableName)");
+    return pragma.any((row) => row['name'] == columnName);
+  }
+
+  static Future<void> _ensureColumn(
+    sqflite.DatabaseExecutor db,
+    String tableName,
+    String columnName,
+    String columnDefinition,
+  ) async {
+    final exists = await _columnExists(db, tableName, columnName);
+    if (!exists) {
+      await db.execute(
+        'ALTER TABLE $tableName ADD COLUMN $columnName $columnDefinition',
+      );
+    }
+  }
+
+  static Future<bool> _indexExists(
+    sqflite.DatabaseExecutor db,
+    String indexName,
+  ) async {
+    final result = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1",
+      [indexName],
+    );
+    return result.isNotEmpty;
+  }
+
+  static Future<void> _ensureIndex(
+    sqflite.DatabaseExecutor db,
+    String indexName,
+    String createSql,
+  ) async {
+    final exists = await _indexExists(db, indexName);
+    if (!exists) {
+      await db.execute(createSql);
+    }
+  }
+
+  static Future<void> _ensureIndexes(sqflite.DatabaseExecutor db) async {
+    await _ensureIndex(
+      db,
+      'idx_items_name',
+      'CREATE INDEX idx_items_name ON items(name)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_items_category',
+      'CREATE INDEX idx_items_category ON items(category)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_items_supplier',
+      'CREATE INDEX idx_items_supplier ON items(supplier)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_items_updated_at',
+      'CREATE INDEX idx_items_updated_at ON items(updated_at)',
+    );
+
+    await _ensureIndex(
+      db,
+      'idx_sale_records_item_id',
+      'CREATE INDEX idx_sale_records_item_id ON sale_records(item_id)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_sale_records_category',
+      'CREATE INDEX idx_sale_records_category ON sale_records(category)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_sale_records_sold_at',
+      'CREATE INDEX idx_sale_records_sold_at ON sale_records(sold_at)',
+    );
+
+    await _ensureIndex(
+      db,
+      'idx_installment_plans_status',
+      'CREATE INDEX idx_installment_plans_status ON installment_plans(status)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_installment_plans_next_due_date',
+      'CREATE INDEX idx_installment_plans_next_due_date ON installment_plans(next_due_date)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_installment_plans_customer_name',
+      'CREATE INDEX idx_installment_plans_customer_name ON installment_plans(customer_name)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_installment_plans_sale_record_id',
+      'CREATE INDEX idx_installment_plans_sale_record_id ON installment_plans(sale_record_id)',
+    );
+
+    await _ensureIndex(
+      db,
+      'idx_installment_payments_plan_id',
+      'CREATE INDEX idx_installment_payments_plan_id ON installment_payments(installment_plan_id)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_installment_payments_due_date',
+      'CREATE INDEX idx_installment_payments_due_date ON installment_payments(due_date)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_installment_payments_status',
+      'CREATE INDEX idx_installment_payments_status ON installment_payments(status)',
+    );
+
+    await _ensureIndex(
+      db,
+      'idx_history_entries_created_at',
+      'CREATE INDEX idx_history_entries_created_at ON history_entries(created_at)',
+    );
+  }
+
+  static Future<void> _backfillMissingTimestamps(
+    sqflite.DatabaseExecutor db,
+  ) async {
+    final nowIso = _nowUtc().toIso8601String();
+
+    await db.execute("""
+      UPDATE items
+      SET created_at = COALESCE(NULLIF(created_at, ''), ?),
+          updated_at = COALESCE(NULLIF(updated_at, ''), COALESCE(NULLIF(created_at, ''), ?))
+      WHERE created_at IS NULL OR created_at = '' OR updated_at IS NULL OR updated_at = ''
+    """, [nowIso, nowIso]);
+
+    await db.execute("""
+      UPDATE sale_records
+      SET sold_at = COALESCE(NULLIF(sold_at, ''), ?)
+      WHERE sold_at IS NULL OR sold_at = ''
+    """, [nowIso]);
+
+    await db.execute("""
+      UPDATE installment_plans
+      SET created_at = COALESCE(NULLIF(created_at, ''), ?),
+          updated_at = COALESCE(NULLIF(updated_at, ''), COALESCE(NULLIF(created_at, ''), ?)),
+          start_date = COALESCE(NULLIF(start_date, ''), ?)
+      WHERE created_at IS NULL OR created_at = ''
+         OR updated_at IS NULL OR updated_at = ''
+         OR start_date IS NULL OR start_date = ''
+    """, [nowIso, nowIso, nowIso]);
+
+    await db.execute("""
+      UPDATE installment_payments
+      SET created_at = COALESCE(NULLIF(created_at, ''), ?),
+          updated_at = COALESCE(NULLIF(updated_at, ''), COALESCE(NULLIF(created_at, ''), ?))
+      WHERE created_at IS NULL OR created_at = '' OR updated_at IS NULL OR updated_at = ''
+    """, [nowIso, nowIso]);
+
+    await db.execute("""
+      UPDATE history_entries
+      SET created_at = COALESCE(NULLIF(created_at, ''), ?)
+      WHERE created_at IS NULL OR created_at = ''
+    """, [nowIso]);
+  }
+
+  static Future<void> _normalizeExistingInstallmentValues(
+    sqflite.DatabaseExecutor db,
+  ) async {
+    final planMaps = await db.query(
+      'installment_plans',
+      columns: ['id'],
+    );
+
+    if (planMaps.isEmpty) return;
+
+    for (final row in planMaps) {
+      final id = row['id'] as int?;
+      if (id == null) continue;
+
+      final paymentMaps = await db.query(
+        'installment_payments',
+        where: 'installment_plan_id = ?',
+        whereArgs: [id],
+        orderBy: 'installment_number ASC',
+      );
+
+      for (final paymentMap in paymentMaps) {
+        final payment = InstallmentPayment.fromMap(paymentMap);
+        final normalizedDue = _wholeMoney(
+          payment.amountPaid > payment.amountDue ? payment.amountPaid : payment.amountDue,
+        );
+        final normalizedPaid = _roundMoney(payment.amountPaid);
+
+        if ((normalizedDue - payment.amountDue).abs() > 0.009 ||
+            (normalizedPaid - payment.amountPaid).abs() > 0.009) {
+          await db.update(
+            'installment_payments',
+            {
+              'amount_due': normalizedDue,
+              'amount_paid': normalizedPaid,
+              'updated_at': _nowUtc().toIso8601String(),
+            },
+            where: 'id = ?',
+            whereArgs: [payment.id],
+          );
+        }
+      }
+
+      if (db is sqflite.Transaction) {
+        await _recalculateInstallmentPlanTxn(db, id);
+      }
+    }
   }
 
   static Future<void> _createTables(sqflite.Database db) async {
@@ -168,26 +608,6 @@ class DBHelper {
         created_at TEXT NOT NULL
       )
     ''');
-
-    await db.execute('CREATE INDEX idx_items_name ON items(name)');
-    await db.execute('CREATE INDEX idx_items_category ON items(category)');
-    await db.execute('CREATE INDEX idx_items_supplier ON items(supplier)');
-    await db.execute('CREATE INDEX idx_items_updated_at ON items(updated_at)');
-
-    await db.execute('CREATE INDEX idx_sale_records_item_id ON sale_records(item_id)');
-    await db.execute('CREATE INDEX idx_sale_records_category ON sale_records(category)');
-    await db.execute('CREATE INDEX idx_sale_records_sold_at ON sale_records(sold_at)');
-
-    await db.execute('CREATE INDEX idx_installment_plans_status ON installment_plans(status)');
-    await db.execute('CREATE INDEX idx_installment_plans_next_due_date ON installment_plans(next_due_date)');
-    await db.execute('CREATE INDEX idx_installment_plans_customer_name ON installment_plans(customer_name)');
-    await db.execute('CREATE INDEX idx_installment_plans_sale_record_id ON installment_plans(sale_record_id)');
-
-    await db.execute('CREATE INDEX idx_installment_payments_plan_id ON installment_payments(installment_plan_id)');
-    await db.execute('CREATE INDEX idx_installment_payments_due_date ON installment_payments(due_date)');
-    await db.execute('CREATE INDEX idx_installment_payments_status ON installment_payments(status)');
-
-    await db.execute('CREATE INDEX idx_history_entries_created_at ON history_entries(created_at)');
   }
 
   static DateTime _nowUtc() => DateTime.now().toUtc();
@@ -629,7 +1049,7 @@ class DBHelper {
         scheduleAmounts.isNotEmpty ? scheduleAmounts.first : 0.0;
     final nextDueDate = _addMonths(sale.soldAt, 1);
 
-    final planId = await txn.insert('installment_plans', {
+    await txn.insert('installment_plans', {
       'sale_record_id': saleRecordId,
       'item_name': sale.itemName,
       'category': sale.category,
@@ -651,6 +1071,15 @@ class DBHelper {
       'created_at': now.toIso8601String(),
       'updated_at': now.toIso8601String(),
     });
+
+    final planMaps = await txn.query(
+      'installment_plans',
+      where: 'sale_record_id = ?',
+      whereArgs: [saleRecordId],
+      limit: 1,
+    );
+
+    final planId = planMaps.first['id'] as int;
 
     for (int i = 0; i < durationMonths; i++) {
       final dueDate = _addMonths(sale.soldAt, i + 1);
@@ -830,10 +1259,6 @@ class DBHelper {
 
     if (remainingBalance <= 0.009) {
       for (final payment in payments) {
-        final settledDue = _wholeMoney(
-          payment.amountPaid > payment.amountDue ? payment.amountPaid : payment.amountDue,
-        );
-
         await txn.update(
           'installment_payments',
           {

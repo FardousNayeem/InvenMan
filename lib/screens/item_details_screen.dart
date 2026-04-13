@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -55,7 +54,27 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
 
   int get _safeSelectedIndex {
     if (item.imagePaths.isEmpty) return 0;
-    return math.min(_selectedImageIndex, item.imagePaths.length - 1);
+    if (_selectedImageIndex < 0) return 0;
+    if (_selectedImageIndex >= item.imagePaths.length) {
+      return item.imagePaths.length - 1;
+    }
+    return _selectedImageIndex;
+  }
+
+  void _openImageViewer([int? initialIndex]) {
+    if (item.imagePaths.isEmpty) return;
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withOpacity(0.92),
+        pageBuilder: (_, __, ___) => _FullscreenImageViewer(
+          imagePaths: item.imagePaths,
+          initialIndex: initialIndex ?? _safeSelectedIndex,
+        ),
+      ),
+    );
   }
 
   @override
@@ -75,23 +94,13 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
           SliverAppBar(
             pinned: true,
             stretch: true,
-            expandedHeight: 360,
+            expandedHeight: 390,
             backgroundColor: cs.surface,
             surfaceTintColor: cs.surfaceTint,
             leading: AppHeaderIconButton(
               icon: Icons.arrow_back_rounded,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
-            actions: [
-              if (widget.onEdit != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: AppHeaderIconButton(
-                    icon: Icons.edit_rounded,
-                    onPressed: widget.onEdit,
-                  ),
-                ),
-            ],
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsetsDirectional.only(
                 start: 20,
@@ -110,78 +119,23 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (selectedImagePath != null)
-                    Image.file(
-                      File(selectedImagePath),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _HeroPlaceholder(
-                        icon: Icons.inventory_2_rounded,
-                        label: item.category,
-                      ),
-                    )
-                  else
-                    _HeroPlaceholder(
-                      icon: Icons.inventory_2_rounded,
-                      label: item.category,
-                    ),
+                  _HeroImageArea(
+                    imagePath: selectedImagePath,
+                    category: item.category,
+                    onTap: selectedImagePath == null
+                        ? null
+                        : () => _openImageViewer(_safeSelectedIndex),
+                  ),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withOpacity(0.08),
-                          Colors.black.withOpacity(0.58),
+                          Colors.black.withOpacity(0.02),
+                          Colors.black.withOpacity(0.48),
                         ],
                       ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 18,
-                    right: 18,
-                    bottom: 88,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            AppHeroPill(
-                              icon: Icons.category_rounded,
-                              label: item.category,
-                            ),
-                            AppHeroPill(
-                              icon: Icons.inventory_2_outlined,
-                              label: _stockLabel,
-                              accentColor: stockColor,
-                            ),
-                            AppHeroPill(
-                              icon: Icons.sell_outlined,
-                              label: 'MRP ${item.sellingPrice.toStringAsFixed(0)}',
-                            ),
-                            if (item.supplier.trim().isNotEmpty)
-                              AppHeroPill(
-                                icon: Icons.local_shipping_outlined,
-                                label: item.supplier,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          item.description.trim().isEmpty
-                              ? 'A clean inventory profile for this product.'
-                              : item.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -199,31 +153,24 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (item.imagePaths.length > 1) ...[
-                    _ThumbnailRail(
-                      imagePaths: item.imagePaths,
-                      selectedIndex: _safeSelectedIndex,
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedImageIndex = index;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (widget.onSell != null ||
-                      widget.onEdit != null ||
-                      widget.onDelete != null)
-                    _ActionStrip(
-                      canSell: item.quantity > 0,
-                      onSell: widget.onSell,
-                      onEdit: widget.onEdit,
-                      onDelete: widget.onDelete,
-                    ),
-                  if (widget.onSell != null ||
-                      widget.onEdit != null ||
-                      widget.onDelete != null)
-                    const SizedBox(height: 16),
+                  _TopSection(
+                    imagePaths: item.imagePaths,
+                    selectedIndex: _safeSelectedIndex,
+                    onImageSelected: (index) {
+                      setState(() {
+                        _selectedImageIndex = index;
+                      });
+                    },
+                    category: item.category,
+                    supplier: item.supplier,
+                    stockLabel: _stockLabel,
+                    stockColor: stockColor,
+                    mrp: item.sellingPrice.toStringAsFixed(0),
+                    canSell: item.quantity > 0,
+                    onSell: widget.onSell,
+                    onEdit: widget.onEdit,
+                  ),
+                  const SizedBox(height: 18),
                   if (isCompact)
                     Column(
                       children: [
@@ -236,36 +183,50 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                           marginPercent: _marginPercent,
                         ),
                         const SizedBox(height: AppUi.sectionGap),
-                        _DescriptionCard(description: item.description),
+                        _WarrantyCard(
+                          warranties: item.warranties,
+                          minHeight: 260,
+                        ),
                         const SizedBox(height: AppUi.sectionGap),
-                        _WarrantyCard(warranties: item.warranties),
+                        _DescriptionCard(
+                          description: item.description,
+                          minHeight: 220,
+                        ),
                       ],
                     )
                   else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Column(
                       children: [
-                        Expanded(
-                          flex: 6,
-                          child: Column(
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _OverviewCard(
-                                item: item,
-                                stockColor: stockColor,
-                                formattedCreatedAt: _formatDate(item.createdAt),
-                                formattedUpdatedAt: _formatDate(item.updatedAt),
-                                marginAmount: _marginAmount,
-                                marginPercent: _marginPercent,
+                              Expanded(
+                                flex: 6,
+                                child: _OverviewCard(
+                                  item: item,
+                                  stockColor: stockColor,
+                                  formattedCreatedAt: _formatDate(item.createdAt),
+                                  formattedUpdatedAt: _formatDate(item.updatedAt),
+                                  marginAmount: _marginAmount,
+                                  marginPercent: _marginPercent,
+                                ),
                               ),
-                              const SizedBox(height: AppUi.sectionGap),
-                              _DescriptionCard(description: item.description),
+                              const SizedBox(width: AppUi.sectionGap),
+                              Expanded(
+                                flex: 4,
+                                child: _WarrantyCard(
+                                  warranties: item.warranties,
+                                  minHeight: double.infinity,
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: AppUi.sectionGap),
-                        Expanded(
-                          flex: 4,
-                          child: _WarrantyCard(warranties: item.warranties),
+                        const SizedBox(height: AppUi.sectionGap),
+                        _DescriptionCard(
+                          description: item.description,
+                          minHeight: 220,
                         ),
                       ],
                     ),
@@ -279,13 +240,15 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   }
 }
 
-class _HeroPlaceholder extends StatelessWidget {
-  final IconData icon;
-  final String label;
+class _HeroImageArea extends StatelessWidget {
+  final String? imagePath;
+  final String category;
+  final VoidCallback? onTap;
 
-  const _HeroPlaceholder({
-    required this.icon,
-    required this.label,
+  const _HeroImageArea({
+    required this.imagePath,
+    required this.category,
+    this.onTap,
   });
 
   @override
@@ -303,23 +266,224 @@ class _HeroPlaceholder extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 72, color: cs.onSurfaceVariant),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurfaceVariant,
+      child: imagePath == null
+          ? _HeroPlaceholder(
+              icon: Icons.inventory_2_rounded,
+              label: category,
+            )
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 34, 24, 34),
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(26),
+                      child: Image.file(
+                        File(imagePath!),
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, __, ___) => _HeroPlaceholder(
+                          icon: Icons.inventory_2_rounded,
+                          label: category,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+    );
+  }
+}
+
+class _HeroPlaceholder extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HeroPlaceholder({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 72, color: cs.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _TopSection extends StatelessWidget {
+  final List<String> imagePaths;
+  final int selectedIndex;
+  final ValueChanged<int> onImageSelected;
+  final String category;
+  final String supplier;
+  final String stockLabel;
+  final Color stockColor;
+  final String mrp;
+  final bool canSell;
+  final VoidCallback? onSell;
+  final VoidCallback? onEdit;
+
+  const _TopSection({
+    required this.imagePaths,
+    required this.selectedIndex,
+    required this.onImageSelected,
+    required this.category,
+    required this.supplier,
+    required this.stockLabel,
+    required this.stockColor,
+    required this.mrp,
+    required this.canSell,
+    this.onSell,
+    this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 760;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (imagePaths.isNotEmpty)
+          _ThumbnailRail(
+            imagePaths: imagePaths,
+            selectedIndex: selectedIndex,
+            onSelected: onImageSelected,
+          ),
+        if (imagePaths.isNotEmpty) const SizedBox(height: 16),
+        if (compact)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  AppHeroPill(
+                    icon: Icons.category_rounded,
+                    label: category,
+                  ),
+                  AppHeroPill(
+                    icon: Icons.inventory_2_outlined,
+                    label: stockLabel,
+                    accentColor: stockColor,
+                  ),
+                  AppHeroPill(
+                    icon: Icons.sell_outlined,
+                    label: 'MRP $mrp',
+                  ),
+                  if (supplier.trim().isNotEmpty)
+                    AppHeroPill(
+                      icon: Icons.local_shipping_outlined,
+                      label: supplier,
+                    ),
+                ],
+              ),
+              if (onSell != null || onEdit != null) ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    if (onSell != null)
+                      FilledButton.icon(
+                        onPressed: canSell ? onSell : null,
+                        icon: const Icon(Icons.point_of_sale_rounded),
+                        label: Text(canSell ? 'Sell' : 'Out of Stock'),
+                      ),
+                    if (onEdit != null)
+                      OutlinedButton.icon(
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_rounded),
+                        label: const Text('Edit'),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 6,
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    AppHeroPill(
+                      icon: Icons.category_rounded,
+                      label: category,
+                    ),
+                    AppHeroPill(
+                      icon: Icons.inventory_2_outlined,
+                      label: stockLabel,
+                      accentColor: stockColor,
+                    ),
+                    AppHeroPill(
+                      icon: Icons.sell_outlined,
+                      label: 'MRP $mrp',
+                    ),
+                    if (supplier.trim().isNotEmpty)
+                      AppHeroPill(
+                        icon: Icons.local_shipping_outlined,
+                        label: supplier,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 3,
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      if (onSell != null)
+                        FilledButton.icon(
+                          onPressed: canSell ? onSell : null,
+                          icon: const Icon(Icons.point_of_sale_rounded),
+                          label: Text(canSell ? 'Sell Item' : 'Out of Stock'),
+                        ),
+                      if (onEdit != null)
+                        OutlinedButton.icon(
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_rounded),
+                          label: const Text('Edit Item'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }
@@ -340,7 +504,7 @@ class _ThumbnailRail extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return SizedBox(
-      height: 92,
+      height: 96,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: imagePaths.length,
@@ -353,7 +517,7 @@ class _ThumbnailRail extends StatelessWidget {
             onTap: () => onSelected(index),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              width: 92,
+              width: 96,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
@@ -388,98 +552,6 @@ class _ThumbnailRail extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
-
-class _ActionStrip extends StatelessWidget {
-  final bool canSell;
-  final VoidCallback? onSell;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-
-  const _ActionStrip({
-    required this.canSell,
-    this.onSell,
-    this.onEdit,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 760;
-
-    if (compact) {
-      return Column(
-        children: [
-          Row(
-            children: [
-              if (onSell != null)
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: canSell ? onSell : null,
-                    icon: const Icon(Icons.point_of_sale_rounded),
-                    label: const Text('Sell'),
-                  ),
-                ),
-              if (onSell != null && onEdit != null)
-                const SizedBox(width: AppUi.tileGap),
-              if (onEdit != null)
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit_rounded),
-                    label: const Text('Edit'),
-                  ),
-                ),
-            ],
-          ),
-          if (onDelete != null) ...[
-            const SizedBox(height: AppUi.tileGap),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('Delete'),
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        if (onSell != null)
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: canSell ? onSell : null,
-              icon: const Icon(Icons.point_of_sale_rounded),
-              label: Text(canSell ? 'Sell Item' : 'Out of Stock'),
-            ),
-          ),
-        if (onSell != null && onEdit != null)
-          const SizedBox(width: AppUi.tileGap),
-        if (onEdit != null)
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_rounded),
-              label: const Text('Edit Item'),
-            ),
-          ),
-        if ((onSell != null || onEdit != null) && onDelete != null)
-          const SizedBox(width: AppUi.tileGap),
-        if (onDelete != null)
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline_rounded),
-              label: const Text('Delete'),
-            ),
-          ),
-      ],
     );
   }
 }
@@ -591,9 +663,11 @@ class _OverviewCard extends StatelessWidget {
 
 class _DescriptionCard extends StatelessWidget {
   final String description;
+  final double minHeight;
 
   const _DescriptionCard({
     required this.description,
+    required this.minHeight,
   });
 
   @override
@@ -601,13 +675,19 @@ class _DescriptionCard extends StatelessWidget {
     return AppSectionCard(
       title: 'Description',
       subtitle: 'Product notes and descriptive context',
-      child: Text(
-        description.trim().isEmpty ? 'No description provided.' : description,
-        style: TextStyle(
-          fontSize: 14.25,
-          height: 1.6,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minHeight),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Text(
+            description.trim().isEmpty ? 'No description provided.' : description,
+            style: TextStyle(
+              fontSize: 14.25,
+              height: 1.6,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );
@@ -616,9 +696,11 @@ class _DescriptionCard extends StatelessWidget {
 
 class _WarrantyCard extends StatelessWidget {
   final Map<String, int> warranties;
+  final double minHeight;
 
   const _WarrantyCard({
     required this.warranties,
+    required this.minHeight,
   });
 
   @override
@@ -626,54 +708,200 @@ class _WarrantyCard extends StatelessWidget {
     return AppSectionCard(
       title: 'Warranty breakdown',
       subtitle: 'Coverage by component or part',
-      child: warranties.isEmpty
-          ? Text(
-              'No warranty added.',
-              style: TextStyle(
-                fontSize: 14.25,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            )
-          : Column(
-              children: warranties.entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.verified_outlined, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            entry.key,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13.4,
+      child: SizedBox(
+        height: minHeight.isFinite ? minHeight : null,
+        child: warranties.isEmpty
+            ? Align(
+                alignment: Alignment.topLeft,
+                child: Text(
+                  'No warranty added.',
+                  style: TextStyle(
+                    fontSize: 14.25,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            : Column(
+                children: [
+                  ...warranties.entries.map((entry) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.verified_outlined, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                entry.key,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13.4,
+                                ),
+                              ),
                             ),
-                          ),
+                            Text(
+                              '${entry.value} mo',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          '${entry.value} mo',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                      ),
+                    );
+                  }),
+                  if (minHeight.isFinite) const Spacer(),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _FullscreenImageViewer extends StatefulWidget {
+  final List<String> imagePaths;
+  final int initialIndex;
+
+  const _FullscreenImageViewer({
+    required this.imagePaths,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullscreenImageViewer> createState() => _FullscreenImageViewerState();
+}
+
+class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.imagePaths.length - 1);
+  }
+
+  void _goPrevious() {
+    if (_currentIndex <= 0) return;
+    setState(() => _currentIndex--);
+  }
+
+  void _goNext() {
+    if (_currentIndex >= widget.imagePaths.length - 1) return;
+    setState(() => _currentIndex++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final path = widget.imagePaths[_currentIndex];
+    final canGoLeft = _currentIndex > 0;
+    final canGoRight = _currentIndex < widget.imagePaths.length - 1;
+
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.94),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4,
+                  child: Image.file(
+                    File(path),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image_rounded,
+                      color: Colors.white70,
+                      size: 72,
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+              ),
             ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton.filledTonal(
+                onPressed: () => Navigator.of(context).pop(),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.12),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton.filledTonal(
+                  onPressed: canGoLeft ? _goPrevious : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.12),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.white.withOpacity(0.06),
+                    disabledForegroundColor: Colors.white24,
+                  ),
+                  icon: const Icon(Icons.chevron_left_rounded),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 12,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton.filledTonal(
+                  onPressed: canGoRight ? _goNext : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.12),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.white.withOpacity(0.06),
+                    disabledForegroundColor: Colors.white24,
+                  ),
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 16,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${_currentIndex + 1} / ${widget.imagePaths.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
