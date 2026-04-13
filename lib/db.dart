@@ -196,6 +196,11 @@ class DBHelper {
     return ((value * 100).round()) / 100.0;
   }
 
+  static double _wholeMoney(double value) {
+    if (value <= 0) return 0;
+    return value.roundToDouble();
+  }
+
   static DateTime _startOfTodayUtc() {
     final now = _nowUtc();
     return DateTime.utc(now.year, now.month, now.day);
@@ -221,14 +226,18 @@ class DBHelper {
     );
   }
 
-  static List<double> _buildMonthlyScheduleAmounts(double totalAmount, int months) {
-    final totalCents = (totalAmount * 100).round();
-    final base = totalCents ~/ months;
-    final remainder = totalCents % months;
+  static List<double> _buildWholeNumberScheduleAmounts(
+    double totalAmount,
+    int months,
+  ) {
+    if (months <= 0) return const [];
+
+    final totalUnits = totalAmount <= 0 ? 0 : totalAmount.round();
+    final base = totalUnits ~/ months;
+    final remainder = totalUnits % months;
 
     return List<double>.generate(months, (index) {
-      final cents = base + (index < remainder ? 1 : 0);
-      return cents / 100.0;
+      return (base + (index < remainder ? 1 : 0)).toDouble();
     });
   }
 
@@ -241,7 +250,6 @@ class DBHelper {
     final today = _startOfTodayUtc();
 
     if (amountPaid >= amountDue - epsilon) return 'paid';
-    if (amountPaid > amountDue) return 'paid';
     if (amountPaid > epsilon) return 'partial';
     if (dueDate.isBefore(today)) return 'overdue';
     return 'pending';
@@ -253,11 +261,6 @@ class DBHelper {
     return warranties.entries
         .map((e) => '${e.key}: ${e.value} month${e.value == 1 ? '' : 's'}')
         .join(', ');
-  }
-
-  static String _formatImageCount(List<String> imagePaths) {
-    final count = imagePaths.length;
-    return '$count image${count == 1 ? '' : 's'}';
   }
 
   static String _formatSupplier(String supplier) {
@@ -276,7 +279,7 @@ class DBHelper {
       'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}, '
       'Supplier: ${_formatSupplier(item.supplier)}, '
       'Warranties: ${_formatWarranties(item.warranties)}, '
-      'Images: ${_formatImageCount(item.imagePaths)}',
+      'Images: ${item.imagePaths.length}',
     );
   }
 
@@ -296,7 +299,7 @@ class DBHelper {
       'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}, '
       'Supplier: ${_formatSupplier(item.supplier)}, '
       'Warranties: ${_formatWarranties(item.warranties)}, '
-      'Images: ${_formatImageCount(item.imagePaths)}',
+      'Images: ${item.imagePaths.length}',
     );
   }
 
@@ -586,7 +589,7 @@ class DBHelper {
       }
 
       details.write(', Warranties: ${_formatWarranties(item.warranties)}');
-      details.write(', Images: ${_formatImageCount(item.imagePaths)}');
+      details.write(', Images: ${item.imagePaths.length}');
 
       await txn.insert('history_entries', {
         'item_name': item.name,
@@ -620,7 +623,10 @@ class DBHelper {
 
     final financedAmount = _roundMoney(totalAmount - normalizedDownPayment);
     final durationMonths = sale.installmentMonths!;
-    final monthlyAmount = _roundMoney(financedAmount / durationMonths);
+    final scheduleAmounts =
+        _buildWholeNumberScheduleAmounts(financedAmount, durationMonths);
+    final monthlyAmount =
+        scheduleAmounts.isNotEmpty ? scheduleAmounts.first : 0.0;
     final nextDueDate = _addMonths(sale.soldAt, 1);
 
     final planId = await txn.insert('installment_plans', {
@@ -630,7 +636,6 @@ class DBHelper {
       'customer_name': sale.customerName,
       'customer_phone': sale.customerPhone,
       'customer_address': sale.customerAddress,
-      'image_paths_json': sale.toMap()['image_paths_json'],
       'total_amount': totalAmount,
       'down_payment': normalizedDownPayment,
       'financed_amount': financedAmount,
@@ -646,8 +651,6 @@ class DBHelper {
       'created_at': now.toIso8601String(),
       'updated_at': now.toIso8601String(),
     });
-
-    final scheduleAmounts = _buildMonthlyScheduleAmounts(financedAmount, durationMonths);
 
     for (int i = 0; i < durationMonths; i++) {
       final dueDate = _addMonths(sale.soldAt, i + 1);
@@ -676,7 +679,7 @@ class DBHelper {
       'item_name': sale.itemName,
       'action': 'Installment',
       'details':
-          'Installment plan created: $durationMonths month(s), Total: $totalAmount, Down Payment: $normalizedDownPayment, Financed: $financedAmount, Monthly approx: $monthlyAmount',
+          'Installment plan created: $durationMonths month(s), Total: ${totalAmount.toStringAsFixed(0)}, Down Payment: ${normalizedDownPayment.toStringAsFixed(0)}, Financed: ${financedAmount.toStringAsFixed(0)}, Monthly approx: ${monthlyAmount.toStringAsFixed(0)}',
       'created_at': now.toIso8601String(),
     });
 
@@ -684,10 +687,103 @@ class DBHelper {
     return planId;
   }
 
+  static Future<void> _redistributeFuturePaymentsTxn(
+    sqflite.Transaction txn,
+    InstallmentPlan plan,
+    int anchorInstallmentNumber,
+  ) async {
+    final paymentMaps = await txn.query(
+      'installment_payments',
+      where: 'installment_plan_id = ?',
+      whereArgs: [plan.id],
+      orderBy: 'installment_number ASC',
+    );
+
+    if (paymentMaps.isEmpty) return;
+
+    final payments = paymentMaps.map((map) => InstallmentPayment.fromMap(map)).toList();
+
+    double totalPaidTowardInstallments = 0.0;
+    for (final payment in payments) {
+      totalPaidTowardInstallments += payment.amountPaid;
+    }
+    totalPaidTowardInstallments = _roundMoney(totalPaidTowardInstallments);
+
+    double financedRemaining = _roundMoney(plan.financedAmount - totalPaidTowardInstallments);
+    if (financedRemaining < 0) financedRemaining = 0;
+
+    double lockedOutstanding = 0.0;
+    final redistributable = <InstallmentPayment>[];
+
+    for (final payment in payments) {
+      final normalizedDue = payment.amountPaid > payment.amountDue
+          ? payment.amountPaid
+          : payment.amountDue;
+
+      final computedStatus = _paymentRowStatus(
+        dueDate: payment.dueDate,
+        amountDue: normalizedDue,
+        amountPaid: payment.amountPaid,
+      );
+
+      final isLocked = payment.installmentNumber <= anchorInstallmentNumber ||
+          computedStatus == 'paid';
+
+      if (isLocked) {
+        final outstanding = normalizedDue - payment.amountPaid;
+        if (outstanding > 0) {
+          lockedOutstanding += outstanding;
+        }
+
+        if ((normalizedDue - payment.amountDue).abs() > 0.009) {
+          await txn.update(
+            'installment_payments',
+            {
+              'amount_due': _wholeMoney(normalizedDue),
+              'updated_at': _nowUtc().toIso8601String(),
+            },
+            where: 'id = ?',
+            whereArgs: [payment.id],
+          );
+        }
+      } else {
+        redistributable.add(payment);
+      }
+    }
+
+    lockedOutstanding = _roundMoney(lockedOutstanding);
+
+    double outstandingToAllocate = _roundMoney(financedRemaining - lockedOutstanding);
+    if (outstandingToAllocate < 0) {
+      outstandingToAllocate = 0;
+    }
+
+    final redistributedOutstanding = _buildWholeNumberScheduleAmounts(
+      outstandingToAllocate,
+      redistributable.length,
+    );
+
+    for (int i = 0; i < redistributable.length; i++) {
+      final payment = redistributable[i];
+      final newAmountDue = _wholeMoney(payment.amountPaid + redistributedOutstanding[i]);
+
+      await txn.update(
+        'installment_payments',
+        {
+          'amount_due': newAmountDue,
+          'updated_at': _nowUtc().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [payment.id],
+      );
+    }
+  }
+
   static Future<void> _recalculateInstallmentPlanTxn(
     sqflite.Transaction txn,
-    int planId,
-  ) async {
+    int planId, {
+    int? anchorInstallmentNumber,
+  }) async {
     final planMaps = await txn.query(
       'installment_plans',
       where: 'id = ?',
@@ -697,67 +793,127 @@ class DBHelper {
 
     if (planMaps.isEmpty) return;
 
-    final payments = await txn.query(
+    final plan = InstallmentPlan.fromMap(planMaps.first);
+
+    if (anchorInstallmentNumber != null) {
+      await _redistributeFuturePaymentsTxn(
+        txn,
+        plan,
+        anchorInstallmentNumber,
+      );
+    }
+
+    final refreshedPaymentMaps = await txn.query(
       'installment_payments',
       where: 'installment_plan_id = ?',
       whereArgs: [planId],
       orderBy: 'installment_number ASC',
     );
 
-    if (payments.isEmpty) return;
+    if (refreshedPaymentMaps.isEmpty) return;
 
-    final plan = InstallmentPlan.fromMap(planMaps.first);
+    final payments =
+        refreshedPaymentMaps.map((map) => InstallmentPayment.fromMap(map)).toList();
+
     final now = _nowUtc();
 
     double paymentRowsTotalPaid = 0.0;
-    int paidMonths = 0;
-    int remainingMonths = 0;
-    DateTime? nextDueDate;
-    bool hasOverdue = false;
+    for (final payment in payments) {
+      paymentRowsTotalPaid += payment.amountPaid;
+    }
+    paymentRowsTotalPaid = _roundMoney(paymentRowsTotalPaid);
 
-    for (final paymentMap in payments) {
-      final payment = InstallmentPayment.fromMap(paymentMap);
-      final computedStatus = _paymentRowStatus(
-        dueDate: payment.dueDate,
-        amountDue: payment.amountDue,
-        amountPaid: payment.amountPaid,
-      );
+    final totalPaid = _roundMoney(plan.downPayment + paymentRowsTotalPaid);
 
-      if (computedStatus != payment.status) {
+    double remainingBalance = _roundMoney(plan.totalAmount - totalPaid);
+    if (remainingBalance < 0) remainingBalance = 0;
+
+    if (remainingBalance <= 0.009) {
+      for (final payment in payments) {
+        final settledDue = _wholeMoney(
+          payment.amountPaid > payment.amountDue ? payment.amountPaid : payment.amountDue,
+        );
+
         await txn.update(
           'installment_payments',
           {
-            'status': computedStatus,
+            'amount_due': payment.amountPaid > 0
+                ? _wholeMoney(payment.amountPaid)
+                : 0.0,
+            'status': 'paid',
             'updated_at': now.toIso8601String(),
           },
           where: 'id = ?',
           whereArgs: [payment.id],
         );
       }
+    } else {
+      for (final payment in payments) {
+        final normalizedDue = _wholeMoney(
+          payment.amountPaid > payment.amountDue ? payment.amountPaid : payment.amountDue,
+        );
 
-      paymentRowsTotalPaid += payment.amountPaid;
+        final computedStatus = _paymentRowStatus(
+          dueDate: payment.dueDate,
+          amountDue: normalizedDue,
+          amountPaid: payment.amountPaid,
+        );
 
-      if (computedStatus == 'paid') {
+        final shouldUpdateDue = (normalizedDue - payment.amountDue).abs() > 0.009;
+        final shouldUpdateStatus = computedStatus != payment.status;
+
+        if (shouldUpdateDue || shouldUpdateStatus) {
+          await txn.update(
+            'installment_payments',
+            {
+              'amount_due': normalizedDue,
+              'status': computedStatus,
+              'updated_at': now.toIso8601String(),
+            },
+            where: 'id = ?',
+            whereArgs: [payment.id],
+          );
+        }
+      }
+    }
+
+    final finalPaymentMaps = await txn.query(
+      'installment_payments',
+      where: 'installment_plan_id = ?',
+      whereArgs: [planId],
+      orderBy: 'installment_number ASC',
+    );
+
+    final finalPayments =
+        finalPaymentMaps.map((map) => InstallmentPayment.fromMap(map)).toList();
+
+    int paidMonths = 0;
+    int remainingMonths = 0;
+    DateTime? nextDueDate;
+    bool hasOverdue = false;
+    double nextMonthlyAmount = 0.0;
+
+    for (final payment in finalPayments) {
+      if (payment.status == 'paid') {
         paidMonths++;
       } else {
         remainingMonths++;
         nextDueDate ??= payment.dueDate;
+        nextMonthlyAmount = payment.amountDue;
       }
 
-      if (computedStatus == 'overdue') {
+      if (payment.status == 'overdue') {
         hasOverdue = true;
       }
     }
 
-    paymentRowsTotalPaid = _roundMoney(paymentRowsTotalPaid);
-    final totalPaid = _roundMoney(plan.downPayment + paymentRowsTotalPaid);
-    final remainingBalance = _roundMoney(plan.totalAmount - totalPaid);
-
     String planStatus;
-    if (remainingBalance <= 0.009 || paidMonths >= plan.durationMonths) {
+    if (remainingBalance <= 0.009) {
       planStatus = 'completed';
       nextDueDate = null;
       remainingMonths = 0;
+      paidMonths = plan.durationMonths;
+      nextMonthlyAmount = 0.0;
     } else if (hasOverdue) {
       planStatus = 'overdue';
     } else {
@@ -770,8 +926,9 @@ class DBHelper {
         'paid_months': paidMonths,
         'remaining_months': remainingMonths,
         'total_paid': totalPaid,
-        'remaining_balance': remainingBalance < 0 ? 0.0 : remainingBalance,
+        'remaining_balance': remainingBalance,
         'next_due_date': nextDueDate?.toIso8601String(),
+        'monthly_amount': _wholeMoney(nextMonthlyAmount),
         'status': planStatus,
         'updated_at': now.toIso8601String(),
       },
@@ -910,16 +1067,20 @@ class DBHelper {
 
       final normalizedPaidDate = amountPaid > 0 ? (paidDate ?? _nowUtc()) : null;
       final normalizedNote = (note ?? '').trim().isEmpty ? null : note!.trim();
+      final normalizedAmountDue = amountPaid > payment.amountDue
+          ? _wholeMoney(amountPaid)
+          : _wholeMoney(payment.amountDue);
 
       final newStatus = _paymentRowStatus(
         dueDate: payment.dueDate,
-        amountDue: payment.amountDue,
+        amountDue: normalizedAmountDue,
         amountPaid: amountPaid,
       );
 
       await txn.update(
         'installment_payments',
         {
+          'amount_due': normalizedAmountDue,
           'amount_paid': _roundMoney(amountPaid),
           'paid_date': normalizedPaidDate?.toIso8601String(),
           'status': newStatus,
@@ -930,7 +1091,11 @@ class DBHelper {
         whereArgs: [installmentPaymentId],
       );
 
-      await _recalculateInstallmentPlanTxn(txn, payment.installmentPlanId);
+      await _recalculateInstallmentPlanTxn(
+        txn,
+        payment.installmentPlanId,
+        anchorInstallmentNumber: payment.installmentNumber,
+      );
 
       final planMaps = await txn.query(
         'installment_plans',
@@ -945,7 +1110,7 @@ class DBHelper {
           'item_name': plan.itemName,
           'action': 'Installment Payment',
           'details':
-              'Month ${payment.installmentNumber}: Paid ${_roundMoney(amountPaid)}'
+              'Month ${payment.installmentNumber}: Paid ${_roundMoney(amountPaid).toStringAsFixed(0)}'
               '${normalizedPaidDate != null ? ' on ${normalizedPaidDate.toIso8601String()}' : ''}'
               '${normalizedNote != null ? ', Note: $normalizedNote' : ''}',
           'created_at': _nowUtc().toIso8601String(),

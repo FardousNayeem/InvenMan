@@ -17,6 +17,8 @@ class InstallmentCard extends StatelessWidget {
     this.onTap,
   });
 
+  String _money(double value) => value.toStringAsFixed(0);
+
   Color _planStatusColor() {
     switch (plan.status) {
       case 'completed':
@@ -59,6 +61,9 @@ class InstallmentCard extends StatelessWidget {
 
   double _progressValue() {
     if (plan.durationMonths <= 0) return 0;
+    if (plan.status == 'completed' || plan.remainingBalance <= 0.009) {
+      return 1.0;
+    }
     final value = plan.paidMonths / plan.durationMonths;
     return value.clamp(0.0, 1.0);
   }
@@ -81,6 +86,7 @@ class InstallmentCard extends StatelessWidget {
                 planStatusLabel: _planStatusLabel(),
                 currentMonthColor: _currentMonthColor(),
                 progressValue: _progressValue(),
+                money: _money,
               )
             : _WideCard(
                 plan: plan,
@@ -91,6 +97,7 @@ class InstallmentCard extends StatelessWidget {
                 planStatusLabel: _planStatusLabel(),
                 currentMonthColor: _currentMonthColor(),
                 progressValue: _progressValue(),
+                money: _money,
               ),
       ),
     );
@@ -106,6 +113,7 @@ class _WideCard extends StatelessWidget {
   final String planStatusLabel;
   final Color currentMonthColor;
   final double progressValue;
+  final String Function(double) money;
 
   const _WideCard({
     required this.plan,
@@ -116,6 +124,7 @@ class _WideCard extends StatelessWidget {
     required this.planStatusLabel,
     required this.currentMonthColor,
     required this.progressValue,
+    required this.money,
   });
 
   @override
@@ -162,12 +171,12 @@ class _WideCard extends StatelessWidget {
                               children: [
                                 _DetailLine(
                                   label: 'Monthly',
-                                  value: plan.monthlyAmount.toStringAsFixed(2),
+                                  value: money(plan.monthlyAmount),
                                 ),
                                 const SizedBox(height: 8),
                                 _DetailLine(
                                   label: 'Balance',
-                                  value: plan.remainingBalance.toStringAsFixed(2),
+                                  value: money(plan.remainingBalance),
                                 ),
                               ],
                             ),
@@ -178,7 +187,10 @@ class _WideCard extends StatelessWidget {
                               children: [
                                 _DetailLine(
                                   label: 'Progress',
-                                  value: '${plan.paidMonths}/${plan.durationMonths} paid',
+                                  value: plan.status == 'completed' ||
+                                          plan.remainingBalance <= 0.009
+                                      ? '${plan.durationMonths}/${plan.durationMonths} paid'
+                                      : '${plan.paidMonths}/${plan.durationMonths} paid',
                                 ),
                                 const SizedBox(height: 8),
                                 _DetailLine(
@@ -269,6 +281,7 @@ class _CompactCard extends StatelessWidget {
   final String planStatusLabel;
   final Color currentMonthColor;
   final double progressValue;
+  final String Function(double) money;
 
   const _CompactCard({
     required this.plan,
@@ -279,6 +292,7 @@ class _CompactCard extends StatelessWidget {
     required this.planStatusLabel,
     required this.currentMonthColor,
     required this.progressValue,
+    required this.money,
   });
 
   @override
@@ -315,17 +329,19 @@ class _CompactCard extends StatelessWidget {
               const SizedBox(height: 12),
               _DetailLine(
                 label: 'Monthly',
-                value: plan.monthlyAmount.toStringAsFixed(2),
+                value: money(plan.monthlyAmount),
               ),
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Balance',
-                value: plan.remainingBalance.toStringAsFixed(2),
+                value: money(plan.remainingBalance),
               ),
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Progress',
-                value: '${plan.paidMonths}/${plan.durationMonths} paid',
+                value: plan.status == 'completed' || plan.remainingBalance <= 0.009
+                    ? '${plan.durationMonths}/${plan.durationMonths} paid'
+                    : '${plan.paidMonths}/${plan.durationMonths} paid',
               ),
               const SizedBox(height: 8),
               _DetailLine(

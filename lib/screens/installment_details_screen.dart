@@ -61,6 +61,8 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     return DateFormat('d MMM yyyy • h:mm a').format(date.toLocal());
   }
 
+  String _money(double value) => value.toStringAsFixed(0);
+
   Color _planStatusColor(String status) {
     switch (status) {
       case 'completed':
@@ -118,7 +120,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     InstallmentPayment payment,
   ) async {
     final amountController = TextEditingController(
-      text: payment.amountPaid > 0 ? payment.amountPaid.toStringAsFixed(2) : '',
+      text: payment.amountPaid > 0 ? payment.amountPaid.toStringAsFixed(0) : '',
     );
     final noteController = TextEditingController(
       text: payment.note ?? '',
@@ -163,12 +165,12 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                     children: [
                       _DialogInfoLine(
                         label: 'Amount due',
-                        value: payment.amountDue.toStringAsFixed(2),
+                        value: _money(payment.amountDue),
                       ),
                       const SizedBox(height: 8),
                       _DialogInfoLine(
                         label: 'Current paid',
-                        value: payment.amountPaid.toStringAsFixed(2),
+                        value: _money(payment.amountPaid),
                       ),
                       const SizedBox(height: 16),
                       TextField(
@@ -247,7 +249,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Tip: full payment marks the month as paid, partial payment keeps it visible as partial.',
+                        'You can record less or more than the original due. Future dues will automatically rebalance from the next remaining months.',
                         style: TextStyle(
                           fontSize: 12.5,
                           color: cs.onSurfaceVariant,
@@ -473,6 +475,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                   formatDateTime: _formatDateTime,
                                   planStatusColor: planStatusColor,
                                   planStatusLabel: _planStatusLabel(plan.status),
+                                  money: _money,
                                 ),
                                 const SizedBox(height: AppUi.sectionGap),
                                 _CustomerCard(plan: plan),
@@ -481,6 +484,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                   plan: plan,
                                   totalCollected: totalCollected,
                                   paidTowardInstallments: paidTowardInstallments,
+                                  money: _money,
                                 ),
                                 const SizedBox(height: AppUi.sectionGap),
                                 _ScheduleCard(
@@ -490,6 +494,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                   paymentStatusLabel: _paymentStatusLabel,
                                   onEditPayment: (payment) =>
                                       _openPaymentDialog(plan, payment),
+                                  money: _money,
                                 ),
                               ],
                             )
@@ -508,12 +513,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                         formatDateTime: _formatDateTime,
                                         planStatusColor: planStatusColor,
                                         planStatusLabel: _planStatusLabel(plan.status),
-                                      ),
-                                      const SizedBox(height: AppUi.sectionGap),
-                                      _FinancialBreakdownCard(
-                                        plan: plan,
-                                        totalCollected: totalCollected,
-                                        paidTowardInstallments: paidTowardInstallments,
+                                        money: _money,
                                       ),
                                       const SizedBox(height: AppUi.sectionGap),
                                       _ScheduleCard(
@@ -523,6 +523,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                         paymentStatusLabel: _paymentStatusLabel,
                                         onEditPayment: (payment) =>
                                             _openPaymentDialog(plan, payment),
+                                        money: _money,
                                       ),
                                     ],
                                   ),
@@ -530,7 +531,18 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                 const SizedBox(width: AppUi.sectionGap),
                                 Expanded(
                                   flex: 4,
-                                  child: _CustomerCard(plan: plan),
+                                  child: Column(
+                                    children: [
+                                      _CustomerCard(plan: plan),
+                                      const SizedBox(height: AppUi.sectionGap),
+                                      _FinancialBreakdownCard(
+                                        plan: plan,
+                                        totalCollected: totalCollected,
+                                        paidTowardInstallments: paidTowardInstallments,
+                                        money: _money,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -565,6 +577,7 @@ class _SummaryCard extends StatelessWidget {
   final String Function(DateTime) formatDateTime;
   final Color planStatusColor;
   final String planStatusLabel;
+  final String Function(double) money;
 
   const _SummaryCard({
     required this.plan,
@@ -573,6 +586,7 @@ class _SummaryCard extends StatelessWidget {
     required this.formatDateTime,
     required this.planStatusColor,
     required this.planStatusLabel,
+    required this.money,
   });
 
   @override
@@ -587,7 +601,7 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Monthly',
-                  valueText: plan.monthlyAmount.toStringAsFixed(2),
+                  valueText: money(plan.monthlyAmount),
                   icon: Icons.payments_outlined,
                 ),
               ),
@@ -607,7 +621,7 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Remaining',
-                  valueText: plan.remainingBalance.toStringAsFixed(2),
+                  valueText: money(plan.remainingBalance),
                   icon: Icons.account_balance_wallet_outlined,
                 ),
               ),
@@ -635,13 +649,13 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           AppLineItem(
             label: 'Paid',
-            value: paidTowardInstallments.toStringAsFixed(2),
+            value: money(paidTowardInstallments),
             labelWidth: 108,
           ),
           const SizedBox(height: 8),
           AppLineItem(
             label: 'Collected',
-            value: totalCollected.toStringAsFixed(2),
+            value: money(totalCollected),
             labelWidth: 108,
           ),
         ],
@@ -697,11 +711,13 @@ class _FinancialBreakdownCard extends StatelessWidget {
   final InstallmentPlan plan;
   final double totalCollected;
   final double paidTowardInstallments;
+  final String Function(double) money;
 
   const _FinancialBreakdownCard({
     required this.plan,
     required this.totalCollected,
     required this.paidTowardInstallments,
+    required this.money,
   });
 
   @override
@@ -716,7 +732,7 @@ class _FinancialBreakdownCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Total amount',
-                  valueText: plan.totalAmount.toStringAsFixed(2),
+                  valueText: money(plan.totalAmount),
                   icon: Icons.receipt_long_outlined,
                 ),
               ),
@@ -724,7 +740,7 @@ class _FinancialBreakdownCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Down payment',
-                  valueText: plan.downPayment.toStringAsFixed(2),
+                  valueText: money(plan.downPayment),
                   icon: Icons.savings_outlined,
                 ),
               ),
@@ -736,7 +752,7 @@ class _FinancialBreakdownCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Financed',
-                  valueText: plan.financedAmount.toStringAsFixed(2),
+                  valueText: money(plan.financedAmount),
                   icon: Icons.credit_score_outlined,
                 ),
               ),
@@ -744,7 +760,7 @@ class _FinancialBreakdownCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Collected',
-                  valueText: totalCollected.toStringAsFixed(2),
+                  valueText: money(totalCollected),
                   icon: Icons.payments_outlined,
                 ),
               ),
@@ -753,13 +769,13 @@ class _FinancialBreakdownCard extends StatelessWidget {
           const SizedBox(height: 16),
           AppLineItem(
             label: 'Installments paid',
-            value: paidTowardInstallments.toStringAsFixed(2),
+            value: money(paidTowardInstallments),
             labelWidth: 128,
           ),
           const SizedBox(height: 8),
           AppLineItem(
             label: 'Remaining balance',
-            value: plan.remainingBalance.toStringAsFixed(2),
+            value: money(plan.remainingBalance),
             labelWidth: 128,
           ),
         ],
@@ -774,6 +790,7 @@ class _ScheduleCard extends StatelessWidget {
   final Color Function(String) paymentStatusColor;
   final String Function(String) paymentStatusLabel;
   final ValueChanged<InstallmentPayment> onEditPayment;
+  final String Function(double) money;
 
   const _ScheduleCard({
     required this.payments,
@@ -781,6 +798,7 @@ class _ScheduleCard extends StatelessWidget {
     required this.paymentStatusColor,
     required this.paymentStatusLabel,
     required this.onEditPayment,
+    required this.money,
   });
 
   @override
@@ -856,7 +874,7 @@ class _ScheduleCard extends StatelessWidget {
                       Expanded(
                         child: _MiniInfo(
                           label: 'Amount due',
-                          value: payment.amountDue.toStringAsFixed(2),
+                          value: money(payment.amountDue),
                         ),
                       ),
                     ],
@@ -867,7 +885,7 @@ class _ScheduleCard extends StatelessWidget {
                       Expanded(
                         child: _MiniInfo(
                           label: 'Amount paid',
-                          value: payment.amountPaid.toStringAsFixed(2),
+                          value: money(payment.amountPaid),
                         ),
                       ),
                       const SizedBox(width: 12),
