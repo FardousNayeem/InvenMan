@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
@@ -36,7 +38,7 @@ class DBHelper {
   }
 
   static Future<sqflite.Database> _initDB() async {
-    final path = join(await sqflite.getDatabasesPath(), _databaseName);
+    final path = await _resolveDatabasePath();
 
     final factory = (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.linux ||
@@ -60,6 +62,32 @@ class DBHelper {
         },
       ),
     );
+  }
+
+  static Future<String> _resolveDatabasePath() async {
+    final supportDir = await getApplicationSupportDirectory();
+    final dbDir = Directory(join(supportDir.path, 'invenman', 'databases'));
+
+    if (!await dbDir.exists()) {
+      await dbDir.create(recursive: true);
+    }
+
+    final newPath = join(dbDir.path, _databaseName);
+    final newFile = File(newPath);
+
+    if (await newFile.exists()) {
+      return newPath;
+    }
+
+    // Old location
+    final oldPath = join(await sqflite.getDatabasesPath(), _databaseName);
+    final oldFile = File(oldPath);
+
+    if (await oldFile.exists()) {
+      await oldFile.copy(newPath);
+    }
+
+    return newPath;
   }
 
   static Future<void> _runMigrations(
