@@ -61,15 +61,12 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     return _selectedImageIndex;
   }
 
-  void _openImageViewer([int? initialIndex]) {
+  Future<void> _openImageViewer([int? initialIndex]) async {
     if (item.imagePaths.isEmpty) return;
 
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        barrierDismissible: true,
-        barrierColor: Colors.black.withOpacity(0.92),
-        pageBuilder: (_, __, ___) => _FullscreenImageViewer(
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullscreenImageViewer(
           imagePaths: item.imagePaths,
           initialIndex: initialIndex ?? _safeSelectedIndex,
         ),
@@ -126,15 +123,17 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                         ? null
                         : () => _openImageViewer(_safeSelectedIndex),
                   ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.02),
-                          Colors.black.withOpacity(0.48),
-                        ],
+                  IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.02),
+                            Colors.black.withOpacity(0.48),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -169,6 +168,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                     canSell: item.quantity > 0,
                     onSell: widget.onSell,
                     onEdit: widget.onEdit,
+                    onDelete: widget.onDelete,
                   ),
                   const SizedBox(height: 18),
                   if (isCompact)
@@ -344,6 +344,7 @@ class _TopSection extends StatelessWidget {
   final bool canSell;
   final VoidCallback? onSell;
   final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const _TopSection({
     required this.imagePaths,
@@ -357,6 +358,7 @@ class _TopSection extends StatelessWidget {
     required this.canSell,
     this.onSell,
     this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -401,25 +403,13 @@ class _TopSection extends StatelessWidget {
                     ),
                 ],
               ),
-              if (onSell != null || onEdit != null) ...[
+              if (onSell != null || onEdit != null || onDelete != null) ...[
                 const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    if (onSell != null)
-                      FilledButton.icon(
-                        onPressed: canSell ? onSell : null,
-                        icon: const Icon(Icons.point_of_sale_rounded),
-                        label: Text(canSell ? 'Sell' : 'Out of Stock'),
-                      ),
-                    if (onEdit != null)
-                      OutlinedButton.icon(
-                        onPressed: onEdit,
-                        icon: const Icon(Icons.edit_rounded),
-                        label: const Text('Edit'),
-                      ),
-                  ],
+                _ActionStrip(
+                  canSell: canSell,
+                  onSell: onSell,
+                  onEdit: onEdit,
+                  onDelete: onDelete,
                 ),
               ],
             ],
@@ -458,27 +448,11 @@ class _TopSection extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 flex: 3,
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    alignment: WrapAlignment.end,
-                    children: [
-                      if (onSell != null)
-                        FilledButton.icon(
-                          onPressed: canSell ? onSell : null,
-                          icon: const Icon(Icons.point_of_sale_rounded),
-                          label: Text(canSell ? 'Sell Item' : 'Out of Stock'),
-                        ),
-                      if (onEdit != null)
-                        OutlinedButton.icon(
-                          onPressed: onEdit,
-                          icon: const Icon(Icons.edit_rounded),
-                          label: const Text('Edit Item'),
-                        ),
-                    ],
-                  ),
+                child: _ActionStrip(
+                  canSell: canSell,
+                  onSell: onSell,
+                  onEdit: onEdit,
+                  onDelete: onDelete,
                 ),
               ),
             ],
@@ -551,6 +525,102 @@ class _ThumbnailRail extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ActionStrip extends StatelessWidget {
+  final bool canSell;
+  final VoidCallback? onSell;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const _ActionStrip({
+    required this.canSell,
+    this.onSell,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 760;
+
+    if (compact) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              if (onSell != null)
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: canSell ? onSell : null,
+                    icon: const Icon(Icons.point_of_sale_rounded),
+                    label: Text(canSell ? 'Sell' : 'Out of Stock'),
+                  ),
+                ),
+              if (onSell != null && onEdit != null)
+                const SizedBox(width: AppUi.tileGap),
+              if (onEdit != null)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_rounded),
+                    label: const Text('Edit'),
+                  ),
+                ),
+            ],
+          ),
+          if (onDelete != null) ...[
+            const SizedBox(height: AppUi.tileGap),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Delete'),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    return Align(
+      alignment: Alignment.topRight,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (onSell != null)
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: canSell ? onSell : null,
+                icon: const Icon(Icons.point_of_sale_rounded),
+                label: Text(canSell ? 'Sell Item' : 'Out of Stock'),
+              ),
+            ),
+          if (onSell != null && onEdit != null)
+            const SizedBox(width: AppUi.tileGap),
+          if (onEdit != null)
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_rounded),
+                label: const Text('Edit Item'),
+              ),
+            ),
+          if ((onSell != null || onEdit != null) && onDelete != null)
+            const SizedBox(width: AppUi.tileGap),
+          if (onDelete != null)
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Delete'),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -808,7 +878,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
     final canGoRight = _currentIndex < widget.imagePaths.length - 1;
 
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.94),
+      backgroundColor: Colors.black.withOpacity(0.96),
       body: SafeArea(
         child: Stack(
           children: [

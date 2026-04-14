@@ -169,18 +169,27 @@ class _InventoryPageState extends State<InventoryPage> {
     if (shouldDelete == true) {
       await DBHelper.deleteItem(item.id!, item.name);
       if (!mounted) return;
+      Navigator.of(context).maybePop();
       _notifyChanged();
       _showMessage('Item deleted successfully.');
     }
   }
 
-  void _openItemDetails(Item item) {
-    Navigator.push(
+  Future<void> _openItemDetails(Item item) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ItemDetailsScreen(item: item),
+        builder: (_) => ItemDetailsScreen(
+          item: item,
+          onEdit: () => _showEditItemDialog(item),
+          onSell: () => _showSellItemDialog(item),
+          onDelete: () => _confirmDelete(item),
+        ),
       ),
     );
+
+    if (!mounted) return;
+    setState(_loadItems);
   }
 
   @override

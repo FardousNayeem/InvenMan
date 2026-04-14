@@ -169,34 +169,39 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                       ],
                     )
                   else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Column(
                       children: [
-                        Expanded(
-                          flex: 6,
-                          child: Column(
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _SaleOverviewCard(
-                                sale: sale,
-                                formattedDate: _formatDate(sale.soldAt),
-                                profitColor: profitColor,
+                              Expanded(
+                                flex: 6,
+                                child: _StretchHeightCard(
+                                  child: _SaleOverviewCard(
+                                    sale: sale,
+                                    formattedDate: _formatDate(sale.soldAt),
+                                    profitColor: profitColor,
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: AppUi.sectionGap),
-                              _SaleWarrantyCard(sale: sale),
+                              const SizedBox(width: AppUi.sectionGap),
+                              Expanded(
+                                flex: 4,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    _CustomerCard(sale: sale),
+                                    const SizedBox(height: AppUi.sectionGap),
+                                    _PaymentCard(sale: sale),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: AppUi.sectionGap),
-                        Expanded(
-                          flex: 4,
-                          child: Column(
-                            children: [
-                              _CustomerCard(sale: sale),
-                              const SizedBox(height: AppUi.sectionGap),
-                              _PaymentCard(sale: sale),
-                            ],
-                          ),
-                        ),
+                        const SizedBox(height: AppUi.sectionGap),
+                        _SaleWarrantyCard(sale: sale),
                       ],
                     ),
                 ],
@@ -205,6 +210,22 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StretchHeightCard extends StatelessWidget {
+  final Widget child;
+
+  const _StretchHeightCard({
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: double.infinity,
+      child: child,
     );
   }
 }
@@ -271,6 +292,7 @@ class _SaleOverviewCard extends StatelessWidget {
       title: 'Purchase details',
       subtitle: 'Transaction pricing, quantity, and outcome',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -337,6 +359,7 @@ class _CustomerCard extends StatelessWidget {
       title: 'Customer details',
       subtitle: 'Buyer information captured at the time of sale',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppLineItem(
             label: 'Name',
@@ -377,6 +400,7 @@ class _PaymentCard extends StatelessWidget {
       title: 'Payment details',
       subtitle: 'Settlement mode and installment terms',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppLineItem(
             label: 'Type',
@@ -404,15 +428,46 @@ class _SaleWarrantyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return AppSectionCard(
       title: 'Warranty remaining',
       subtitle: 'Current coverage left from the purchase date',
       child: sale.warranties.isEmpty
-          ? Text(
-              'No warranty included.',
-              style: TextStyle(
-                fontSize: 14.25,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ? ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 180),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 18,
+                ),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.verified_outlined,
+                      size: 20,
+                      color: cs.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'No warranty included.',
+                        style: TextStyle(
+                          fontSize: 14.25,
+                          height: 1.5,
+                          color: cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           : Column(
@@ -429,7 +484,7 @@ class _SaleWarrantyCard extends StatelessWidget {
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: cs.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Row(
@@ -455,7 +510,7 @@ class _SaleWarrantyCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                             color: expired
                                 ? Colors.red.shade700
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                                : cs.onSurfaceVariant,
                           ),
                         ),
                       ],
