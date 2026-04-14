@@ -280,7 +280,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
                         Expanded(
                           child: AppTextField(
                             controller: _sellPriceController,
-                            label: 'MRP per unit',
+                            label: 'Sales Price',
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),

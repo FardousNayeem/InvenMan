@@ -674,7 +674,7 @@ class _CustomerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Customer details',
+      title: 'Customer Details',
       subtitle: 'Buyer information connected to this installment plan',
       child: Column(
         children: [
@@ -723,7 +723,7 @@ class _FinancialBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Financial breakdown',
+      title: 'Financial Breakdown',
       subtitle: 'Down payment, financed balance, and collection progress',
       child: Column(
         children: [
@@ -805,14 +805,14 @@ class _ScheduleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (payments.isEmpty) {
       return const AppSectionCard(
-        title: 'Payment schedule',
+        title: 'Payment Schedule',
         subtitle: 'Generated monthly payment entries',
         child: Text('No installment payment rows found.'),
       );
     }
 
     return AppSectionCard(
-      title: 'Payment schedule',
+      title: 'Payment Schedule',
       subtitle: 'Record, edit, and monitor each monthly payment',
       child: Column(
         children: payments.map((payment) {

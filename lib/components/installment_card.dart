@@ -139,7 +139,7 @@ class _WideCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _Panel(
-                  title: 'Installment details',
+                  title: 'Installment Details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -215,7 +215,7 @@ class _WideCard extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: _Panel(
-                  title: 'Customer details',
+                  title: 'Customer Details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -301,7 +301,7 @@ class _CompactCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _Panel(
-          title: 'Installment details',
+          title: 'Installment Details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +364,7 @@ class _CompactCard extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _Panel(
-          title: 'Customer details',
+          title: 'Customer Details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,14 +1,16 @@
 import 'dart:collection';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import 'package:invenman/db.dart';
+import 'package:invenman/main.dart';
 import 'package:invenman/models/history.dart';
-import 'package:invenman/theme/app_ui.dart';
 import 'package:invenman/theme/app_sort_button.dart';
 import 'package:invenman/theme/app_top_bar_buttons.dart';
-
+import 'package:invenman/theme/app_ui.dart';
 
 class HistoryPage extends StatefulWidget {
   final int refreshToken;
@@ -24,10 +26,12 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   static const String _defaultSort = 'latest';
+  static const String _defaultFilter = 'all';
 
   late Future<List<HistoryEntry>> _historyFuture;
 
   String _sortBy = _defaultSort;
+  String _filterBy = _defaultFilter;
   bool _isSearchActive = false;
   final TextEditingController _searchController = TextEditingController();
 
@@ -61,7 +65,8 @@ class _HistoryPageState extends State<HistoryPage> {
 
   String get _searchQuery => _searchController.text.trim().toLowerCase();
 
-  bool get _isSortExpanded => !_isSearchActive && _sortBy != _defaultSort;
+  bool get _isSortExpanded =>
+      !_isSearchActive && (_sortBy != _defaultSort || _filterBy != _defaultFilter);
 
   void _activateSearch() {
     setState(() {
@@ -74,6 +79,7 @@ class _HistoryPageState extends State<HistoryPage> {
       _searchController.clear();
       _isSearchActive = false;
       _sortBy = _defaultSort;
+      _filterBy = _defaultFilter;
       _loadHistory();
     });
   }
@@ -125,12 +131,32 @@ class _HistoryPageState extends State<HistoryPage> {
       case 'sold':
         return Icons.point_of_sale_rounded;
       case 'installment':
-      case 'installment payment':
         return Icons.calendar_month_rounded;
+      case 'installment payment':
+        return Icons.payments_rounded;
       case 'deleted':
         return Icons.delete_rounded;
       default:
         return Icons.history_rounded;
+    }
+  }
+
+  String _actionFilterValue(String action) {
+    switch (action.toLowerCase()) {
+      case 'added':
+        return 'added';
+      case 'edited':
+        return 'edited';
+      case 'sold':
+        return 'sold';
+      case 'installment':
+        return 'installment';
+      case 'installment payment':
+        return 'payment';
+      case 'deleted':
+        return 'deleted';
+      default:
+        return 'other';
     }
   }
 
@@ -141,6 +167,14 @@ class _HistoryPageState extends State<HistoryPage> {
       return entry.itemName.toLowerCase().contains(_searchQuery) ||
           entry.action.toLowerCase().contains(_searchQuery) ||
           entry.details.toLowerCase().contains(_searchQuery);
+    }).toList();
+  }
+
+  List<HistoryEntry> _applyFilter(List<HistoryEntry> entries) {
+    if (_filterBy == _defaultFilter) return entries;
+
+    return entries.where((entry) {
+      return _actionFilterValue(entry.action) == _filterBy;
     }).toList();
   }
 
@@ -208,6 +242,8 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final privacyProvider = context.watch<PrivacyProvider>();
+    final hideSensitive = privacyProvider.hideSensitiveValues;
 
     return Column(
       children: [
@@ -220,6 +256,7 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
           child: _HistoryTopControls(
             sortBy: _sortBy,
+            filterBy: _filterBy,
             isSearchActive: _isSearchActive,
             isSortExpanded: _isSortExpanded,
             searchController: _searchController,
@@ -227,6 +264,11 @@ class _HistoryPageState extends State<HistoryPage> {
               if (value == null) return;
               setState(() {
                 _sortBy = value;
+              });
+            },
+            onFilterChanged: (value) {
+              setState(() {
+                _filterBy = value;
               });
             },
             onActivateSearch: _activateSearch,
@@ -252,7 +294,8 @@ class _HistoryPageState extends State<HistoryPage> {
               }
 
               final allHistory = snapshot.data ?? [];
-              final searched = _applySearch(allHistory);
+              final filtered = _applyFilter(allHistory);
+              final searched = _applySearch(filtered);
               final history = _applySort(searched);
               final grouped = _groupEntries(history);
 
@@ -263,7 +306,7 @@ class _HistoryPageState extends State<HistoryPage> {
               final deletedCount = _countAction(allHistory, 'deleted');
 
               if (history.isEmpty) {
-                final isSearching = _searchQuery.isNotEmpty;
+                final isSearching = _searchQuery.isNotEmpty || _filterBy != _defaultFilter;
 
                 return RefreshIndicator(
                   onRefresh: _refresh,
@@ -284,13 +327,13 @@ class _HistoryPageState extends State<HistoryPage> {
                             ? 'No matching activity found'
                             : 'No history yet',
                         message: isSearching
-                            ? 'Try searching by item, event type, or activity details.'
+                            ? 'Try another event type, item name, or search phrase.'
                             : 'Sales, edits, additions, deletions, and installment updates will appear here as one clean timeline.',
                         action: isSearching
                             ? OutlinedButton.icon(
                                 onPressed: _cancelSearch,
                                 icon: const Icon(Icons.close_rounded),
-                                label: const Text('Clear search'),
+                                label: const Text('Clear filters'),
                               )
                             : null,
                       ),
@@ -319,7 +362,8 @@ class _HistoryPageState extends State<HistoryPage> {
                           soldCount: soldCount,
                           editedCount: editedCount,
                           deletedCount: deletedCount,
-                          isSearching: _searchQuery.isNotEmpty,
+                          isSearching:
+                              _searchQuery.isNotEmpty || _filterBy != _defaultFilter,
                           resultCount: history.length,
                         ),
                       ),
@@ -352,6 +396,7 @@ class _HistoryPageState extends State<HistoryPage> {
                                   icon: _eventIcon(entry.action),
                                   formattedDate: _formatDate(entry.createdAt),
                                   formattedTime: _formatTime(entry.createdAt),
+                                  hideSensitive: hideSensitive,
                                 ),
                               );
                             }),
@@ -372,26 +417,30 @@ class _HistoryPageState extends State<HistoryPage> {
 
 class _HistoryTopControls extends StatelessWidget {
   final String sortBy;
+  final String filterBy;
   final bool isSearchActive;
   final bool isSortExpanded;
   final TextEditingController searchController;
   final ValueChanged<String?> onSortChanged;
+  final ValueChanged<String> onFilterChanged;
   final VoidCallback onActivateSearch;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onCancelSearch;
 
   const _HistoryTopControls({
     required this.sortBy,
+    required this.filterBy,
     required this.isSearchActive,
     required this.isSortExpanded,
     required this.searchController,
     required this.onSortChanged,
+    required this.onFilterChanged,
     required this.onActivateSearch,
     required this.onSearchChanged,
     required this.onCancelSearch,
   });
 
-    @override
+  @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 760;
     final rowHeight = compact ? 46.0 : 52.0;
@@ -442,42 +491,56 @@ class _HistoryTopControls extends StatelessWidget {
               ),
             ),
           ],
+          SizedBox(height: gap),
+          _HistoryFilterBar(
+            selectedValue: filterBy,
+            onChanged: onFilterChanged,
+          ),
         ],
       );
     }
 
-    final sortFlex = isSearchActive ? 2 : (isSortExpanded ? 8 : 5);
-    final middleFlex = isSearchActive ? 7 : 1;
+    final sortFlex = isSearchActive ? 2 : (isSortExpanded ? 7 : 5);
+    final middleFlex = isSearchActive ? 5 : 1;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          flex: sortFlex,
-          child: SizedBox(
-            height: rowHeight,
-            child: _HistorySortControl(
-              value: sortBy,
-              onChanged: onSortChanged,
+        Row(
+          children: [
+            Expanded(
+              flex: sortFlex,
+              child: SizedBox(
+                height: rowHeight,
+                child: _HistorySortControl(
+                  value: sortBy,
+                  onChanged: onSortChanged,
+                ),
+              ),
             ),
-          ),
+            SizedBox(width: gap),
+            Expanded(
+              flex: middleFlex,
+              child: SizedBox(
+                height: rowHeight,
+                child: isSearchActive
+                    ? _HistorySearchBar(
+                        controller: searchController,
+                        onChanged: onSearchChanged,
+                        onClear: onCancelSearch,
+                      )
+                    : AppTopBarIconButton(
+                        onPressed: onActivateSearch,
+                        icon: Icons.search_rounded,
+                        tooltip: 'Search history',
+                      ),
+              ),
+            ),
+          ],
         ),
-        SizedBox(width: gap),
-        Expanded(
-          flex: middleFlex,
-          child: SizedBox(
-            height: rowHeight,
-            child: isSearchActive
-                ? _HistorySearchBar(
-                    controller: searchController,
-                    onChanged: onSearchChanged,
-                    onClear: onCancelSearch,
-                  )
-                : AppTopBarIconButton(
-                    onPressed: onActivateSearch,
-                    icon: Icons.search_rounded,
-                    tooltip: 'Search history',
-                  ),
-          ),
+        SizedBox(height: gap),
+        _HistoryFilterBar(
+          selectedValue: filterBy,
+          onChanged: onFilterChanged,
         ),
       ],
     );
@@ -589,6 +652,65 @@ class _HistorySearchBar extends StatelessWidget {
             icon: const Icon(Icons.close_rounded, size: 20),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HistoryFilterBar extends StatelessWidget {
+  final String selectedValue;
+  final ValueChanged<String> onChanged;
+
+  const _HistoryFilterBar({
+    required this.selectedValue,
+    required this.onChanged,
+  });
+
+  static const _filters = <(String, String)>[
+    ('all', 'All'),
+    ('added', 'Added'),
+    ('edited', 'Edited'),
+    ('sold', 'Sold'),
+    ('installment', 'Installments'),
+    ('payment', 'Payments'),
+    ('deleted', 'Deleted'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, index) {
+          final filter = _filters[index];
+          final value = filter.$1;
+          final label = filter.$2;
+          final selected = selectedValue == value;
+
+          return ChoiceChip(
+            selected: selected,
+            label: Text(label),
+            onSelected: (_) => onChanged(value),
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: selected ? cs.onSecondaryContainer : cs.onSurface,
+            ),
+            backgroundColor: cs.surfaceContainerLow,
+            selectedColor: cs.secondaryContainer,
+            side: BorderSide(
+              color: selected ? cs.secondaryContainer : cs.outlineVariant,
+            ),
+            visualDensity: VisualDensity.compact,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          );
+        },
       ),
     );
   }
@@ -765,6 +887,7 @@ class _HistoryEventCard extends StatelessWidget {
   final IconData icon;
   final String formattedDate;
   final String formattedTime;
+  final bool hideSensitive;
 
   const _HistoryEventCard({
     required this.entry,
@@ -772,12 +895,18 @@ class _HistoryEventCard extends StatelessWidget {
     required this.icon,
     required this.formattedDate,
     required this.formattedTime,
+    required this.hideSensitive,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final compact = MediaQuery.of(context).size.width < 760;
+
+    final detailPresenter = _HistoryDetailPresenter(
+      entry: entry,
+      hideSensitive: hideSensitive,
+    );
 
     if (compact) {
       return AppSurfaceCard(
@@ -835,15 +964,7 @@ class _HistoryEventCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              entry.details,
-              style: TextStyle(
-                fontSize: 14.25,
-                height: 1.5,
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            detailPresenter.buildCompact(context),
             const SizedBox(height: 14),
             Wrap(
               spacing: 10,
@@ -931,15 +1052,7 @@ class _HistoryEventCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  entry.details,
-                  style: TextStyle(
-                    fontSize: 14.25,
-                    height: 1.5,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                detailPresenter.buildWide(context),
               ],
             ),
           ),
@@ -988,6 +1101,256 @@ class _HistoryEventCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HistoryDetailPresenter {
+  final HistoryEntry entry;
+  final bool hideSensitive;
+
+  const _HistoryDetailPresenter({
+    required this.entry,
+    required this.hideSensitive,
+  });
+
+  static const Set<String> _sensitiveLabels = {
+    'cost',
+    'sell',
+    'profit',
+    'down payment',
+    'paid',
+    'financed',
+    'monthly approx',
+    'total',
+  };
+
+  bool get _isStructured {
+    return entry.details.contains(':') && entry.details.contains(',');
+  }
+
+  List<_HistoryDetailRow> _parseRows() {
+    final parts = entry.details
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    return parts.map((part) {
+      final index = part.indexOf(':');
+      if (index == -1) {
+        return _HistoryDetailRow(
+          label: '',
+          value: _maskLooseText(part),
+          isSensitive: false,
+        );
+      }
+
+      final label = part.substring(0, index).trim();
+      final rawValue = part.substring(index + 1).trim();
+      final sensitive = _sensitiveLabels.contains(label.toLowerCase());
+
+      return _HistoryDetailRow(
+        label: label,
+        value: sensitive && hideSensitive ? '••••' : rawValue,
+        isSensitive: sensitive,
+      );
+    }).toList();
+  }
+
+  String _maskLooseText(String text) {
+    if (!hideSensitive) return text;
+
+    var masked = text;
+    final patterns = [
+      RegExp(r'(?i)\bprofit\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'(?i)\bcost\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'(?i)\bsell\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'(?i)\bpaid\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'(?i)\bdown payment\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'(?i)\bmonthly approx\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'(?i)\btotal\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'(?i)\bfinanced\b\s*:?\s*\d+(\.\d+)?'),
+    ];
+
+    for (final pattern in patterns) {
+      masked = masked.replaceAllMapped(pattern, (m) {
+        final matched = m.group(0)!;
+        final colonIndex = matched.indexOf(':');
+        if (colonIndex == -1) return matched;
+        return '${matched.substring(0, colonIndex + 1)} ••••';
+      });
+    }
+
+    return masked;
+  }
+
+  Widget buildCompact(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final rows = _isStructured ? _parseRows() : const <_HistoryDetailRow>[];
+
+    if (rows.isEmpty) {
+      return Text(
+        _maskLooseText(entry.details),
+        style: TextStyle(
+          fontSize: 14.25,
+          height: 1.5,
+          color: cs.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    }
+
+    return Column(
+      children: rows.map((row) {
+        if (row.label.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                row.value,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _StructuredDetailLine(
+            label: row.label,
+            value: row.value,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget buildWide(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final rows = _isStructured ? _parseRows() : const <_HistoryDetailRow>[];
+
+    if (rows.isEmpty) {
+      return Text(
+        _maskLooseText(entry.details),
+        style: TextStyle(
+          fontSize: 14.25,
+          height: 1.5,
+          color: cs.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: rows.map((row) {
+        if (row.label.isEmpty) {
+          return Container(
+            constraints: const BoxConstraints(minWidth: 220, maxWidth: 420),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              row.value,
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.4,
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          );
+        }
+
+        final width = row.label.length > 10 ? 280.0 : 220.0;
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: math.min(width, 220),
+            maxWidth: math.max(width, 220),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: _StructuredDetailLine(
+              label: row.label,
+              value: row.value,
+              compactTypography: true,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _HistoryDetailRow {
+  final String label;
+  final String value;
+  final bool isSensitive;
+
+  const _HistoryDetailRow({
+    required this.label,
+    required this.value,
+    required this.isSensitive,
+  });
+}
+
+class _StructuredDetailLine extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool compactTypography;
+
+  const _StructuredDetailLine({
+    required this.label,
+    required this.value,
+    this.compactTypography = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final labelWidth = compactTypography ? 110.0 : 120.0;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: labelWidth,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: compactTypography ? 12.0 : 13.0,
+              fontWeight: FontWeight.w800,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: compactTypography ? 12.8 : 13.6,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

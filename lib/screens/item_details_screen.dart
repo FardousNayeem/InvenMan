@@ -776,7 +776,7 @@ class _WarrantyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Warranty breakdown',
+      title: 'Warranty Breakdown',
       subtitle: 'Coverage by component or part',
       child: SizedBox(
         height: minHeight.isFinite ? minHeight : null,

@@ -71,10 +71,6 @@ class DBHelper {
       await _migrateToV10(db);
     }
 
-    // Future migrations:
-    // if (oldVersion < 11) await _migrateToV11(db);
-    // if (oldVersion < 12) await _migrateToV12(db);
-
     await _ensureIndexes(db);
   }
 
@@ -685,7 +681,92 @@ class DBHelper {
 
   static String _formatSupplier(String supplier) {
     final trimmed = supplier.trim();
-    return trimmed.isEmpty ? 'Unknown' : trimmed;
+    return trimmed.isEmpty ? 'Not provided' : trimmed;
+  }
+
+  static String _normalizeText(String value) => value.trim();
+
+  static bool _sameText(String a, String b) {
+    return _normalizeText(a) == _normalizeText(b);
+  }
+
+  static bool _sameMoney(double a, double b) {
+    return (_roundMoney(a) - _roundMoney(b)).abs() < 0.009;
+  }
+
+  static bool _sameWarranties(Map<String, int> a, Map<String, int> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
+
+  static String _moneyText(double value) => _roundMoney(value).toStringAsFixed(0);
+
+  static String _arrowChange(String before, String after) => '$before -> $after';
+
+  static String _buildItemSnapshot(Item item) {
+    return [
+      'Qty: ${item.quantity}',
+      'Cost: ${_moneyText(item.costPrice)}',
+      'Sell: ${_moneyText(item.sellingPrice)}',
+      'Supplier: ${_formatSupplier(item.supplier)}',
+      'Warranties: ${_formatWarranties(item.warranties)}',
+      'Images: ${item.imagePaths.length}',
+    ].join(', ');
+  }
+
+  static String _buildItemEditDetails(Item before, Item after) {
+    final changes = <String>[];
+
+    if (!_sameText(before.name, after.name)) {
+      changes.add('Name: ${_arrowChange(before.name, after.name)}');
+    }
+    if (!_sameText(before.description, after.description)) {
+      final beforeDesc =
+          before.description.trim().isEmpty ? 'Empty' : 'Updated';
+      final afterDesc =
+          after.description.trim().isEmpty ? 'Empty' : 'Updated';
+      changes.add('Description: ${_arrowChange(beforeDesc, afterDesc)}');
+    }
+    if (!_sameText(before.category, after.category)) {
+      changes.add('Category: ${_arrowChange(before.category, after.category)}');
+    }
+    if (before.quantity != after.quantity) {
+      changes.add('Qty: ${_arrowChange('${before.quantity}', '${after.quantity}')}');
+    }
+    if (!_sameMoney(before.costPrice, after.costPrice)) {
+      changes.add(
+        'Cost: ${_arrowChange(_moneyText(before.costPrice), _moneyText(after.costPrice))}',
+      );
+    }
+    if (!_sameMoney(before.sellingPrice, after.sellingPrice)) {
+      changes.add(
+        'Sell: ${_arrowChange(_moneyText(before.sellingPrice), _moneyText(after.sellingPrice))}',
+      );
+    }
+    if (!_sameText(before.supplier, after.supplier)) {
+      changes.add(
+        'Supplier: ${_arrowChange(_formatSupplier(before.supplier), _formatSupplier(after.supplier))}',
+      );
+    }
+    if (!_sameWarranties(before.warranties, after.warranties)) {
+      changes.add(
+        'Warranties: ${_arrowChange(_formatWarranties(before.warranties), _formatWarranties(after.warranties))}',
+      );
+    }
+    if (before.imagePaths.length != after.imagePaths.length) {
+      changes.add(
+        'Images: ${_arrowChange('${before.imagePaths.length}', '${after.imagePaths.length}')}',
+      );
+    }
+
+    if (changes.isEmpty) {
+      return 'No tracked fields changed.';
+    }
+
+    return changes.join(', ');
   }
 
   static Future<void> insertItem(Item item) async {
@@ -696,15 +777,25 @@ class DBHelper {
     await logHistory(
       item.name,
       'Added',
-      'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}, '
-      'Supplier: ${_formatSupplier(item.supplier)}, '
-      'Warranties: ${_formatWarranties(item.warranties)}, '
-      'Images: ${item.imagePaths.length}',
+      _buildItemSnapshot(item),
     );
   }
 
   static Future<void> updateItem(Item item) async {
     final dbClient = await db;
+
+    Item? previousItem;
+    if (item.id != null) {
+      final maps = await dbClient.query(
+        'items',
+        where: 'id = ?',
+        whereArgs: [item.id],
+        limit: 1,
+      );
+      if (maps.isNotEmpty) {
+        previousItem = Item.fromMap(maps.first);
+      }
+    }
 
     await dbClient.update(
       'items',
@@ -713,18 +804,31 @@ class DBHelper {
       whereArgs: [item.id],
     );
 
+    final historyName = previousItem?.name ?? item.name;
+    final details = previousItem == null
+        ? _buildItemSnapshot(item)
+        : _buildItemEditDetails(previousItem, item);
+
     await logHistory(
-      item.name,
+      historyName,
       'Edited',
-      'Qty: ${item.quantity}, Cost: ${item.costPrice}, Sell: ${item.sellingPrice}, '
-      'Supplier: ${_formatSupplier(item.supplier)}, '
-      'Warranties: ${_formatWarranties(item.warranties)}, '
-      'Images: ${item.imagePaths.length}',
+      details,
     );
   }
 
   static Future<void> deleteItem(int id, String name) async {
     final dbClient = await db;
+
+    Item? previousItem;
+    final maps = await dbClient.query(
+      'items',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      previousItem = Item.fromMap(maps.first);
+    }
 
     await dbClient.delete(
       'items',
@@ -732,7 +836,13 @@ class DBHelper {
       whereArgs: [id],
     );
 
-    await logHistory(name, 'Deleted', 'Item deleted from inventory');
+    await logHistory(
+      name,
+      'Deleted',
+      previousItem == null
+          ? 'Item deleted from inventory'
+          : _buildItemSnapshot(previousItem),
+    );
   }
 
   static Future<List<Item>> fetchItems({String sortBy = 'name'}) async {
@@ -825,7 +935,9 @@ class DBHelper {
       }
 
       final details = StringBuffer()
-        ..write('Qty: ${sale.quantitySold}, Sell: ${sale.sellPrice}, Profit: ${sale.profit}');
+        ..write('Qty: ${sale.quantitySold}')
+        ..write(', Sell: ${_moneyText(sale.sellPrice)}')
+        ..write(', Profit: ${_moneyText(sale.profit)}');
 
       if ((sale.customerName ?? '').trim().isNotEmpty) {
         details.write(', Customer: ${sale.customerName}');
@@ -837,7 +949,7 @@ class DBHelper {
       details.write(', Payment: ${sale.paymentType}');
       if (sale.paymentType == 'installment' && sale.installmentMonths != null) {
         details.write(', Installment: ${sale.installmentMonths} month(s)');
-        details.write(', Down Payment: ${_roundMoney(downPayment ?? 0)}');
+        details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
       }
 
       details.write(', Warranties: ${_formatWarranties(sale.warranties)}');
@@ -993,7 +1105,10 @@ class DBHelper {
       }
 
       final details = StringBuffer()
-        ..write('Qty: $quantitySold, Sell: $sellPricePerUnit, Profit: $profit');
+        ..write('Qty: $quantitySold')
+        ..write(', Sell: ${_moneyText(sellPricePerUnit)}')
+        ..write(', Profit: ${_moneyText(profit)}')
+        ..write(', Stock: ${item.quantity} -> ${updatedItem.quantity}');
 
       if ((customerName ?? '').trim().isNotEmpty) {
         details.write(', Customer: $customerName');
@@ -1005,7 +1120,7 @@ class DBHelper {
       details.write(', Payment: $paymentType');
       if (paymentType == 'installment' && installmentMonths != null) {
         details.write(', Installment: $installmentMonths month(s)');
-        details.write(', Down Payment: ${_roundMoney(downPayment ?? 0)}');
+        details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
       }
 
       details.write(', Warranties: ${_formatWarranties(item.warranties)}');
@@ -1108,7 +1223,7 @@ class DBHelper {
       'item_name': sale.itemName,
       'action': 'Installment',
       'details':
-          'Installment plan created: $durationMonths month(s), Total: ${totalAmount.toStringAsFixed(0)}, Down Payment: ${normalizedDownPayment.toStringAsFixed(0)}, Financed: ${financedAmount.toStringAsFixed(0)}, Monthly approx: ${monthlyAmount.toStringAsFixed(0)}',
+          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}',
       'created_at': now.toIso8601String(),
     });
 
@@ -1531,13 +1646,21 @@ class DBHelper {
 
       if (planMaps.isNotEmpty) {
         final plan = InstallmentPlan.fromMap(planMaps.first);
+        final details = StringBuffer()
+          ..write('Month ${payment.installmentNumber}')
+          ..write(', Paid: ${_moneyText(amountPaid)}');
+
+        if (normalizedPaidDate != null) {
+          details.write(', Date: ${normalizedPaidDate.toIso8601String()}');
+        }
+        if (normalizedNote != null) {
+          details.write(', Note: $normalizedNote');
+        }
+
         await txn.insert('history_entries', {
           'item_name': plan.itemName,
           'action': 'Installment Payment',
-          'details':
-              'Month ${payment.installmentNumber}: Paid ${_roundMoney(amountPaid).toStringAsFixed(0)}'
-              '${normalizedPaidDate != null ? ' on ${normalizedPaidDate.toIso8601String()}' : ''}'
-              '${normalizedNote != null ? ', Note: $normalizedNote' : ''}',
+          'details': details.toString(),
           'created_at': _nowUtc().toIso8601String(),
         });
       }

@@ -73,7 +73,7 @@ class _SaleCardWide extends StatelessWidget {
             children: [
               Expanded(
                 child: _Panel(
-                  title: 'Purchase details',
+                  title: 'Purchase Details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -143,7 +143,7 @@ class _SaleCardWide extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: _Panel(
-                  title: 'Customer details',
+                  title: 'Customer Details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -247,7 +247,7 @@ class _SaleCardCompact extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _Panel(
-          title: 'Purchase details',
+          title: 'Purchase Details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +300,7 @@ class _SaleCardCompact extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _Panel(
-          title: 'Customer details',
+          title: 'Customer Details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

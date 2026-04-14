@@ -289,7 +289,7 @@ class _SaleOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Purchase details',
+      title: 'Purchase Details',
       subtitle: 'Transaction pricing, quantity, and outcome',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,7 +356,7 @@ class _CustomerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Customer details',
+      title: 'Customer Details',
       subtitle: 'Buyer information captured at the time of sale',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +397,7 @@ class _PaymentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Payment details',
+      title: 'Payment Details',
       subtitle: 'Settlement mode and installment terms',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
