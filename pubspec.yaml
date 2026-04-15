@@ -16,8 +16,9 @@ dependencies:
   shared_preferences: any
   sqflite: any
   sqflite_common_ffi: any
-  file_picker: any
+  file_picker: ^6.1.1
   image: any
+  image_picker: any
 
 dev_dependencies:
   flutter_test:

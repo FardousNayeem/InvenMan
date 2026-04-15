@@ -16,6 +16,8 @@ class SaleRecord {
 
   final String paymentType;
   final int? installmentMonths;
+
+  final List<String> soldColors;
   final List<String> installmentImagePaths;
 
   final Map<String, int> warranties;
@@ -36,6 +38,7 @@ class SaleRecord {
     this.customerAddress,
     required this.paymentType,
     this.installmentMonths,
+    this.soldColors = const [],
     this.installmentImagePaths = const [],
     this.warranties = const {},
     required this.soldAt,
@@ -45,10 +48,12 @@ class SaleRecord {
 
   factory SaleRecord.fromMap(Map<String, dynamic> map) {
     final warrantiesJson = map['warranties_json'] as String? ?? '{}';
+    final soldColorsJson = map['sold_colors_json'] as String? ?? '[]';
     final installmentImagesJson =
         map['installment_image_paths_json'] as String? ?? '[]';
 
     final decodedWarranties = jsonDecode(warrantiesJson) as Map<String, dynamic>;
+    final decodedSoldColors = jsonDecode(soldColorsJson) as List<dynamic>;
     final decodedInstallmentImages =
         jsonDecode(installmentImagesJson) as List<dynamic>;
 
@@ -66,6 +71,7 @@ class SaleRecord {
       customerAddress: map['customer_address'] as String?,
       paymentType: (map['payment_type'] as String?) ?? 'direct',
       installmentMonths: map['installment_months'] as int?,
+      soldColors: decodedSoldColors.map((e) => e.toString()).toList(),
       installmentImagePaths:
           decodedInstallmentImages.map((e) => e.toString()).toList(),
       warranties: decodedWarranties.map(
@@ -90,6 +96,7 @@ class SaleRecord {
       'customer_address': customerAddress,
       'payment_type': paymentType,
       'installment_months': installmentMonths,
+      'sold_colors_json': jsonEncode(soldColors),
       'installment_image_paths_json': jsonEncode(installmentImagePaths),
       'warranties_json': jsonEncode(warranties),
       'sold_at': soldAt.toIso8601String(),
@@ -110,6 +117,7 @@ class SaleRecord {
     String? customerAddress,
     String? paymentType,
     int? installmentMonths,
+    List<String>? soldColors,
     List<String>? installmentImagePaths,
     Map<String, int>? warranties,
     DateTime? soldAt,
@@ -128,6 +136,7 @@ class SaleRecord {
       customerAddress: customerAddress ?? this.customerAddress,
       paymentType: paymentType ?? this.paymentType,
       installmentMonths: installmentMonths ?? this.installmentMonths,
+      soldColors: soldColors ?? this.soldColors,
       installmentImagePaths:
           installmentImagePaths ?? this.installmentImagePaths,
       warranties: warranties ?? this.warranties,

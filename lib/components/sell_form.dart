@@ -35,6 +35,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
   String _paymentType = 'direct';
   bool _isSubmitting = false;
   List<String> _installmentImagePaths = [];
+  List<String> _selectedSoldColors = [];
 
   @override
   void initState() {
@@ -47,6 +48,10 @@ class _SellItemDialogState extends State<SellItemDialog> {
     _customerAddressController = TextEditingController();
     _installmentMonthsController = TextEditingController();
     _downPaymentController = TextEditingController();
+
+    if (widget.item.colors.length == 1) {
+      _selectedSoldColors = [widget.item.colors.first];
+    }
   }
 
   @override
@@ -136,13 +141,14 @@ class _SellItemDialogState extends State<SellItemDialog> {
 
   Future<void> _pickInstallmentImages() async {
     try {
-      final picked = await ImageService.pickAndProcessImages(
+      final picked = await ImageService.pickAndProcessInstallmentImages(
         existingPaths: _installmentImagePaths,
+        context: context,
       );
       if (!mounted) return;
 
       setState(() {
-        _installmentImagePaths = picked;
+        _installmentImagePaths = picked.take(5).toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -159,9 +165,28 @@ class _SellItemDialogState extends State<SellItemDialog> {
     await ImageService.deleteImageFile(path);
   }
 
+  void _toggleSoldColor(String color) {
+    setState(() {
+      if (_selectedSoldColors.any((e) => e.toLowerCase() == color.toLowerCase())) {
+        _selectedSoldColors.removeWhere(
+          (e) => e.toLowerCase() == color.toLowerCase(),
+        );
+      } else {
+        _selectedSoldColors = [..._selectedSoldColors, color];
+      }
+    });
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
+
+    if (widget.item.colors.isNotEmpty && _selectedSoldColors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one sold color.')),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -186,9 +211,9 @@ class _SellItemDialogState extends State<SellItemDialog> {
         downPayment: _paymentType == 'installment'
             ? double.parse(_downPaymentController.text.trim())
             : null,
-        installmentImagePaths: _paymentType == 'installment'
-            ? _installmentImagePaths
-            : const [],
+        soldColors: _selectedSoldColors,
+        installmentImagePaths:
+            _paymentType == 'installment' ? _installmentImagePaths : const [],
       );
 
       if (!mounted) return;
@@ -358,6 +383,26 @@ class _SellItemDialogState extends State<SellItemDialog> {
                         ],
                       ),
                     ),
+                    if (item.colors.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      _SectionTitle(title: 'Sold colors'),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: item.colors.map((color) {
+                          final selected = _selectedSoldColors.any(
+                            (e) => e.toLowerCase() == color.toLowerCase(),
+                          );
+
+                          return FilterChip(
+                            selected: selected,
+                            label: Text(color),
+                            onSelected: (_) => _toggleSoldColor(color),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     _SectionTitle(title: 'Customer details'),
                     const SizedBox(height: 12),

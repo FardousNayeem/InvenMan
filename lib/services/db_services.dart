@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'dart:convert';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -17,7 +18,7 @@ class DBHelper {
   static bool _isInitialized = false;
 
   static const String _databaseName = 'inventory.db';
-  static const int _databaseVersion = 11;
+  static const int _databaseVersion = 12;
 
   static Future<void> _initPlatform() async {
     if (_isInitialized) return;
@@ -103,6 +104,10 @@ class DBHelper {
       await _migrateToV11(db);
     }
 
+    if (oldVersion < 12) {
+      await _migrateToV12(db);
+    }
+
     await _ensureIndexes(db);
   }
 
@@ -158,6 +163,7 @@ class DBHelper {
               CHECK (payment_type IN ('direct', 'installment')),
             installment_months INTEGER
               CHECK (installment_months IS NULL OR installment_months > 0),
+            sold_colors_json TEXT NOT NULL DEFAULT '[]',
             installment_image_paths_json TEXT NOT NULL DEFAULT '[]',
             warranties_json TEXT NOT NULL DEFAULT '{}',
             sold_at TEXT NOT NULL,
@@ -193,6 +199,12 @@ class DBHelper {
           "TEXT NOT NULL DEFAULT '{}'",
         );
         await _ensureColumn(txn, 'sale_records', 'sold_at', "TEXT NOT NULL DEFAULT ''");
+        await _ensureColumn(
+          txn,
+          'sale_records',
+          'sold_colors_json',
+          "TEXT NOT NULL DEFAULT '[]'",
+        );
       }
 
       final hasInstallmentPlans = await _tableExists(txn, 'installment_plans');
@@ -392,6 +404,23 @@ class DBHelper {
       }
 
       await _normalizeExistingInstallmentValues(txn);
+    });
+  }
+
+  static Future<void> _migrateToV12(sqflite.Database db) async {
+    await db.transaction((txn) async {
+      await _ensureColumn(
+        txn,
+        'sale_records',
+        'sold_colors_json',
+        "TEXT NOT NULL DEFAULT '[]'",
+      );
+
+      await txn.execute("""
+        UPDATE sale_records
+        SET sold_colors_json = '[]'
+        WHERE sold_colors_json IS NULL OR sold_colors_json = ''
+      """);
     });
   }
 
@@ -666,6 +695,7 @@ class DBHelper {
           CHECK (payment_type IN ('direct', 'installment')),
         installment_months INTEGER
           CHECK (installment_months IS NULL OR installment_months > 0),
+        sold_colors_json TEXT NOT NULL DEFAULT '[]',
         installment_image_paths_json TEXT NOT NULL DEFAULT '[]',
         warranties_json TEXT NOT NULL DEFAULT '{}',
         sold_at TEXT NOT NULL,
@@ -767,6 +797,25 @@ class DBHelper {
       date.millisecond,
       date.microsecond,
     );
+  }
+
+  static List<String> _normalizeSoldColors(List<String> colors) {
+    final seen = <String>{};
+    final cleaned = <String>[];
+
+    for (final raw in colors) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) continue;
+
+      final normalized = _titleCase(trimmed);
+      final key = normalized.toLowerCase();
+
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      cleaned.add(normalized);
+    }
+
+    return cleaned;
   }
 
   static List<double> _buildWholeNumberScheduleAmounts(
@@ -1166,9 +1215,11 @@ class DBHelper {
     final normalizedImages = sale.isInstallment
         ? _normalizeInstallmentImages(sale.installmentImagePaths)
         : const <String>[];
+    final normalizedSoldColors = _normalizeSoldColors(sale.soldColors);
 
     await dbClient.transaction((txn) async {
       final normalizedSale = sale.copyWith(
+        soldColors: normalizedSoldColors,
         installmentImagePaths: normalizedImages,
       );
 
@@ -1188,6 +1239,10 @@ class DBHelper {
         ..write('Qty: ${normalizedSale.quantitySold}')
         ..write(', Sell: ${_moneyText(normalizedSale.sellPrice)}')
         ..write(', Profit: ${_moneyText(normalizedSale.profit)}');
+
+      if (normalizedSale.soldColors.isNotEmpty) {
+        details.write(', Colors: ${normalizedSale.soldColors.join(', ')}');
+      }
 
       if ((normalizedSale.customerName ?? '').trim().isNotEmpty) {
         details.write(', Customer: ${normalizedSale.customerName}');
@@ -1265,6 +1320,7 @@ class DBHelper {
     required String paymentType,
     int? installmentMonths,
     double? downPayment,
+    List<String> soldColors = const [],
     List<String> installmentImagePaths = const [],
   }) async {
     final dbClient = await db;
@@ -1295,6 +1351,12 @@ class DBHelper {
     final normalizedInstallmentImages = paymentType == 'installment'
         ? _normalizeInstallmentImages(installmentImagePaths)
         : const <String>[];
+
+    final normalizedSoldColors = _normalizeSoldColors(soldColors);
+
+    if (item.colors.isNotEmpty && normalizedSoldColors.isEmpty) {
+      throw Exception('Please select at least one sold color.');
+    }
 
     if (paymentType == 'installment') {
       if (downPayment == null) {
@@ -1338,6 +1400,7 @@ class DBHelper {
       customerAddress: customerAddress,
       paymentType: paymentType,
       installmentMonths: installmentMonths,
+      soldColors: normalizedSoldColors,
       installmentImagePaths: normalizedInstallmentImages,
       warranties: item.warranties,
       soldAt: now,
@@ -1367,6 +1430,10 @@ class DBHelper {
         ..write(', Sell: ${_moneyText(sellPricePerUnit)}')
         ..write(', Profit: ${_moneyText(profit)}')
         ..write(', Stock: ${item.quantity} -> ${updatedItem.quantity}');
+
+      if (normalizedSoldColors.isNotEmpty) {
+        details.write(', Colors: ${normalizedSoldColors.join(', ')}');
+      }
 
       if ((customerName ?? '').trim().isNotEmpty) {
         details.write(', Customer: $customerName');
@@ -1431,7 +1498,7 @@ class DBHelper {
       'customer_name': sale.customerName,
       'customer_phone': sale.customerPhone,
       'customer_address': sale.customerAddress,
-      'image_paths_json': sale.isInstallment ? '[${normalizedImages.map((e) => '"${e.replaceAll('"', '\\"')}"').join(',')}]' : '[]',
+      'image_paths_json': jsonEncode(normalizedImages),
       'total_amount': totalAmount,
       'down_payment': normalizedDownPayment,
       'financed_amount': financedAmount,
