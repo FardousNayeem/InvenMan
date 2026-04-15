@@ -113,8 +113,9 @@ class _HistoryPageState extends State<HistoryPage> {
       case 'sold':
         return Colors.blue.shade700;
       case 'installment':
-      case 'installment payment':
         return Colors.purple.shade700;
+      case 'installment payment':
+        return Colors.teal.shade700;
       case 'deleted':
         return Colors.red.shade700;
       default:
@@ -204,7 +205,6 @@ class _HistoryPageState extends State<HistoryPage> {
       case 'latest':
       default:
         sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        break;
     }
 
     return sorted;
@@ -306,7 +306,8 @@ class _HistoryPageState extends State<HistoryPage> {
               final deletedCount = _countAction(allHistory, 'deleted');
 
               if (history.isEmpty) {
-                final isSearching = _searchQuery.isNotEmpty || _filterBy != _defaultFilter;
+                final isSearching =
+                    _searchQuery.isNotEmpty || _filterBy != _defaultFilter;
 
                 return RefreshIndicator(
                   onRefresh: _refresh,
@@ -910,64 +911,22 @@ class _HistoryEventCard extends StatelessWidget {
 
     if (compact) {
       return AppSurfaceCard(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
+        radius: 26,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Icon(icon, color: color),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: [
-                      Text(
-                        entry.itemName,
-                        style: const TextStyle(
-                          fontSize: 17.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(AppUi.pillRadius),
-                        ),
-                        child: Text(
-                          entry.action,
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            _HistoryCardHeader(
+              entry: entry,
+              color: color,
+              icon: icon,
+              compact: true,
             ),
             const SizedBox(height: 12),
             detailPresenter.buildCompact(context),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Wrap(
-              spacing: 10,
+              spacing: 8,
               runSpacing: 8,
               children: [
                 _MetaPill(
@@ -986,120 +945,202 @@ class _HistoryEventCard extends StatelessWidget {
     }
 
     return AppSurfaceCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
+      radius: 28,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: 2,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(AppUi.pillRadius),
-                ),
-              ),
-            ],
+          _HistoryTimelineRail(
+            color: color,
+            icon: icon,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
-            flex: 7,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    Text(
-                      entry.itemName,
-                      style: const TextStyle(
-                        fontSize: 17.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(AppUi.pillRadius),
-                      ),
-                      child: Text(
-                        entry.action,
-                        style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
+                _HistoryCardHeader(
+                  entry: entry,
+                  color: color,
+                  icon: icon,
+                  compact: false,
                 ),
                 const SizedBox(height: 10),
                 detailPresenter.buildWide(context),
               ],
             ),
           ),
-          const SizedBox(width: 18),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 126, maxWidth: 164),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withOpacity(0.82),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Event time',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.35,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    formattedTime,
-                    style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    DateFormat('d MMM yyyy').format(entry.createdAt.toLocal()),
-                    style: TextStyle(
-                      fontSize: 12.3,
-                      fontWeight: FontWeight.w600,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          const SizedBox(width: 14),
+          _HistoryTimestampPanel(
+            entry: entry,
+            formattedTime: formattedTime,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HistoryCardHeader extends StatelessWidget {
+  final HistoryEntry entry;
+  final Color color;
+  final IconData icon;
+  final bool compact;
+
+  const _HistoryCardHeader({
+    required this.entry,
+    required this.color,
+    required this.icon,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (compact) ...[
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 21),
+          ),
+          const SizedBox(width: 12),
+        ],
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Text(
+                entry.itemName,
+                style: TextStyle(
+                  fontSize: compact ? 17.0 : 18.0,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(AppUi.pillRadius),
+                ),
+                child: Text(
+                  entry.action,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistoryTimelineRail extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+
+  const _HistoryTimelineRail({
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Icon(icon, color: color),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: 2,
+          height: 42,
+          decoration: BoxDecoration(
+            color: cs.outlineVariant.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(AppUi.pillRadius),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistoryTimestampPanel extends StatelessWidget {
+  final HistoryEntry entry;
+  final String formattedTime;
+
+  const _HistoryTimestampPanel({
+    required this.entry,
+    required this.formattedTime,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 118, maxWidth: 148),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withOpacity(0.82),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Event time',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.35,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              formattedTime,
+              style: const TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              DateFormat('d MMM yyyy').format(entry.createdAt.toLocal()),
+              style: TextStyle(
+                fontSize: 12.3,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1117,16 +1158,26 @@ class _HistoryDetailPresenter {
   static const Set<String> _sensitiveLabels = {
     'cost',
     'sell',
+    'sold at',
     'profit',
     'down payment',
     'paid',
     'financed',
     'monthly approx',
+    'monthly',
     'total',
+    'total amount',
+    'remaining',
+    'remaining balance',
+    'collected',
   };
 
   bool get _isStructured {
     return entry.details.contains(':') && entry.details.contains(',');
+  }
+
+  bool _isSensitiveLabel(String label) {
+    return _sensitiveLabels.contains(label.trim().toLowerCase());
   }
 
   List<_HistoryDetailRow> _parseRows() {
@@ -1143,17 +1194,28 @@ class _HistoryDetailPresenter {
           label: '',
           value: _maskLooseText(part),
           isSensitive: false,
+          hideWholeField: false,
         );
       }
 
       final label = part.substring(0, index).trim();
       final rawValue = part.substring(index + 1).trim();
-      final sensitive = _sensitiveLabels.contains(label.toLowerCase());
+      final sensitive = _isSensitiveLabel(label);
+
+      if (sensitive && hideSensitive) {
+        return const _HistoryDetailRow(
+          label: '',
+          value: '••••',
+          isSensitive: true,
+          hideWholeField: true,
+        );
+      }
 
       return _HistoryDetailRow(
         label: label,
-        value: sensitive && hideSensitive ? '••••' : rawValue,
+        value: rawValue,
         isSensitive: sensitive,
+        hideWholeField: false,
       );
     }).toList();
   }
@@ -1162,24 +1224,26 @@ class _HistoryDetailPresenter {
     if (!hideSensitive) return text;
 
     var masked = text;
+
     final patterns = [
-      RegExp(r'(?i)\bprofit\b\s*:?\s*\d+(\.\d+)?'),
-      RegExp(r'(?i)\bcost\b\s*:?\s*\d+(\.\d+)?'),
-      RegExp(r'(?i)\bsell\b\s*:?\s*\d+(\.\d+)?'),
-      RegExp(r'(?i)\bpaid\b\s*:?\s*\d+(\.\d+)?'),
-      RegExp(r'(?i)\bdown payment\b\s*:?\s*\d+(\.\d+)?'),
-      RegExp(r'(?i)\bmonthly approx\b\s*:?\s*\d+(\.\d+)?'),
-      RegExp(r'(?i)\btotal\b\s*:?\s*\d+(\.\d+)?'),
-      RegExp(r'(?i)\bfinanced\b\s*:?\s*\d+(\.\d+)?'),
+      RegExp(r'\bprofit\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bcost\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bsell\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bsold at\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bpaid\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bdown payment\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bmonthly approx\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bmonthly\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\btotal\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\btotal amount\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bfinanced\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bremaining\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bremaining balance\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
+      RegExp(r'\bcollected\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
     ];
 
     for (final pattern in patterns) {
-      masked = masked.replaceAllMapped(pattern, (m) {
-        final matched = m.group(0)!;
-        final colonIndex = matched.indexOf(':');
-        if (colonIndex == -1) return matched;
-        return '${matched.substring(0, colonIndex + 1)} ••••';
-      });
+      masked = masked.replaceAllMapped(pattern, (_) => '••••');
     }
 
     return masked;
@@ -1193,55 +1257,8 @@ class _HistoryDetailPresenter {
       return Text(
         _maskLooseText(entry.details),
         style: TextStyle(
-          fontSize: 14.25,
-          height: 1.5,
-          color: cs.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-        ),
-      );
-    }
-
-    return Column(
-      children: rows.map((row) {
-        if (row.label.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                row.value,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.45,
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _StructuredDetailLine(
-            label: row.label,
-            value: row.value,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget buildWide(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final rows = _isStructured ? _parseRows() : const <_HistoryDetailRow>[];
-
-    if (rows.isEmpty) {
-      return Text(
-        _maskLooseText(entry.details),
-        style: TextStyle(
-          fontSize: 14.25,
-          height: 1.5,
+          fontSize: 14.0,
+          height: 1.45,
           color: cs.onSurfaceVariant,
           fontWeight: FontWeight.w500,
         ),
@@ -1249,50 +1266,104 @@ class _HistoryDetailPresenter {
     }
 
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 8,
+      runSpacing: 8,
       children: rows.map((row) {
-        if (row.label.isEmpty) {
-          return Container(
-            constraints: const BoxConstraints(minWidth: 220, maxWidth: 420),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Text(
-              row.value,
-              style: TextStyle(
-                fontSize: 13.5,
-                height: 1.4,
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          );
-        }
-
-        final width = row.label.length > 10 ? 280.0 : 220.0;
-
-        return ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: math.min(width, 220),
-            maxWidth: math.max(width, 220),
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: _StructuredDetailLine(
-              label: row.label,
-              value: row.value,
-              compactTypography: true,
-            ),
-          ),
+        return _HistoryInfoChip(
+          row: row,
+          compact: true,
         );
       }).toList(),
+    );
+  }
+
+  Widget buildWide(BuildContext context) {
+    final rows = _isStructured ? _parseRows() : const <_HistoryDetailRow>[];
+
+    if (rows.isEmpty) {
+      return Text(
+        _maskLooseText(entry.details),
+        style: TextStyle(
+          fontSize: 14.0,
+          height: 1.45,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxChipWidth = math.min(
+          math.max(constraints.maxWidth * 0.34, 180),
+          300,
+        );
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: rows.map((row) {
+            return _HistoryInfoChip(
+              row: row,
+              compact: false,
+              maxWidth: maxChipWidth,
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _HistoryInfoChip extends StatelessWidget {
+  final _HistoryDetailRow row;
+  final bool compact;
+  final double? maxWidth;
+
+  const _HistoryInfoChip({
+    required this.row,
+    required this.compact,
+    this.maxWidth,
+  });
+
+  bool get _isLooseOnly => row.hideWholeField || row.label.isEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: _isLooseOnly ? 78 : 116,
+        maxWidth: maxWidth ?? double.infinity,
+      ),
+      child: IntrinsicWidth(
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 11 : 12,
+            vertical: compact ? 9 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: _isLooseOnly
+              ? Text(
+                  row.value,
+                  style: TextStyle(
+                    fontSize: compact ? 12.8 : 13.2,
+                    height: 1.35,
+                    color: row.isSensitive ? cs.onSurface : cs.onSurfaceVariant,
+                    fontWeight: row.isSensitive ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                )
+              : _ChipDetailLine(
+                  label: row.label,
+                  value: row.value,
+                  compact: compact,
+                ),
+        ),
+      ),
     );
   }
 }
@@ -1301,56 +1372,50 @@ class _HistoryDetailRow {
   final String label;
   final String value;
   final bool isSensitive;
+  final bool hideWholeField;
 
   const _HistoryDetailRow({
     required this.label,
     required this.value,
     required this.isSensitive,
+    required this.hideWholeField,
   });
 }
 
-class _StructuredDetailLine extends StatelessWidget {
+class _ChipDetailLine extends StatelessWidget {
   final String label;
   final String value;
-  final bool compactTypography;
+  final bool compact;
 
-  const _StructuredDetailLine({
+  const _ChipDetailLine({
     required this.label,
     required this.value,
-    this.compactTypography = false,
+    required this.compact,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final labelWidth = compactTypography ? 110.0 : 120.0;
+    final labelStyle = TextStyle(
+      fontSize: compact ? 12.0 : 12.6,
+      fontWeight: FontWeight.w800,
+      color: cs.onSurfaceVariant,
+      height: 1.3,
+    );
+    final valueStyle = TextStyle(
+      fontSize: compact ? 12.6 : 13.2,
+      fontWeight: FontWeight.w700,
+      color: cs.onSurface,
+      height: 1.35,
+    );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: labelWidth,
-          child: Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: compactTypography ? 12.0 : 13.0,
-              fontWeight: FontWeight.w800,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: compactTypography ? 12.8 : 13.6,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurface,
-              height: 1.35,
-            ),
-          ),
-        ),
-      ],
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(text: '$label: ', style: labelStyle),
+          TextSpan(text: value, style: valueStyle),
+        ],
+      ),
     );
   }
 }

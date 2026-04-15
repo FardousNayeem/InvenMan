@@ -886,7 +886,7 @@ class DBHelper {
       'item_name': sale.itemName,
       'action': 'Installment',
       'details':
-          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Images: ${normalizedImages.length}',
+          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Installment Docs: ${normalizedImages.length}',
       'created_at': now.toIso8601String(),
     });
 
@@ -1396,7 +1396,7 @@ class DBHelper {
       'item_name': sale.itemName,
       'action': 'Installment Documents Updated',
       'details':
-          'Documents synced across sale and installment plan. Count: ${normalizedImages.length}',
+          'Installment Documents Updated. Count: ${normalizedImages.length}',
       'created_at': nowIso,
     });
 

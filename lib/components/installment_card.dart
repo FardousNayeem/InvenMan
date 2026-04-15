@@ -136,6 +136,7 @@ class _WideCard extends StatelessWidget {
       children: [
         IntrinsicHeight(
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
                 child: _Panel(
@@ -154,6 +155,7 @@ class _WideCard extends StatelessWidget {
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.4,
+                              height: 1.15,
                             ),
                           ),
                           _InlineBadge(
@@ -163,8 +165,9 @@ class _WideCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Column(
@@ -173,7 +176,7 @@ class _WideCard extends StatelessWidget {
                                   label: 'Monthly',
                                   value: money(plan.monthlyAmount),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 10),
                                 _DetailLine(
                                   label: 'Balance',
                                   value: money(plan.remainingBalance),
@@ -181,7 +184,7 @@ class _WideCard extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 18),
                           Expanded(
                             child: Column(
                               children: [
@@ -192,7 +195,7 @@ class _WideCard extends StatelessWidget {
                                       ? '${plan.durationMonths}/${plan.durationMonths} paid'
                                       : '${plan.paidMonths}/${plan.durationMonths} paid',
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 10),
                                 _DetailLine(
                                   label: 'Started',
                                   value: formattedStartDate,
@@ -201,17 +204,6 @@ class _WideCard extends StatelessWidget {
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Images',
-                        value: '${plan.installmentImagePaths.length}',
-                      ),
-                      const SizedBox(height: 12),
-                      _ProgressStrip(
-                        value: progressValue,
-                        color: planStatusColor,
-                        label: 'Completion',
                       ),
                     ],
                   ),
@@ -230,14 +222,14 @@ class _WideCard extends StatelessWidget {
                             ? 'Not provided'
                             : plan.customerName!,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       _DetailLine(
                         label: 'Phone',
                         value: (plan.customerPhone ?? '').trim().isEmpty
                             ? 'Not provided'
                             : plan.customerPhone!,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       _DetailLine(
                         label: 'Address',
                         value: (plan.customerAddress ?? '').trim().isEmpty
@@ -245,7 +237,7 @@ class _WideCard extends StatelessWidget {
                             : plan.customerAddress!,
                         multiline: true,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       _DetailLine(
                         label: 'Next due',
                         value: formattedNextDueDate,
@@ -257,11 +249,9 @@ class _WideCard extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
+        const SizedBox(height: 8),
+        _FooterBar(
+          chips: [
             _StatusChip(
               label: 'This month: $thisMonthStatus',
               color: currentMonthColor,
@@ -276,6 +266,11 @@ class _WideCard extends StatelessWidget {
                 color: Colors.teal.shade700,
               ),
           ],
+          progress: _ProgressStrip(
+            value: progressValue,
+            color: planStatusColor,
+            label: 'Completion',
+          ),
         ),
       ],
     );
@@ -327,12 +322,14 @@ class _CompactCard extends StatelessWidget {
                       fontSize: 18.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.35,
+                      height: 1.15,
                     ),
                   ),
                   _InlineBadge(
                     label: plan.category,
                     background: Theme.of(context).colorScheme.secondaryContainer,
-                    foreground: Theme.of(context).colorScheme.onSecondaryContainer,
+                    foreground:
+                        Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
                 ],
               ),
@@ -349,7 +346,8 @@ class _CompactCard extends StatelessWidget {
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Progress',
-                value: plan.status == 'completed' || plan.remainingBalance <= 0.009
+                value: plan.status == 'completed' ||
+                        plan.remainingBalance <= 0.009
                     ? '${plan.durationMonths}/${plan.durationMonths} paid'
                     : '${plan.paidMonths}/${plan.durationMonths} paid',
               ),
@@ -367,12 +365,6 @@ class _CompactCard extends StatelessWidget {
               _DetailLine(
                 label: 'Images',
                 value: '${plan.installmentImagePaths.length}',
-              ),
-              const SizedBox(height: 12),
-              _ProgressStrip(
-                value: progressValue,
-                color: planStatusColor,
-                label: 'Completion',
               ),
             ],
           ),
@@ -409,26 +401,92 @@ class _CompactCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _StatusChip(
-              label: 'This month: $thisMonthStatus',
-              color: currentMonthColor,
-            ),
-            _StatusChip(
-              label: 'Plan: $planStatusLabel',
-              color: planStatusColor,
-            ),
-            if (plan.installmentImagePaths.isNotEmpty)
-              _StatusChip(
-                label: 'Docs: ${plan.installmentImagePaths.length}',
-                color: Colors.teal.shade700,
+        _Panel(
+          compact: true,
+          title: 'Status',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _StatusChip(
+                    label: 'This month: $thisMonthStatus',
+                    color: currentMonthColor,
+                  ),
+                  _StatusChip(
+                    label: 'Plan: $planStatusLabel',
+                    color: planStatusColor,
+                  ),
+                  if (plan.installmentImagePaths.isNotEmpty)
+                    _StatusChip(
+                      label: 'Docs: ${plan.installmentImagePaths.length}',
+                      color: Colors.teal.shade700,
+                    ),
+                ],
               ),
-          ],
+              const SizedBox(height: 14),
+              _ProgressStrip(
+                value: progressValue,
+                color: planStatusColor,
+                label: 'Completion',
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _FooterBar extends StatelessWidget {
+  final List<Widget> chips;
+  final Widget progress;
+
+  const _FooterBar({
+    required this.chips,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.transparent,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 7,
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: chips,
+            ),
+          ),
+          const SizedBox(width: 22),
+          Expanded(
+            flex: 5,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withOpacity(0.40),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: cs.outlineVariant.withOpacity(0.35),
+                ),
+              ),
+              child: progress,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -480,7 +538,8 @@ class _InteractiveCardShellState extends State<_InteractiveCardShell> {
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant,
+                  color:
+                      _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -516,10 +575,10 @@ class _Panel extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      padding: EdgeInsets.all(compact ? 14 : 15),
+      padding: EdgeInsets.all(compact ? 14 : 16),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withOpacity(0.78),
-        borderRadius: BorderRadius.circular(compact ? 18 : 20),
+        borderRadius: BorderRadius.circular(compact ? 18 : 22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,13 +586,13 @@ class _Panel extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 12.8,
+              fontSize: compact ? 12.8 : 13.2,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.45,
               color: cs.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           child,
         ],
       ),
@@ -556,7 +615,7 @@ class _InlineBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
@@ -564,7 +623,7 @@ class _InlineBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 12.2,
+          fontSize: 12.6,
           fontWeight: FontWeight.w800,
           color: foreground,
         ),
@@ -597,7 +656,7 @@ class _DetailLine extends StatelessWidget {
           child: Text(
             '$label:',
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 12.9,
               fontWeight: FontWeight.w700,
               color: cs.onSurfaceVariant,
             ),
@@ -607,7 +666,7 @@ class _DetailLine extends StatelessWidget {
           child: Text(
             value,
             style: TextStyle(
-              fontSize: 13.4,
+              fontSize: 13.9,
               height: 1.4,
               color: cs.onSurface,
               fontWeight: FontWeight.w700,
@@ -633,33 +692,49 @@ class _ProgressStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final percent = (value * 100).round();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+            fontSize: 14.6,
+            fontWeight: FontWeight.w800,
             color: cs.onSurfaceVariant,
+            letterSpacing: 0.1,
           ),
         ),
-        const SizedBox(height: 7),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: value),
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeOutCubic,
-            builder: (context, animatedValue, _) {
-              return LinearProgressIndicator(
-                value: animatedValue,
-                minHeight: 8,
-                backgroundColor: cs.surfaceContainer,
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              );
-            },
+        const SizedBox(width: 14),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: value),
+              duration: const Duration(milliseconds: 550),
+              curve: Curves.easeOutCubic,
+              builder: (context, animatedValue, _) {
+                return LinearProgressIndicator(
+                  value: animatedValue,
+                  minHeight: 11,
+                  backgroundColor: cs.surfaceContainer,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: Text(
+            '$percent%',
+            key: ValueKey(percent),
+            style: TextStyle(
+              fontSize: 13.6,
+              fontWeight: FontWeight.w800,
+              color: cs.onSurface,
+            ),
           ),
         ),
       ],
@@ -680,17 +755,21 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
+        color: color.withOpacity(0.13),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.18),
+        ),
       ),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 12.5,
+          fontSize: 13.6,
           fontWeight: FontWeight.w800,
           color: color,
+          height: 1.1,
         ),
       ),
     );

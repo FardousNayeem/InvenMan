@@ -30,13 +30,25 @@ class SensitiveValueText extends StatelessWidget {
         opacity: animation,
         child: child,
       ),
+      layoutBuilder: (currentChild, previousChildren) {
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ],
+          ),
+        );
+      },
       child: Text(
         hideSensitive ? hiddenText : visibleText,
         key: ValueKey('${hideSensitive}_$visibleText'),
         style: style,
         maxLines: maxLines,
         overflow: overflow,
-        textAlign: textAlign,
+        textAlign: textAlign ?? TextAlign.start,
       ),
     );
   }

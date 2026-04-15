@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:invenman/main.dart';
 import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/sale_record.dart';
 
@@ -65,6 +67,19 @@ class _SaleCardWide extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final customerName = (sale.customerName ?? '').trim().isEmpty
+        ? 'Not provided'
+        : sale.customerName!;
+    final customerPhone = (sale.customerPhone ?? '').trim().isEmpty
+        ? 'Not provided'
+        : sale.customerPhone!;
+    final customerAddress = (sale.customerAddress ?? '').trim().isEmpty
+        ? 'Not provided'
+        : sale.customerAddress!;
+    final paymentText = sale.isInstallment
+        ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
+        : 'Direct';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -102,6 +117,7 @@ class _SaleCardWide extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _DetailLine(
                                   label: 'Cost',
@@ -116,9 +132,10 @@ class _SaleCardWide extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 20),
                           Expanded(
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _DetailLine(
                                   label: 'Qty',
@@ -144,57 +161,59 @@ class _SaleCardWide extends StatelessWidget {
               Expanded(
                 child: _Panel(
                   title: 'Customer details',
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _DetailLine(
-                        label: 'Name',
-                        value: (sale.customerName ?? '').trim().isEmpty
-                            ? 'Not provided'
-                            : sale.customerName!,
-                      ),
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Phone',
-                        value: (sale.customerPhone ?? '').trim().isEmpty
-                            ? 'Not provided'
-                            : sale.customerPhone!,
-                      ),
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Address',
-                        value: (sale.customerAddress ?? '').trim().isEmpty
-                            ? 'Not provided'
-                            : sale.customerAddress!,
-                        multiline: true,
-                      ),
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Payment',
-                        value: sale.isInstallment
-                            ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
-                            : 'Direct',
-                        valueColor: paymentColor,
-                      ),
-                      if (sale.soldColors.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        _DetailLine(
-                          label: 'Colors',
-                          value: sale.soldColors.join(', '),
-                          multiline: true,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DetailLine(
+                              label: 'Name',
+                              value: customerName,
+                              labelMinWidth: 68,
+                            ),
+                            const SizedBox(height: 8),
+                            _DetailLine(
+                              label: 'Phone',
+                              value: customerPhone,
+                              labelMinWidth: 68,
+                            ),
+                            const SizedBox(height: 8),
+                            _DetailLine(
+                              label: 'Address',
+                              value: customerAddress,
+                              labelMinWidth: 68,
+                              multiline: true,
+                            ),
+                          ],
                         ),
-                      ],
-                      if (sale.isInstallment) ...[
-                        const SizedBox(height: 8),
-                        _DetailLine(
-                          label: 'Docs',
-                          value: '${sale.installmentImagePaths.length}',
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DetailLine(
+                              label: 'Payment',
+                              value: paymentText,
+                              valueColor: paymentColor,
+                              labelMinWidth: 78,
+                            ),
+                            const SizedBox(height: 8),
+                            _DetailLine(
+                              label: 'Docs',
+                              value: '${sale.installmentImagePaths.length}',
+                              labelMinWidth: 78,
+                            ),
+                            const SizedBox(height: 8),
+                            _DetailLine(
+                              label: 'Date',
+                              value: formattedDate,
+                              labelMinWidth: 78,
+                            ),
+                          ],
                         ),
-                      ],
-                      const SizedBox(height: 8),
-                      _DetailLine(
-                        label: 'Date',
-                        value: formattedDate,
                       ),
                     ],
                   ),
@@ -279,6 +298,19 @@ class _SaleCardCompact extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final customerName = (sale.customerName ?? '').trim().isEmpty
+        ? 'Not provided'
+        : sale.customerName!;
+    final customerPhone = (sale.customerPhone ?? '').trim().isEmpty
+        ? 'Not provided'
+        : sale.customerPhone!;
+    final customerAddress = (sale.customerAddress ?? '').trim().isEmpty
+        ? 'Not provided'
+        : sale.customerAddress!;
+    final paymentText = sale.isInstallment
+        ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
+        : 'Direct';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -343,48 +375,30 @@ class _SaleCardCompact extends StatelessWidget {
             children: [
               _DetailLine(
                 label: 'Name',
-                value: (sale.customerName ?? '').trim().isEmpty
-                    ? 'Not provided'
-                    : sale.customerName!,
+                value: customerName,
               ),
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Phone',
-                value: (sale.customerPhone ?? '').trim().isEmpty
-                    ? 'Not provided'
-                    : sale.customerPhone!,
+                value: customerPhone,
               ),
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Address',
-                value: (sale.customerAddress ?? '').trim().isEmpty
-                    ? 'Not provided'
-                    : sale.customerAddress!,
+                value: customerAddress,
                 multiline: true,
               ),
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Payment',
-                value: sale.isInstallment
-                    ? 'Installment (${sale.installmentMonths ?? '-'} mo)'
-                    : 'Direct',
+                value: paymentText,
                 valueColor: paymentColor,
               ),
-              if (sale.soldColors.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                _DetailLine(
-                  label: 'Colors',
-                  value: sale.soldColors.join(', '),
-                  multiline: true,
-                ),
-              ],
-              if (sale.isInstallment) ...[
-                const SizedBox(height: 8),
-                _DetailLine(
-                  label: 'Docs',
-                  value: '${sale.installmentImagePaths.length}',
-                ),
-              ],
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Docs',
+                value: '${sale.installmentImagePaths.length}',
+              ),
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Date',
@@ -590,6 +604,7 @@ class _DetailLine extends StatelessWidget {
   final bool isSensitive;
   final Color? valueColor;
   final bool multiline;
+  final double labelMinWidth;
 
   const _DetailLine({
     required this.label,
@@ -598,18 +613,52 @@ class _DetailLine extends StatelessWidget {
     this.isSensitive = false,
     this.valueColor,
     this.multiline = false,
+    this.labelMinWidth = 56,
   }) : assert(value != null || sensitiveValue != null);
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final hideSensitive = context.watch<PrivacyProvider>().hideSensitiveValues;
+
+    if (isSensitive && hideSensitive) {
+      return Text(
+        '••••',
+        style: TextStyle(
+          fontSize: 13.4,
+          height: 1.4,
+          color: cs.onSurface,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+
+    final textWidget = isSensitive
+        ? SensitiveValueText(
+            visibleText: sensitiveValue!,
+            style: TextStyle(
+              fontSize: 13.4,
+              height: 1.4,
+              color: valueColor ?? cs.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          )
+        : Text(
+            value!,
+            style: TextStyle(
+              fontSize: 13.4,
+              height: 1.4,
+              color: valueColor ?? cs.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          );
 
     return Row(
       crossAxisAlignment:
           multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 72,
+        ConstrainedBox(
+          constraints: BoxConstraints(minWidth: labelMinWidth),
           child: Text(
             '$label:',
             style: TextStyle(
@@ -619,27 +668,11 @@ class _DetailLine extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(
-          child: isSensitive
-              ? SensitiveValueText(
-                  visibleText: sensitiveValue!,
-                  style: TextStyle(
-                    fontSize: 13.4,
-                    height: 1.4,
-                    color: valueColor ?? cs.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                )
-              : Text(
-                  value!,
-                  style: TextStyle(
-                    fontSize: 13.4,
-                    height: 1.4,
-                    color: valueColor ?? cs.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-        ),
+        const SizedBox(width: 4),
+        if (multiline)
+          Expanded(child: textWidget)
+        else
+          Flexible(child: textWidget),
       ],
     );
   }
