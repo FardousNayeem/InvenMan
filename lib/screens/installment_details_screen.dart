@@ -17,7 +17,8 @@ class InstallmentDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<InstallmentDetailsScreen> createState() => _InstallmentDetailsScreenState();
+  State<InstallmentDetailsScreen> createState() =>
+      _InstallmentDetailsScreenState();
 }
 
 class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
@@ -323,6 +324,22 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     }
   }
 
+  Future<void> _openInstallmentImageViewer({
+    required List<String> imagePaths,
+    required int initialIndex,
+  }) async {
+    if (imagePaths.isEmpty) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullscreenInstallmentImageViewer(
+          imagePaths: imagePaths,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
   Future<bool> _handleBack() async {
     Navigator.of(context).pop(_didChange);
     return false;
@@ -440,7 +457,8 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                     if (plan.installmentImagePaths.isNotEmpty)
                                       AppHeroPill(
                                         icon: Icons.collections_outlined,
-                                        label: '${plan.installmentImagePaths.length} docs',
+                                        label:
+                                            '${plan.installmentImagePaths.length} docs',
                                       ),
                                   ],
                                 ),
@@ -472,12 +490,6 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       ),
                       child: Column(
                         children: [
-                          if (plan.installmentImagePaths.isNotEmpty) ...[
-                            _InstallmentImageGallery(
-                              imagePaths: plan.installmentImagePaths,
-                            ),
-                            const SizedBox(height: AppUi.sectionGap),
-                          ],
                           if (isCompact)
                             Column(
                               children: [
@@ -499,6 +511,18 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                   paidTowardInstallments: paidTowardInstallments,
                                   money: _money,
                                 ),
+                                if (plan.installmentImagePaths.isNotEmpty) ...[
+                                  const SizedBox(height: AppUi.sectionGap),
+                                  _InstallmentImageGallery(
+                                    imagePaths: plan.installmentImagePaths,
+                                    onOpenViewer: (index) {
+                                      _openInstallmentImageViewer(
+                                        imagePaths: plan.installmentImagePaths,
+                                        initialIndex: index,
+                                      );
+                                    },
+                                  ),
+                                ],
                                 const SizedBox(height: AppUi.sectionGap),
                                 _ScheduleCard(
                                   payments: payments,
@@ -522,10 +546,12 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                       _SummaryCard(
                                         plan: plan,
                                         totalCollected: totalCollected,
-                                        paidTowardInstallments: paidTowardInstallments,
+                                        paidTowardInstallments:
+                                            paidTowardInstallments,
                                         formatDateTime: _formatDateTime,
                                         planStatusColor: planStatusColor,
-                                        planStatusLabel: _planStatusLabel(plan.status),
+                                        planStatusLabel:
+                                            _planStatusLabel(plan.status),
                                         money: _money,
                                       ),
                                       const SizedBox(height: AppUi.sectionGap),
@@ -533,7 +559,8 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                         payments: payments,
                                         formatDate: _formatDate,
                                         paymentStatusColor: _paymentStatusColor,
-                                        paymentStatusLabel: _paymentStatusLabel,
+                                        paymentStatusLabel:
+                                            _paymentStatusLabel,
                                         onEditPayment: (payment) =>
                                             _openPaymentDialog(plan, payment),
                                         money: _money,
@@ -551,9 +578,23 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                       _FinancialBreakdownCard(
                                         plan: plan,
                                         totalCollected: totalCollected,
-                                        paidTowardInstallments: paidTowardInstallments,
+                                        paidTowardInstallments:
+                                            paidTowardInstallments,
                                         money: _money,
                                       ),
+                                      if (plan.installmentImagePaths.isNotEmpty) ...[
+                                        const SizedBox(height: AppUi.sectionGap),
+                                        _InstallmentImageGallery(
+                                          imagePaths: plan.installmentImagePaths,
+                                          onOpenViewer: (index) {
+                                            _openInstallmentImageViewer(
+                                              imagePaths:
+                                                  plan.installmentImagePaths,
+                                              initialIndex: index,
+                                            );
+                                          },
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -575,9 +616,11 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
 
 class _InstallmentImageGallery extends StatelessWidget {
   final List<String> imagePaths;
+  final ValueChanged<int> onOpenViewer;
 
   const _InstallmentImageGallery({
     required this.imagePaths,
+    required this.onOpenViewer,
   });
 
   @override
@@ -595,28 +638,200 @@ class _InstallmentImageGallery extends StatelessWidget {
                 color: cs.onSurfaceVariant,
               ),
             )
-          : Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: imagePaths.map((path) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 110,
-                    height: 110,
-                    color: cs.surfaceContainerHighest,
-                    child: Image.file(
-                      File(path),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
-                        Icons.broken_image_rounded,
-                        color: cs.onSurfaceVariant,
+          : Column(
+              children: List.generate(imagePaths.length, (index) {
+                final path = imagePaths[index];
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == imagePaths.length - 1 ? 0 : 10,
+                  ),
+                  child: GestureDetector(
+                    onTap: () => onOpenViewer(index),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        height: 110,
+                        color: cs.surfaceContainerHighest,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(
+                              File(path),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.broken_image_rounded,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.55),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '${index + 1}/${imagePaths.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ),
+    );
+  }
+}
+
+class _FullscreenInstallmentImageViewer extends StatefulWidget {
+  final List<String> imagePaths;
+  final int initialIndex;
+
+  const _FullscreenInstallmentImageViewer({
+    required this.imagePaths,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullscreenInstallmentImageViewer> createState() =>
+      _FullscreenInstallmentImageViewerState();
+}
+
+class _FullscreenInstallmentImageViewerState
+    extends State<_FullscreenInstallmentImageViewer> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.imagePaths.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goPrevious() {
+    if (_currentIndex <= 0) return;
+    _pageController.previousPage(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _goNext() {
+    if (_currentIndex >= widget.imagePaths.length - 1) return;
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          'Document ${_currentIndex + 1} of ${widget.imagePaths.length}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.imagePaths.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (_, index) {
+              final path = widget.imagePaths[index];
+
+              return InteractiveViewer(
+                minScale: 0.9,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.file(
+                    File(path),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image_rounded,
+                      size: 64,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          if (widget.imagePaths.length > 1) ...[
+            Positioned(
+              left: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton.filledTonal(
+                  onPressed: _currentIndex > 0 ? _goPrevious : null,
+                  icon: const Icon(Icons.chevron_left_rounded, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.42),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.black.withOpacity(0.16),
+                    disabledForegroundColor: Colors.white38,
+                    minimumSize: const Size(48, 48),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton.filledTonal(
+                  onPressed:
+                      _currentIndex < widget.imagePaths.length - 1 ? _goNext : null,
+                  icon: const Icon(Icons.chevron_right_rounded, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.42),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.black.withOpacity(0.16),
+                    disabledForegroundColor: Colors.white38,
+                    minimumSize: const Size(48, 48),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -670,9 +885,10 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Progress',
-                  valueText: plan.status == 'completed' || plan.remainingBalance <= 0.009
-                      ? '${plan.durationMonths}/${plan.durationMonths}'
-                      : '${plan.paidMonths}/${plan.durationMonths}',
+                  valueText:
+                      plan.status == 'completed' || plan.remainingBalance <= 0.009
+                          ? '${plan.durationMonths}/${plan.durationMonths}'
+                          : '${plan.paidMonths}/${plan.durationMonths}',
                   icon: Icons.stacked_line_chart_rounded,
                 ),
               ),
@@ -700,7 +916,11 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          AppLineItem(label: 'Started', value: formatDateTime(plan.startDate), labelWidth: 108),
+          AppLineItem(
+            label: 'Started',
+            value: formatDateTime(plan.startDate),
+            labelWidth: 108,
+          ),
           const SizedBox(height: 8),
           AppLineItem(
             label: 'Next due',
@@ -917,7 +1137,8 @@ class _ScheduleCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(AppUi.pillRadius),
+                          borderRadius:
+                              BorderRadius.circular(AppUi.pillRadius),
                         ),
                         child: Text(
                           statusLabel,
@@ -983,7 +1204,9 @@ class _ScheduleCard extends StatelessWidget {
                       onPressed: () => onEditPayment(payment),
                       icon: const Icon(Icons.edit_calendar_rounded),
                       label: Text(
-                        payment.amountPaid > 0 ? 'Edit payment' : 'Record payment',
+                        payment.amountPaid > 0
+                            ? 'Edit payment'
+                            : 'Record payment',
                       ),
                     ),
                   ),

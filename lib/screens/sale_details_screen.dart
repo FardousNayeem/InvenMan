@@ -18,8 +18,6 @@ class SaleDetailsScreen extends StatefulWidget {
 }
 
 class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
-  int _selectedInstallmentImageIndex = 0;
-
   SaleRecord get sale => widget.sale;
 
   String _formatDate(DateTime date) {
@@ -37,13 +35,20 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
     return sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
   }
 
-  int get _safeInstallmentImageIndex {
-    if (sale.installmentImagePaths.isEmpty) return 0;
-    if (_selectedInstallmentImageIndex < 0) return 0;
-    if (_selectedInstallmentImageIndex >= sale.installmentImagePaths.length) {
-      return sale.installmentImagePaths.length - 1;
-    }
-    return _selectedInstallmentImageIndex;
+  Future<void> _openInstallmentImageViewer({
+    required List<String> imagePaths,
+    required int initialIndex,
+  }) async {
+    if (imagePaths.isEmpty) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullscreenInstallmentImageViewer(
+          imagePaths: imagePaths,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
   }
 
   @override
@@ -171,18 +176,6 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty) ...[
-                    _SaleInstallmentImageGallery(
-                      imagePaths: sale.installmentImagePaths,
-                      selectedIndex: _safeInstallmentImageIndex,
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedInstallmentImageIndex = index;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: AppUi.sectionGap),
-                  ],
                   if (isCompact)
                     Column(
                       children: [
@@ -197,6 +190,19 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                         _PaymentCard(sale: sale),
                         const SizedBox(height: AppUi.sectionGap),
                         _SaleWarrantyCard(sale: sale),
+                        if (sale.isInstallment &&
+                            sale.installmentImagePaths.isNotEmpty) ...[
+                          const SizedBox(height: AppUi.sectionGap),
+                          _SaleInstallmentImageGallery(
+                            imagePaths: sale.installmentImagePaths,
+                            onOpenViewer: (index) {
+                              _openInstallmentImageViewer(
+                                imagePaths: sale.installmentImagePaths,
+                                initialIndex: index,
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     )
                   else
@@ -233,6 +239,19 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                         ),
                         const SizedBox(height: AppUi.sectionGap),
                         _SaleWarrantyCard(sale: sale),
+                        if (sale.isInstallment &&
+                            sale.installmentImagePaths.isNotEmpty) ...[
+                          const SizedBox(height: AppUi.sectionGap),
+                          _SaleInstallmentImageGallery(
+                            imagePaths: sale.installmentImagePaths,
+                            onOpenViewer: (index) {
+                              _openInstallmentImageViewer(
+                                imagePaths: sale.installmentImagePaths,
+                                initialIndex: index,
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     ),
                 ],
@@ -308,87 +327,91 @@ class _HeroPlaceholder extends StatelessWidget {
 
 class _SaleInstallmentImageGallery extends StatelessWidget {
   final List<String> imagePaths;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
+  final ValueChanged<int> onOpenViewer;
 
   const _SaleInstallmentImageGallery({
     required this.imagePaths,
-    required this.selectedIndex,
-    required this.onSelected,
+    required this.onOpenViewer,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final selectedPath = imagePaths[selectedIndex];
 
-    return AppSectionCard(
-      title: 'Installment Documents',
-      subtitle: 'Images captured during installment-based sale processing',
-      child: Column(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              width: double.infinity,
-              height: 240,
-              color: cs.surfaceContainerHighest,
-              child: Image.file(
-                File(selectedPath),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Icon(
-                  Icons.broken_image_rounded,
-                  size: 48,
-                  color: cs.onSurfaceVariant,
+    return SizedBox(
+      width: double.infinity,
+      child: AppSectionCard(
+        title: 'Installment Documents',
+        subtitle: 'Images captured during installment-based sale processing',
+        child: imagePaths.isEmpty
+            ? SizedBox(
+                width: double.infinity,
+                child: Text(
+                  'No installment images added.',
+                  style: TextStyle(
+                    fontSize: 14.25,
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ),
-          ),
-          if (imagePaths.length > 1) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 88,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: imagePaths.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, index) {
-                  final path = imagePaths[index];
-                  final isSelected = selectedIndex == index;
+              )
+            : SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.start,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: List.generate(imagePaths.length, (index) {
+                    final path = imagePaths[index];
 
-                  return GestureDetector(
-                    onTap: () => onSelected(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      width: 88,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? cs.primary : cs.outlineVariant,
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
+                    return GestureDetector(
+                      onTap: () => onOpenViewer(index),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: Image.file(
-                          File(path),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: cs.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.broken_image_rounded,
-                              color: cs.onSurfaceVariant,
-                            ),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: 104,
+                          height: 104,
+                          color: cs.surfaceContainerHighest,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                File(path),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.broken_image_rounded,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.55),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  }),
+                ),
               ),
-            ),
-          ],
-        ],
       ),
     );
   }
@@ -598,7 +621,8 @@ class _SaleWarrantyCard extends StatelessWidget {
             )
           : Column(
               children: sale.warranties.entries.map((entry) {
-                final remaining = _remainingWarrantyLabel(sale.soldAt, entry.value);
+                final remaining =
+                    _remainingWarrantyLabel(sale.soldAt, entry.value);
                 final expired = remaining == 'Expired';
 
                 return Padding(
@@ -616,7 +640,9 @@ class _SaleWarrantyCard extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(
-                          expired ? Icons.gpp_bad_outlined : Icons.verified_outlined,
+                          expired
+                              ? Icons.gpp_bad_outlined
+                              : Icons.verified_outlined,
                           size: 18,
                           color: expired ? Colors.red.shade700 : null,
                         ),
@@ -645,6 +671,146 @@ class _SaleWarrantyCard extends StatelessWidget {
                 );
               }).toList(),
             ),
+    );
+  }
+}
+
+class _FullscreenInstallmentImageViewer extends StatefulWidget {
+  final List<String> imagePaths;
+  final int initialIndex;
+
+  const _FullscreenInstallmentImageViewer({
+    required this.imagePaths,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullscreenInstallmentImageViewer> createState() =>
+      _FullscreenInstallmentImageViewerState();
+}
+
+class _FullscreenInstallmentImageViewerState
+    extends State<_FullscreenInstallmentImageViewer> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, widget.imagePaths.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goToPrevious() {
+    if (_currentIndex <= 0) return;
+    _pageController.previousPage(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _goToNext() {
+    if (_currentIndex >= widget.imagePaths.length - 1) return;
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          'Document ${_currentIndex + 1} of ${widget.imagePaths.length}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.imagePaths.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (_, index) {
+              final path = widget.imagePaths[index];
+
+              return InteractiveViewer(
+                minScale: 0.9,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.file(
+                    File(path),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.broken_image_rounded,
+                      size: 64,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          if (widget.imagePaths.length > 1) ...[
+            Positioned(
+              left: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton.filledTonal(
+                  onPressed: _currentIndex > 0 ? _goToPrevious : null,
+                  icon: const Icon(Icons.chevron_left_rounded, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.45),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.black.withOpacity(0.18),
+                    disabledForegroundColor: Colors.white38,
+                    minimumSize: const Size(48, 48),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton.filledTonal(
+                  onPressed: _currentIndex < widget.imagePaths.length - 1
+                      ? _goToNext
+                      : null,
+                  icon: const Icon(Icons.chevron_right_rounded, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.45),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.black.withOpacity(0.18),
+                    disabledForegroundColor: Colors.white38,
+                    minimumSize: const Size(48, 48),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -690,7 +856,8 @@ DateTime _addMonths(DateTime date, int monthsToAdd) {
   final newMonth = (totalMonths % 12) + 1;
 
   final lastDayOfTargetMonth = DateTime(newYear, newMonth + 1, 0).day;
-  final newDay = date.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : date.day;
+  final newDay =
+      date.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : date.day;
 
   return DateTime(
     newYear,
