@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:invenman/theme/app_ui.dart';
 
 class AppTopBarIconButton extends StatelessWidget {
   final IconData icon;
@@ -18,22 +19,27 @@ class AppTopBarIconButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(20),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: cs.outlineVariant),
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                size: 20,
-                color: cs.onSurfaceVariant,
+      child: SizedBox(
+        width: 50,
+        height: 50,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(20),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: cs.outlineVariant),
+                boxShadow: AppUi.softShadow,
+              ),
+              child: Center(
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ),
           ),
@@ -61,6 +67,7 @@ class AppTopBarAddButton extends StatelessWidget {
       label: Text(label),
       style: FilledButton.styleFrom(
         elevation: 0,
+        minimumSize: const Size(0, 50),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),

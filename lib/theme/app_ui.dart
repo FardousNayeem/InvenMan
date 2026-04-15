@@ -80,6 +80,7 @@ ThemeData buildAppTheme(Brightness brightness) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
+        elevation: 0,
         minimumSize: const Size(0, 48),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
@@ -170,12 +171,18 @@ class AppSurfaceCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final double radius;
+  final Color? backgroundColor;
+  final BorderSide? borderSide;
+  final List<BoxShadow>? boxShadow;
 
   const AppSurfaceCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.radius = AppUi.cardRadius,
+    this.backgroundColor,
+    this.borderSide,
+    this.boxShadow,
   });
 
   @override
@@ -184,10 +191,13 @@ class AppSurfaceCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
+        color: backgroundColor ?? cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: cs.outlineVariant),
-        boxShadow: AppUi.softShadow,
+        border: Border.all(
+          color: borderSide?.color ?? cs.outlineVariant,
+          width: borderSide?.width ?? 1,
+        ),
+        boxShadow: boxShadow ?? AppUi.softShadow,
       ),
       child: Padding(
         padding: padding,
@@ -201,12 +211,14 @@ class AppSectionCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget child;
+  final Widget? trailing;
 
   const AppSectionCard({
     super.key,
     required this.title,
     required this.child,
     this.subtitle,
+    this.trailing,
   });
 
   @override
@@ -218,25 +230,41 @@ class AppSectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.1,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-          ],
+              if (trailing != null) ...[
+                const SizedBox(width: 12),
+                trailing!,
+              ],
+            ],
+          ),
           const SizedBox(height: 14),
           child,
         ],
@@ -459,6 +487,8 @@ class AppHeroPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconColor = accentColor ?? Colors.white;
+    final textColor =
+        accentColor != null ? Colors.white : Colors.white;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
@@ -474,8 +504,8 @@ class AppHeroPill extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor,
               fontWeight: FontWeight.w700,
             ),
           ),

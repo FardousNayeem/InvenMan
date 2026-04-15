@@ -110,7 +110,7 @@ class _SaleCardWide extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 _DetailLine(
-                                  label: 'MRP',
+                                  label: 'Sold At',
                                   value: sale.sellPrice.toStringAsFixed(0),
                                 ),
                               ],
@@ -176,6 +176,14 @@ class _SaleCardWide extends StatelessWidget {
                             : 'Direct',
                         valueColor: paymentColor,
                       ),
+                      if (sale.soldColors.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _DetailLine(
+                          label: 'Colors',
+                          value: sale.soldColors.join(', '),
+                          multiline: true,
+                        ),
+                      ],
                       if (sale.isInstallment) ...[
                         const SizedBox(height: 8),
                         _DetailLine(
@@ -201,11 +209,14 @@ class _SaleCardWide extends StatelessWidget {
           runSpacing: 8,
           children: [
             _StatusPill(
-              label: sale.isInstallment
-                  ? 'Installment'
-                  : 'Direct',
+              label: sale.isInstallment ? 'Installment' : 'Direct',
               color: paymentColor,
             ),
+            if (sale.soldColors.isNotEmpty)
+              _StatusPill(
+                label: 'Colors: ${sale.soldColors.join(', ')}',
+                color: Colors.indigo.shade700,
+              ),
             if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty)
               _StatusPill(
                 label: 'Docs: ${sale.installmentImagePaths.length}',
@@ -305,7 +316,7 @@ class _SaleCardCompact extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _DetailLine(
-                label: 'MRP',
+                label: 'Sold At',
                 value: sale.sellPrice.toStringAsFixed(0),
               ),
               const SizedBox(height: 8),
@@ -359,6 +370,14 @@ class _SaleCardCompact extends StatelessWidget {
                     : 'Direct',
                 valueColor: paymentColor,
               ),
+              if (sale.soldColors.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _DetailLine(
+                  label: 'Colors',
+                  value: sale.soldColors.join(', '),
+                  multiline: true,
+                ),
+              ],
               if (sale.isInstallment) ...[
                 const SizedBox(height: 8),
                 _DetailLine(
@@ -383,6 +402,11 @@ class _SaleCardCompact extends StatelessWidget {
               label: sale.isInstallment ? 'Installment' : 'Direct',
               color: paymentColor,
             ),
+            if (sale.soldColors.isNotEmpty)
+              _StatusPill(
+                label: 'Colors: ${sale.soldColors.join(', ')}',
+                color: Colors.indigo.shade700,
+              ),
             if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty)
               _StatusPill(
                 label: 'Docs: ${sale.installmentImagePaths.length}',
@@ -722,7 +746,8 @@ DateTime _addMonths(DateTime date, int monthsToAdd) {
   final newMonth = (totalMonths % 12) + 1;
 
   final lastDayOfTargetMonth = DateTime(newYear, newMonth + 1, 0).day;
-  final newDay = date.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : date.day;
+  final newDay =
+      date.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : date.day;
 
   return DateTime(
     newYear,

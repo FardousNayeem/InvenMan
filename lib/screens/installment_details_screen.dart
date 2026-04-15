@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:invenman/components/installment_file_editor.dart';
 import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
@@ -340,6 +341,36 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     );
   }
 
+  Future<void> _editDocuments(InstallmentPlan plan) async {
+    if (plan.id == null) return;
+
+    final didSave = await showDialog<bool>(
+      context: context,
+      builder: (_) => InstallmentDocumentEditorDialog(
+        title: 'Edit installment documents',
+        subtitle:
+            'Add or remove installment images for this plan. The linked sale record will update too.',
+        initialPaths: plan.installmentImagePaths,
+        onSave: (paths) async {
+          await DBHelper.updateInstallmentDocumentsByInstallmentPlanId(
+            installmentPlanId: plan.id!,
+            imagePaths: paths,
+          );
+        },
+      ),
+    );
+
+    if (didSave == true && mounted) {
+      _didChange = true;
+      setState(_loadData);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Installment documents updated successfully.'),
+        ),
+      );
+    }
+  }
+
   Future<bool> _handleBack() async {
     Navigator.of(context).pop(_didChange);
     return false;
@@ -511,18 +542,17 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                   paidTowardInstallments: paidTowardInstallments,
                                   money: _money,
                                 ),
-                                if (plan.installmentImagePaths.isNotEmpty) ...[
-                                  const SizedBox(height: AppUi.sectionGap),
-                                  _InstallmentImageGallery(
-                                    imagePaths: plan.installmentImagePaths,
-                                    onOpenViewer: (index) {
-                                      _openInstallmentImageViewer(
-                                        imagePaths: plan.installmentImagePaths,
-                                        initialIndex: index,
-                                      );
-                                    },
-                                  ),
-                                ],
+                                const SizedBox(height: AppUi.sectionGap),
+                                _InstallmentImageGallery(
+                                  imagePaths: plan.installmentImagePaths,
+                                  onOpenViewer: (index) {
+                                    _openInstallmentImageViewer(
+                                      imagePaths: plan.installmentImagePaths,
+                                      initialIndex: index,
+                                    );
+                                  },
+                                  onEditDocuments: () => _editDocuments(plan),
+                                ),
                                 const SizedBox(height: AppUi.sectionGap),
                                 _ScheduleCard(
                                   payments: payments,
@@ -582,19 +612,17 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                             paidTowardInstallments,
                                         money: _money,
                                       ),
-                                      if (plan.installmentImagePaths.isNotEmpty) ...[
-                                        const SizedBox(height: AppUi.sectionGap),
-                                        _InstallmentImageGallery(
-                                          imagePaths: plan.installmentImagePaths,
-                                          onOpenViewer: (index) {
-                                            _openInstallmentImageViewer(
-                                              imagePaths:
-                                                  plan.installmentImagePaths,
-                                              initialIndex: index,
-                                            );
-                                          },
-                                        ),
-                                      ],
+                                      const SizedBox(height: AppUi.sectionGap),
+                                      _InstallmentImageGallery(
+                                        imagePaths: plan.installmentImagePaths,
+                                        onOpenViewer: (index) {
+                                          _openInstallmentImageViewer(
+                                            imagePaths: plan.installmentImagePaths,
+                                            initialIndex: index,
+                                          );
+                                        },
+                                        onEditDocuments: () => _editDocuments(plan),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -617,10 +645,12 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
 class _InstallmentImageGallery extends StatelessWidget {
   final List<String> imagePaths;
   final ValueChanged<int> onOpenViewer;
+  final Future<void> Function() onEditDocuments;
 
   const _InstallmentImageGallery({
     required this.imagePaths,
     required this.onOpenViewer,
+    required this.onEditDocuments,
   });
 
   @override
@@ -629,7 +659,12 @@ class _InstallmentImageGallery extends StatelessWidget {
 
     return AppSectionCard(
       title: 'Installment Documents',
-      subtitle: 'Images captured for this installment agreement or process',
+      subtitle: 'Installment Agreement Images',
+      trailing: FilledButton.tonalIcon(
+        onPressed: onEditDocuments,
+        icon: const Icon(Icons.edit_rounded),
+        label: const Text('Edit documents'),
+      ),
       child: imagePaths.isEmpty
           ? Text(
               'No installment images added.',

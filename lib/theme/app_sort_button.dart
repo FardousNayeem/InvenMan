@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:invenman/theme/app_ui.dart';
 
 class AppSortButton<T> extends StatelessWidget {
   final T value;
@@ -22,51 +23,54 @@ class AppSortButton<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: PopupMenuButton<T>(
-        tooltip: tooltip,
-        initialValue: value,
+    return Tooltip(
+      message: tooltip,
+      child: AppSurfaceCard(
+        radius: 20,
         padding: EdgeInsets.zero,
-        position: PopupMenuPosition.under,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        onSelected: onSelected,
-        itemBuilder: (_) => items,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: cs.onSurfaceVariant,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  labelBuilder(value),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
+        backgroundColor: cs.surfaceContainerLow,
+        child: SizedBox(
+          height: double.infinity,
+          child: PopupMenuButton<T>(
+            tooltip: tooltip,
+            initialValue: value,
+            padding: EdgeInsets.zero,
+            position: PopupMenuPosition.under,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            onSelected: onSelected,
+            itemBuilder: (_) => items,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: cs.onSurfaceVariant,
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      labelBuilder(value),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 22,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ],
               ),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 22,
-                color: cs.onSurfaceVariant,
-              ),
-            ],
+            ),
           ),
         ),
       ),

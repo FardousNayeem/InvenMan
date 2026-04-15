@@ -84,15 +84,17 @@ class _SalesPageState extends State<SalesPage> {
     if (_searchQuery.isEmpty) return allSales;
 
     return allSales.where((sale) {
+      final soldColorsText = sale.soldColors.join(' ').toLowerCase();
+      final docsText = 'docs ${sale.installmentImagePaths.length}'.toLowerCase();
+
       return sale.itemName.toLowerCase().contains(_searchQuery) ||
           sale.category.toLowerCase().contains(_searchQuery) ||
+          sale.paymentType.toLowerCase().contains(_searchQuery) ||
+          soldColorsText.contains(_searchQuery) ||
           (sale.customerName ?? '').toLowerCase().contains(_searchQuery) ||
           (sale.customerPhone ?? '').toLowerCase().contains(_searchQuery) ||
           (sale.customerAddress ?? '').toLowerCase().contains(_searchQuery) ||
-          (sale.isInstallment &&
-              'docs ${sale.installmentImagePaths.length}'
-                  .toLowerCase()
-                  .contains(_searchQuery));
+          docsText.contains(_searchQuery);
     }).toList();
   }
 
@@ -226,8 +228,8 @@ class _SalesPageState extends State<SalesPage> {
                             ? 'No matching sales found'
                             : 'No sales yet',
                         message: isSearching
-                            ? 'Try searching by item, category, customer, phone, address, or installment documents.'
-                            : 'Completed sales will appear here with payment type, customer details, warranties, and installment document snapshots.',
+                            ? 'Try searching by item, category, sold color, customer, phone, address, payment type, or installment documents.'
+                            : 'Completed sales will appear here with payment type, sold colors, customer details, warranties, and installment documents.',
                         action: isSearching
                             ? OutlinedButton.icon(
                                 onPressed: _cancelSearch,

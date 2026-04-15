@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:invenman/models/sale_record.dart';
+import 'package:invenman/services/db_services.dart';
 import 'package:invenman/theme/app_ui.dart';
+import 'package:invenman/components/installment_file_editor.dart';
 
 class SaleDetailsScreen extends StatefulWidget {
   final SaleRecord sale;
@@ -18,7 +20,37 @@ class SaleDetailsScreen extends StatefulWidget {
 }
 
 class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
-  SaleRecord get sale => widget.sale;
+  late SaleRecord _sale;
+  bool _isRefreshing = false;
+
+  SaleRecord get sale => _sale;
+
+  @override
+  void initState() {
+    super.initState();
+    _sale = widget.sale;
+  }
+
+  Future<void> _reloadSale() async {
+    if (_isRefreshing) return;
+    if (sale.id == null) return;
+
+    _isRefreshing = true;
+    try {
+      final freshSale = await DBHelper.fetchSaleRecordById(sale.id!);
+      if (!mounted || freshSale == null) return;
+
+      setState(() {
+        _sale = freshSale;
+      });
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
+  Future<void> _refresh() async {
+    await _reloadSale();
+  }
 
   String _formatDate(DateTime date) {
     return DateFormat('d MMM yyyy • h:mm a').format(date.toLocal());
@@ -51,6 +83,35 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
     );
   }
 
+  Future<void> _editDocuments() async {
+    if (!sale.isInstallment || sale.id == null) return;
+
+    final didSave = await showDialog<bool>(
+      context: context,
+      builder: (_) => InstallmentDocumentEditorDialog(
+        title: 'Edit installment documents',
+        subtitle:
+            'Add or remove installment images for this sale. The linked installment plan will update too.',
+        initialPaths: sale.installmentImagePaths,
+        onSave: (paths) async {
+          await DBHelper.updateInstallmentDocumentsBySaleRecordId(
+            saleRecordId: sale.id!,
+            imagePaths: paths,
+          );
+        },
+      ),
+    );
+
+    if (didSave == true && mounted) {
+      await _reloadSale();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Installment documents updated successfully.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -60,205 +121,215 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            stretch: true,
-            expandedHeight: 360,
-            backgroundColor: cs.surface,
-            surfaceTintColor: cs.surfaceTint,
-            leading: AppHeaderIconButton(
-              icon: Icons.arrow_back_rounded,
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(
-                start: 20,
-                end: 20,
-                bottom: 18,
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              stretch: true,
+              expandedHeight: 360,
+              backgroundColor: cs.surface,
+              surfaceTintColor: cs.surfaceTint,
+              leading: AppHeaderIconButton(
+                icon: Icons.arrow_back_rounded,
+                onPressed: () => Navigator.of(context).maybePop(),
               ),
-              title: Text(
-                sale.itemName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.65,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsetsDirectional.only(
+                  start: 20,
+                  end: 20,
+                  bottom: 18,
                 ),
-              ),
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _HeroPlaceholder(
-                    icon: Icons.receipt_long_rounded,
-                    label: sale.category,
+                title: Text(
+                  sale.itemName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.65,
                   ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.08),
-                          Colors.black.withOpacity(0.58),
+                ),
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _HeroPlaceholder(
+                      icon: Icons.receipt_long_rounded,
+                      label: sale.category,
+                    ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.08),
+                            Colors.black.withOpacity(0.58),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 18,
+                      right: 18,
+                      bottom: 88,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              AppHeroPill(
+                                icon: Icons.category_rounded,
+                                label: sale.category,
+                              ),
+                              AppHeroPill(
+                                icon: sale.isInstallment
+                                    ? Icons.calendar_month_rounded
+                                    : Icons.payments_rounded,
+                                label: _paymentLabel,
+                              ),
+                              AppHeroPill(
+                                icon: Icons.trending_up_rounded,
+                                label: 'Profit',
+                                accentColor: profitColor,
+                              ),
+                              AppHeroPill(
+                                icon: Icons.schedule_rounded,
+                                label: _formatDate(sale.soldAt),
+                              ),
+                              if (sale.soldColors.isNotEmpty)
+                                AppHeroPill(
+                                  icon: Icons.palette_outlined,
+                                  label: sale.soldColors.join(', '),
+                                  accentColor: Colors.indigo.shade700,
+                                ),
+                              if (sale.isInstallment &&
+                                  sale.installmentImagePaths.isNotEmpty)
+                                AppHeroPill(
+                                  icon: Icons.collections_outlined,
+                                  label: '${sale.installmentImagePaths.length} docs',
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            (sale.customerName ?? '').trim().isNotEmpty
+                                ? 'Sold to ${sale.customerName}'
+                                : 'Transaction details, sold colors, warranty coverage, and installment documents for this sale.',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w500,
+                              height: 1.4,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: 18,
-                    right: 18,
-                    bottom: 88,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            AppHeroPill(
-                              icon: Icons.category_rounded,
-                              label: sale.category,
-                            ),
-                            AppHeroPill(
-                              icon: sale.isInstallment
-                                  ? Icons.calendar_month_rounded
-                                  : Icons.payments_rounded,
-                              label: _paymentLabel,
-                            ),
-                            AppHeroPill(
-                              icon: Icons.trending_up_rounded,
-                              label: 'Profit',
-                              accentColor: profitColor,
-                            ),
-                            AppHeroPill(
-                              icon: Icons.schedule_rounded,
-                              label: _formatDate(sale.soldAt),
-                            ),
-                            if (sale.isInstallment &&
-                                sale.installmentImagePaths.isNotEmpty)
-                              AppHeroPill(
-                                icon: Icons.collections_outlined,
-                                label: '${sale.installmentImagePaths.length} docs',
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          (sale.customerName ?? '').trim().isNotEmpty
-                              ? 'Sold to ${sale.customerName}'
-                              : 'Transaction details and warranty coverage for this sale.',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppUi.pageHPadding,
-                18,
-                AppUi.pageHPadding,
-                AppUi.pageBottomPadding,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isCompact)
-                    Column(
-                      children: [
-                        _SaleOverviewCard(
-                          sale: sale,
-                          formattedDate: _formatDate(sale.soldAt),
-                          profitColor: profitColor,
-                        ),
-                        const SizedBox(height: AppUi.sectionGap),
-                        _CustomerCard(sale: sale),
-                        const SizedBox(height: AppUi.sectionGap),
-                        _PaymentCard(sale: sale),
-                        const SizedBox(height: AppUi.sectionGap),
-                        _SaleWarrantyCard(sale: sale),
-                        if (sale.isInstallment &&
-                            sale.installmentImagePaths.isNotEmpty) ...[
-                          const SizedBox(height: AppUi.sectionGap),
-                          _SaleInstallmentImageGallery(
-                            imagePaths: sale.installmentImagePaths,
-                            onOpenViewer: (index) {
-                              _openInstallmentImageViewer(
-                                imagePaths: sale.installmentImagePaths,
-                                initialIndex: index,
-                              );
-                            },
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppUi.pageHPadding,
+                  18,
+                  AppUi.pageHPadding,
+                  AppUi.pageBottomPadding,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isCompact)
+                      Column(
+                        children: [
+                          _SaleOverviewCard(
+                            sale: sale,
+                            formattedDate: _formatDate(sale.soldAt),
+                            profitColor: profitColor,
                           ),
+                          const SizedBox(height: AppUi.sectionGap),
+                          _CustomerCard(sale: sale),
+                          const SizedBox(height: AppUi.sectionGap),
+                          _PaymentCard(sale: sale),
+                          const SizedBox(height: AppUi.sectionGap),
+                          _SaleWarrantyCard(sale: sale),
+                          if (sale.isInstallment) ...[
+                            const SizedBox(height: AppUi.sectionGap),
+                            _SaleInstallmentImageGallery(
+                              imagePaths: sale.installmentImagePaths,
+                              onOpenViewer: (index) {
+                                _openInstallmentImageViewer(
+                                  imagePaths: sale.installmentImagePaths,
+                                  initialIndex: index,
+                                );
+                              },
+                              onEditDocuments: _editDocuments,
+                            ),
+                          ],
                         ],
-                      ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                flex: 6,
-                                child: _StretchHeightCard(
-                                  child: _SaleOverviewCard(
-                                    sale: sale,
-                                    formattedDate: _formatDate(sale.soldAt),
-                                    profitColor: profitColor,
+                      )
+                    else
+                      Column(
+                        children: [
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  flex: 6,
+                                  child: _StretchHeightCard(
+                                    child: _SaleOverviewCard(
+                                      sale: sale,
+                                      formattedDate: _formatDate(sale.soldAt),
+                                      profitColor: profitColor,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: AppUi.sectionGap),
-                              Expanded(
-                                flex: 4,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    _CustomerCard(sale: sale),
-                                    const SizedBox(height: AppUi.sectionGap),
-                                    _PaymentCard(sale: sale),
-                                  ],
+                                const SizedBox(width: AppUi.sectionGap),
+                                Expanded(
+                                  flex: 4,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      _CustomerCard(sale: sale),
+                                      const SizedBox(height: AppUi.sectionGap),
+                                      _PaymentCard(sale: sale),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: AppUi.sectionGap),
-                        _SaleWarrantyCard(sale: sale),
-                        if (sale.isInstallment &&
-                            sale.installmentImagePaths.isNotEmpty) ...[
                           const SizedBox(height: AppUi.sectionGap),
-                          _SaleInstallmentImageGallery(
-                            imagePaths: sale.installmentImagePaths,
-                            onOpenViewer: (index) {
-                              _openInstallmentImageViewer(
-                                imagePaths: sale.installmentImagePaths,
-                                initialIndex: index,
-                              );
-                            },
-                          ),
+                          _SaleWarrantyCard(sale: sale),
+                          if (sale.isInstallment) ...[
+                            const SizedBox(height: AppUi.sectionGap),
+                            _SaleInstallmentImageGallery(
+                              imagePaths: sale.installmentImagePaths,
+                              onOpenViewer: (index) {
+                                _openInstallmentImageViewer(
+                                  imagePaths: sale.installmentImagePaths,
+                                  initialIndex: index,
+                                );
+                              },
+                              onEditDocuments: _editDocuments,
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                ],
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -328,10 +399,12 @@ class _HeroPlaceholder extends StatelessWidget {
 class _SaleInstallmentImageGallery extends StatelessWidget {
   final List<String> imagePaths;
   final ValueChanged<int> onOpenViewer;
+  final Future<void> Function() onEditDocuments;
 
   const _SaleInstallmentImageGallery({
     required this.imagePaths,
     required this.onOpenViewer,
+    required this.onEditDocuments,
   });
 
   @override
@@ -342,7 +415,12 @@ class _SaleInstallmentImageGallery extends StatelessWidget {
       width: double.infinity,
       child: AppSectionCard(
         title: 'Installment Documents',
-        subtitle: 'Images captured during installment-based sale processing',
+        subtitle: 'Images captured for Installment agreement',
+        trailing: FilledButton.tonalIcon(
+          onPressed: onEditDocuments,
+          icon: const Icon(Icons.edit_rounded),
+          label: const Text('Edit documents'),
+        ),
         child: imagePaths.isEmpty
             ? SizedBox(
                 width: double.infinity,
@@ -432,7 +510,7 @@ class _SaleOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppSectionCard(
       title: 'Purchase details',
-      subtitle: 'Transaction pricing, quantity, and outcome',
+      subtitle: 'Transaction pricing, quantity, colors, and outcome',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -482,6 +560,13 @@ class _SaleOverviewCard extends StatelessWidget {
           AppLineItem(label: 'Date', value: formattedDate),
           const SizedBox(height: 8),
           AppLineItem(label: 'Category', value: sale.category),
+          if (sale.soldColors.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            AppLineItem(
+              label: 'Colors',
+              value: sale.soldColors.join(', '),
+            ),
+          ],
         ],
       ),
     );
@@ -540,7 +625,7 @@ class _PaymentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppSectionCard(
       title: 'Payment details',
-      subtitle: 'Settlement mode and installment terms',
+      subtitle: 'Settlement mode, sold colors, and installment terms',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -555,6 +640,13 @@ class _PaymentCard extends StatelessWidget {
                 ? '${sale.installmentMonths ?? '-'} month(s)'
                 : 'Not applicable',
           ),
+          if (sale.soldColors.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            AppLineItem(
+              label: 'Colors',
+              value: sale.soldColors.join(', '),
+            ),
+          ],
           if (sale.isInstallment) ...[
             const SizedBox(height: 8),
             AppLineItem(

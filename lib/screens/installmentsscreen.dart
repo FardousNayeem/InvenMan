@@ -24,7 +24,7 @@ class InstallmentsPage extends StatefulWidget {
 }
 
 class _InstallmentsPageState extends State<InstallmentsPage> {
-  static const String _defaultSort = 'next_due_asc';
+  static const String _defaultSort = 'latest';
 
   late Future<List<_InstallmentListItem>> _installmentsFuture;
 
