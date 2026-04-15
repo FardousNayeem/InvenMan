@@ -91,6 +91,9 @@ class _InventoryCardWide extends StatelessWidget {
     required this.onDelete,
   });
 
+  String get _brandText =>
+      item.brand.trim().isEmpty ? 'Unbranded' : item.brand.trim();
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -152,8 +155,24 @@ class _InventoryCardWide extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  _MetaInlineChip(
+                    icon: Icons.workspace_premium_outlined,
+                    text: _brandText,
+                  ),
+                  if (item.colors.isNotEmpty)
+                    _MetaInlineChip(
+                      icon: Icons.palette_outlined,
+                      text: item.colors.join(', '),
+                    ),
+                ],
+              ),
               if (item.description.trim().isNotEmpty) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   item.description,
                   maxLines: 2,
@@ -279,6 +298,9 @@ class _InventoryCardCompact extends StatelessWidget {
     required this.onDelete,
   });
 
+  String get _brandText =>
+      item.brand.trim().isEmpty ? 'Unbranded' : item.brand.trim();
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -317,6 +339,22 @@ class _InventoryCardCompact extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       _CategoryPill(label: item.category),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _MetaInlineChip(
+                        icon: Icons.workspace_premium_outlined,
+                        text: _brandText,
+                      ),
+                      if (item.colors.isNotEmpty)
+                        _MetaInlineChip(
+                          icon: Icons.palette_outlined,
+                          text: item.colors.join(', '),
+                        ),
                     ],
                   ),
                   if (item.description.trim().isNotEmpty) ...[
@@ -642,6 +680,44 @@ class _MetaText extends StatelessWidget {
   }
 }
 
+class _MetaInlineChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _MetaInlineChip({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: cs.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12.4,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ActionButton extends StatelessWidget {
   final double width;
   final double height;
@@ -718,37 +794,43 @@ class _OverflowActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final iconSize = compact ? 18.0 : 20.0;
-    final radius = compact ? 14.0 : 16.0;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(radius),
-      ),
-      child: PopupMenuButton<String>(
-        padding: EdgeInsets.zero,
-        tooltip: 'More actions',
-        icon: Icon(
-          Icons.more_vert_rounded,
-          color: cs.onSurfaceVariant,
-          size: iconSize,
+    return PopupMenuButton<String>(
+      tooltip: 'More actions',
+      onSelected: (value) {
+        if (value == 'edit') {
+          onEdit();
+        } else if (value == 'delete') {
+          onDelete();
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'edit',
+          child: ListTile(
+            leading: Icon(Icons.edit_rounded),
+            title: Text('Edit'),
+            contentPadding: EdgeInsets.zero,
+          ),
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+        PopupMenuItem(
+          value: 'delete',
+          child: ListTile(
+            leading: Icon(Icons.delete_outline_rounded),
+            title: Text('Delete'),
+            contentPadding: EdgeInsets.zero,
+          ),
         ),
-        onSelected: (value) {
-          if (value == 'edit') onEdit();
-          if (value == 'delete') onDelete();
-        },
-        itemBuilder: (context) => const [
-          PopupMenuItem(value: 'edit', child: Text('Edit')),
-          PopupMenuItem(value: 'delete', child: Text('Delete')),
-        ],
+      ],
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(compact ? 14 : 16),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+        ),
+        child: const Icon(Icons.more_horiz_rounded),
       ),
     );
   }
@@ -769,46 +851,45 @@ class _MetricChip extends StatelessWidget {
     this.sensitiveText,
     this.isSensitive = false,
     this.valueColor,
-  });
+  }) : assert(valueText != null || sensitiveText != null);
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
         color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: cs.onSurfaceVariant),
+          Icon(icon, size: 17, color: cs.onSurfaceVariant),
           const SizedBox(width: 8),
           Text(
             '$label: ',
             style: TextStyle(
-              fontSize: 12.4,
+              fontSize: 12.8,
+              fontWeight: FontWeight.w700,
               color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
             ),
           ),
           if (isSensitive)
             SensitiveValueText(
-              visibleText: sensitiveText ?? '',
+              visibleText: sensitiveText!,
               style: TextStyle(
-                fontSize: 12.6,
+                fontSize: 12.9,
                 fontWeight: FontWeight.w800,
                 color: valueColor ?? cs.onSurface,
               ),
             )
           else
             Text(
-              valueText ?? '',
+              valueText!,
               style: TextStyle(
-                fontSize: 12.6,
+                fontSize: 12.9,
                 fontWeight: FontWeight.w800,
                 color: valueColor ?? cs.onSurface,
               ),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:invenman/models/sale_record.dart';
@@ -16,6 +18,8 @@ class SaleDetailsScreen extends StatefulWidget {
 }
 
 class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
+  int _selectedInstallmentImageIndex = 0;
+
   SaleRecord get sale => widget.sale;
 
   String _formatDate(DateTime date) {
@@ -31,6 +35,15 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
 
   Color _profitColor() {
     return sale.profit >= 0 ? Colors.green.shade700 : Colors.red.shade700;
+  }
+
+  int get _safeInstallmentImageIndex {
+    if (sale.installmentImagePaths.isEmpty) return 0;
+    if (_selectedInstallmentImageIndex < 0) return 0;
+    if (_selectedInstallmentImageIndex >= sale.installmentImagePaths.length) {
+      return sale.installmentImagePaths.length - 1;
+    }
+    return _selectedInstallmentImageIndex;
   }
 
   @override
@@ -118,6 +131,12 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                               icon: Icons.schedule_rounded,
                               label: _formatDate(sale.soldAt),
                             ),
+                            if (sale.isInstallment &&
+                                sale.installmentImagePaths.isNotEmpty)
+                              AppHeroPill(
+                                icon: Icons.collections_outlined,
+                                label: '${sale.installmentImagePaths.length} docs',
+                              ),
                           ],
                         ),
                         const SizedBox(height: 14),
@@ -152,6 +171,18 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty) ...[
+                    _SaleInstallmentImageGallery(
+                      imagePaths: sale.installmentImagePaths,
+                      selectedIndex: _safeInstallmentImageIndex,
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedInstallmentImageIndex = index;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: AppUi.sectionGap),
+                  ],
                   if (isCompact)
                     Column(
                       children: [
@@ -275,6 +306,94 @@ class _HeroPlaceholder extends StatelessWidget {
   }
 }
 
+class _SaleInstallmentImageGallery extends StatelessWidget {
+  final List<String> imagePaths;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  const _SaleInstallmentImageGallery({
+    required this.imagePaths,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final selectedPath = imagePaths[selectedIndex];
+
+    return AppSectionCard(
+      title: 'Installment Documents',
+      subtitle: 'Images captured during installment-based sale processing',
+      child: Column(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: double.infinity,
+              height: 240,
+              color: cs.surfaceContainerHighest,
+              child: Image.file(
+                File(selectedPath),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.broken_image_rounded,
+                  size: 48,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          if (imagePaths.length > 1) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 88,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: imagePaths.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, index) {
+                  final path = imagePaths[index];
+                  final isSelected = selectedIndex == index;
+
+                  return GestureDetector(
+                    onTap: () => onSelected(index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 88,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected ? cs.primary : cs.outlineVariant,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Image.file(
+                          File(path),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: cs.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.broken_image_rounded,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _SaleOverviewCard extends StatelessWidget {
   final SaleRecord sale;
   final String formattedDate;
@@ -289,7 +408,7 @@ class _SaleOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Purchase Details',
+      title: 'Purchase details',
       subtitle: 'Transaction pricing, quantity, and outcome',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +426,7 @@ class _SaleOverviewCard extends StatelessWidget {
               const SizedBox(width: AppUi.tileGap),
               Expanded(
                 child: AppMetricTile(
-                  label: 'MRP',
+                  label: 'Sold At',
                   valueText: sale.sellPrice.toStringAsFixed(0),
                   icon: Icons.sell_outlined,
                 ),
@@ -356,7 +475,7 @@ class _CustomerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Customer Details',
+      title: 'Customer details',
       subtitle: 'Buyer information captured at the time of sale',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +516,7 @@ class _PaymentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
-      title: 'Payment Details',
+      title: 'Payment details',
       subtitle: 'Settlement mode and installment terms',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,6 +532,13 @@ class _PaymentCard extends StatelessWidget {
                 ? '${sale.installmentMonths ?? '-'} month(s)'
                 : 'Not applicable',
           ),
+          if (sale.isInstallment) ...[
+            const SizedBox(height: 8),
+            AppLineItem(
+              label: 'Documents',
+              value: '${sale.installmentImagePaths.length}',
+            ),
+          ],
         ],
       ),
     );

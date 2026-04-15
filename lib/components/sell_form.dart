@@ -1,10 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:invenman/components/app_text_field.dart';
 import 'package:invenman/components/sensitive_value_text.dart';
-import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/item.dart';
+import 'package:invenman/services/db_services.dart';
+import 'package:invenman/services/image_service.dart';
 
 class SellItemDialog extends StatefulWidget {
   final Item item;
@@ -31,6 +34,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
 
   String _paymentType = 'direct';
   bool _isSubmitting = false;
+  List<String> _installmentImagePaths = [];
 
   @override
   void initState() {
@@ -91,8 +95,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
     return _financedAmount / months;
   }
 
-  DateTime get _estimatedFirstDueDate =>
-      _addMonths(DateTime.now(), 1);
+  DateTime get _estimatedFirstDueDate => _addMonths(DateTime.now(), 1);
 
   String? _validateQuantity(String? value) {
     final parsed = int.tryParse(value?.trim() ?? '');
@@ -131,6 +134,31 @@ class _SellItemDialogState extends State<SellItemDialog> {
     return DateFormat('d MMM yyyy').format(date);
   }
 
+  Future<void> _pickInstallmentImages() async {
+    try {
+      final picked = await ImageService.pickAndProcessImages(
+        existingPaths: _installmentImagePaths,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _installmentImagePaths = picked;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add installment images: $e')),
+      );
+    }
+  }
+
+  Future<void> _removeInstallmentImage(String path) async {
+    setState(() {
+      _installmentImagePaths.remove(path);
+    });
+    await ImageService.deleteImageFile(path);
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
@@ -158,6 +186,9 @@ class _SellItemDialogState extends State<SellItemDialog> {
         downPayment: _paymentType == 'installment'
             ? double.parse(_downPaymentController.text.trim())
             : null,
+        installmentImagePaths: _paymentType == 'installment'
+            ? _installmentImagePaths
+            : const [],
       );
 
       if (!mounted) return;
@@ -372,6 +403,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
                           if (_paymentType == 'direct') {
                             _installmentMonthsController.clear();
                             _downPaymentController.clear();
+                            _installmentImagePaths = [];
                           }
                         });
                       },
@@ -466,6 +498,82 @@ class _SellItemDialogState extends State<SellItemDialog> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Text(
+                            'Installment images',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: _installmentImagePaths.length >= 5
+                                ? null
+                                : _pickInstallmentImages,
+                            icon: const Icon(Icons.add_photo_alternate_rounded),
+                            label: Text('Add (${_installmentImagePaths.length}/5)'),
+                          ),
+                        ],
+                      ),
+                      if (_installmentImagePaths.isEmpty)
+                        Text(
+                          'No installment-related images selected.',
+                          style: TextStyle(color: cs.onSurfaceVariant),
+                        )
+                      else
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: _installmentImagePaths.map((path) {
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.file(
+                                    File(path),
+                                    width: 92,
+                                    height: 92,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 92,
+                                      height: 92,
+                                      color: cs.surfaceContainerHighest,
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        Icons.broken_image_outlined,
+                                        color: cs.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 6,
+                                  right: 6,
+                                  child: InkWell(
+                                    onTap: () => _removeInstallmentImage(path),
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.65),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
                     ],
                     if (item.warranties.isNotEmpty) ...[
                       const SizedBox(height: 18),
@@ -515,7 +623,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
                                     height: 18,
                                     child: CircularProgressIndicator(strokeWidth: 2.2),
                                   )
-                                : const Text('Confirm sale'),
+                                : const Text('Record Sale'),
                           ),
                         ),
                       ],
@@ -542,10 +650,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.2,
-          ),
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.2,
+      ),
     );
   }
 }
@@ -565,20 +674,19 @@ class _BreakdownLine extends StatelessWidget {
 
     return Row(
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
-            ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            color: cs.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
           ),
         ),
+        const Spacer(),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 13.5,
+            fontSize: 13.8,
             fontWeight: FontWeight.w800,
           ),
         ),

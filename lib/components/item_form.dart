@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:invenman/components/app_text_field.dart';
-import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/services/image_services.dart';
+import 'package:invenman/services/db_services.dart';
+import 'package:invenman/services/image_service.dart';
 
 class ItemFormDialog extends StatefulWidget {
   final Item? existingItem;
@@ -24,15 +24,18 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _categoryController;
+  late final TextEditingController _brandController;
   late final TextEditingController _supplierController;
   late final TextEditingController _costPriceController;
   late final TextEditingController _sellingPriceController;
   late final TextEditingController _quantityController;
+  late final TextEditingController _colorInputController;
   late final FocusNode _categoryFocusNode;
 
   final List<_WarrantyFieldData> _warrantyFields = [];
   List<String> _imagePaths = [];
   List<String> _categorySuggestions = [];
+  List<String> _colors = [];
 
   bool _isSubmitting = false;
 
@@ -47,16 +50,18 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _nameController = TextEditingController(text: item?.name ?? '');
     _descriptionController = TextEditingController(text: item?.description ?? '');
     _categoryController = TextEditingController(text: item?.category ?? '');
+    _brandController = TextEditingController(text: item?.brand ?? '');
     _supplierController = TextEditingController(text: item?.supplier ?? '');
     _costPriceController = TextEditingController(
-      text: item != null ? item.costPrice.toString() : '',
+      text: item != null ? item.costPrice.toStringAsFixed(0) : '',
     );
     _sellingPriceController = TextEditingController(
-      text: item != null ? item.sellingPrice.toString() : '',
+      text: item != null ? item.sellingPrice.toStringAsFixed(0) : '',
     );
     _quantityController = TextEditingController(
       text: item != null ? item.quantity.toString() : '',
     );
+    _colorInputController = TextEditingController();
 
     _categoryFocusNode = FocusNode()
       ..addListener(() {
@@ -67,7 +72,16 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
       if (mounted) setState(() {});
     });
 
+    _costPriceController.addListener(() {
+      if (mounted) setState(() {});
+    });
+
+    _sellingPriceController.addListener(() {
+      if (mounted) setState(() {});
+    });
+
     _imagePaths = List<String>.from(item?.imagePaths ?? const []);
+    _colors = _normalizeColors(item?.colors ?? const []);
 
     final warranties = item?.warranties ?? const <String, int>{};
     if (warranties.isNotEmpty) {
@@ -89,10 +103,12 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     _categoryController.dispose();
+    _brandController.dispose();
     _supplierController.dispose();
     _costPriceController.dispose();
     _sellingPriceController.dispose();
     _quantityController.dispose();
+    _colorInputController.dispose();
     _categoryFocusNode.dispose();
 
     for (final field in _warrantyFields) {
@@ -127,6 +143,33 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     }
 
     return cleaned;
+  }
+
+  List<String> _normalizeColors(List<String> colors) {
+    final seen = <String>{};
+    final normalized = <String>[];
+
+    for (final raw in colors) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) continue;
+
+      final cleaned = trimmed
+          .split(RegExp(r'\s+'))
+          .where((e) => e.trim().isNotEmpty)
+          .map((word) {
+            if (word.length == 1) return word.toUpperCase();
+            return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+          })
+          .join(' ');
+
+      final key = cleaned.toLowerCase();
+      if (seen.contains(key)) continue;
+
+      seen.add(key);
+      normalized.add(cleaned);
+    }
+
+    return normalized;
   }
 
   List<String> get _filteredCategorySuggestions {
@@ -166,11 +209,39 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   }
 
   void _applyCategorySuggestion(String value) {
-    _categoryController.text = value;
-    _categoryController.selection = TextSelection.fromPosition(
-      TextPosition(offset: value.length),
-    );
-    FocusScope.of(context).unfocus();
+    setState(() {
+      _categoryController.value = TextEditingValue(
+        text: value,
+        selection: TextSelection.collapsed(offset: value.length),
+      );
+    });
+    _categoryFocusNode.unfocus();
+  }
+
+  void _addColor() {
+    final raw = _colorInputController.text.trim();
+    if (raw.isEmpty) return;
+
+    final normalized = _normalizeColors([raw]);
+    if (normalized.isEmpty) return;
+
+    final color = normalized.first;
+    final exists = _colors.any((e) => e.toLowerCase() == color.toLowerCase());
+    if (exists) {
+      _colorInputController.clear();
+      return;
+    }
+
+    setState(() {
+      _colors = [..._colors, color];
+      _colorInputController.clear();
+    });
+  }
+
+  void _removeColor(String color) {
+    setState(() {
+      _colors.removeWhere((e) => e.toLowerCase() == color.toLowerCase());
+    });
   }
 
   String? _validateMoney(String? value) {
@@ -182,6 +253,15 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   String? _validateQuantity(String? value) {
     final parsed = int.tryParse(value?.trim() ?? '');
     if (parsed == null || parsed < 0) return 'Invalid';
+    return null;
+  }
+
+  String? _validateCostAgainstMrp() {
+    final cost = double.tryParse(_costPriceController.text.trim());
+    final mrp = double.tryParse(_sellingPriceController.text.trim());
+
+    if (cost == null || mrp == null) return null;
+    if (cost > mrp) return 'Cost price cannot be greater than MRP.';
     return null;
   }
 
@@ -248,7 +328,9 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
         throw Exception('Warranty months must be a valid positive number.');
       }
 
-      final duplicateKey = map.keys.any((existing) => existing.toLowerCase() == key.toLowerCase());
+      final duplicateKey = map.keys.any(
+        (existing) => existing.toLowerCase() == key.toLowerCase(),
+      );
       if (duplicateKey) {
         throw Exception('Duplicate warranty names are not allowed.');
       }
@@ -263,16 +345,27 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
 
+    final moneyRelationshipError = _validateCostAgainstMrp();
+    if (moneyRelationshipError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(moneyRelationshipError)),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
       final warranties = _buildWarranties();
       final now = DateTime.now().toUtc();
+      final normalizedColors = _normalizeColors(_colors);
 
       final item = (_isEditing ? widget.existingItem! : null)?.copyWith(
             name: _nameController.text.trim(),
             description: _descriptionController.text.trim(),
             category: _categoryController.text.trim(),
+            brand: _brandController.text.trim(),
+            colors: normalizedColors,
             supplier: _supplierController.text.trim(),
             costPrice: double.parse(_costPriceController.text.trim()),
             sellingPrice: double.parse(_sellingPriceController.text.trim()),
@@ -285,10 +378,12 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
             name: _nameController.text.trim(),
             description: _descriptionController.text.trim(),
             category: _categoryController.text.trim(),
-            supplier: _supplierController.text.trim(),
+            brand: _brandController.text.trim(),
+            colors: normalizedColors,
             costPrice: double.parse(_costPriceController.text.trim()),
             sellingPrice: double.parse(_sellingPriceController.text.trim()),
             quantity: int.parse(_quantityController.text.trim()),
+            supplier: _supplierController.text.trim(),
             warranties: warranties,
             imagePaths: _imagePaths,
             createdAt: now,
@@ -319,12 +414,13 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final filteredSuggestions = _filteredCategorySuggestions;
+    final moneyRelationshipError = _validateCostAgainstMrp();
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
+        constraints: const BoxConstraints(maxWidth: 680),
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Form(
@@ -346,7 +442,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Set product details, supplier, category, warranty, stock, and images.',
+                      'Set product details, brand, colors, supplier, category, warranty, stock, and images.',
                       style: TextStyle(
                         fontSize: 14,
                         color: cs.onSurfaceVariant,
@@ -474,9 +570,92 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                       children: [
                         Expanded(
                           child: AppTextField(
+                            controller: _brandController,
+                            label: 'Brand',
+                            hint: 'Optional',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: AppTextField(
+                            controller: _quantityController,
+                            label: 'Quantity',
+                            keyboardType: TextInputType.number,
+                            validator: _validateQuantity,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: cs.outlineVariant),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Colors',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AppTextField(
+                                  controller: _colorInputController,
+                                  label: 'Add color',
+                                  hint: 'Black, Silver, Blue...',
+                                  onChanged: (_) => setState(() {}),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              FilledButton.icon(
+                                onPressed: _colorInputController.text.trim().isEmpty
+                                    ? null
+                                    : _addColor,
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Add'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_colors.isEmpty)
+                            Text(
+                              'No colors added.',
+                              style: TextStyle(color: cs.onSurfaceVariant),
+                            )
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _colors.map((color) {
+                                return InputChip(
+                                  label: Text(color),
+                                  onDeleted: () => _removeColor(color),
+                                );
+                              }).toList(),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppTextField(
                             controller: _costPriceController,
                             label: 'Cost price',
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType:
+                                const TextInputType.numberWithOptions(decimal: true),
                             validator: _validateMoney,
                           ),
                         ),
@@ -485,19 +664,24 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                           child: AppTextField(
                             controller: _sellingPriceController,
                             label: 'MRP',
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType:
+                                const TextInputType.numberWithOptions(decimal: true),
                             validator: _validateMoney,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    AppTextField(
-                      controller: _quantityController,
-                      label: 'Quantity',
-                      keyboardType: TextInputType.number,
-                      validator: _validateQuantity,
-                    ),
+                    if (moneyRelationshipError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        moneyRelationshipError,
+                        style: TextStyle(
+                          color: cs.error,
+                          fontSize: 12.8,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -588,34 +772,33 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                                 borderRadius: BorderRadius.circular(16),
                                 child: Image.file(
                                   File(path),
-                                  width: 88,
-                                  height: 88,
+                                  width: 92,
+                                  height: 92,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) {
-                                    return Container(
-                                      width: 88,
-                                      height: 88,
-                                      color: cs.surfaceContainerHighest,
-                                      alignment: Alignment.center,
-                                      child: Icon(
-                                        Icons.broken_image_outlined,
-                                        color: cs.onSurfaceVariant,
-                                      ),
-                                    );
-                                  },
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 92,
+                                    height: 92,
+                                    color: cs.surfaceContainerHighest,
+                                    alignment: Alignment.center,
+                                    child: Icon(
+                                      Icons.broken_image_outlined,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
                                 ),
                               ),
                               Positioned(
-                                top: 4,
-                                right: 4,
-                                child: GestureDetector(
+                                top: 6,
+                                right: 6,
+                                child: InkWell(
                                   onTap: () => _removeImage(path),
+                                  borderRadius: BorderRadius.circular(999),
                                   child: Container(
-                                    decoration: const BoxDecoration(
-                                      color: Colors.black54,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.65),
                                       shape: BoxShape.circle,
                                     ),
-                                    padding: const EdgeInsets.all(4),
                                     child: const Icon(
                                       Icons.close_rounded,
                                       size: 16,
@@ -628,7 +811,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                           );
                         }).toList(),
                       ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 22),
                     Row(
                       children: [
                         Expanded(
@@ -649,7 +832,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                                     height: 18,
                                     child: CircularProgressIndicator(strokeWidth: 2.2),
                                   )
-                                : Text(_isEditing ? 'Save changes' : 'Save item'),
+                                : Text(_isEditing ? 'Save Changes' : 'Add Item'),
                           ),
                         ),
                       ],

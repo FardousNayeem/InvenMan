@@ -73,7 +73,7 @@ class _SaleCardWide extends StatelessWidget {
             children: [
               Expanded(
                 child: _Panel(
-                  title: 'Purchase Details',
+                  title: 'Purchase details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -143,7 +143,7 @@ class _SaleCardWide extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: _Panel(
-                  title: 'Customer Details',
+                  title: 'Customer details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -176,6 +176,13 @@ class _SaleCardWide extends StatelessWidget {
                             : 'Direct',
                         valueColor: paymentColor,
                       ),
+                      if (sale.isInstallment) ...[
+                        const SizedBox(height: 8),
+                        _DetailLine(
+                          label: 'Docs',
+                          value: '${sale.installmentImagePaths.length}',
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       _DetailLine(
                         label: 'Date',
@@ -187,6 +194,24 @@ class _SaleCardWide extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _StatusPill(
+              label: sale.isInstallment
+                  ? 'Installment'
+                  : 'Direct',
+              color: paymentColor,
+            ),
+            if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty)
+              _StatusPill(
+                label: 'Docs: ${sale.installmentImagePaths.length}',
+                color: Colors.teal.shade700,
+              ),
+          ],
         ),
         if (sale.warranties.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -247,7 +272,7 @@ class _SaleCardCompact extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _Panel(
-          title: 'Purchase Details',
+          title: 'Purchase details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +325,7 @@ class _SaleCardCompact extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _Panel(
-          title: 'Customer Details',
+          title: 'Customer details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,6 +359,13 @@ class _SaleCardCompact extends StatelessWidget {
                     : 'Direct',
                 valueColor: paymentColor,
               ),
+              if (sale.isInstallment) ...[
+                const SizedBox(height: 8),
+                _DetailLine(
+                  label: 'Docs',
+                  value: '${sale.installmentImagePaths.length}',
+                ),
+              ],
               const SizedBox(height: 8),
               _DetailLine(
                 label: 'Date',
@@ -341,6 +373,22 @@ class _SaleCardCompact extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _StatusPill(
+              label: sale.isInstallment ? 'Installment' : 'Direct',
+              color: paymentColor,
+            ),
+            if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty)
+              _StatusPill(
+                label: 'Docs: ${sale.installmentImagePaths.length}',
+                color: Colors.teal.shade700,
+              ),
+          ],
         ),
         if (sale.warranties.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -394,7 +442,6 @@ class _InteractiveCardShellState extends State<_InteractiveCardShell> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final scale = _pressed ? 0.992 : 1.0;
-    final borderColor = _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -420,7 +467,9 @@ class _InteractiveCardShellState extends State<_InteractiveCardShell> {
               decoration: BoxDecoration(
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: borderColor),
+                border: Border.all(
+                  color: _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant,
+                ),
                 boxShadow: [
                   BoxShadow(
                     blurRadius: _hovered ? 22 : 18,
@@ -453,8 +502,7 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+    return Container(
       padding: EdgeInsets.all(compact ? 14 : 15),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withOpacity(0.78),
@@ -493,8 +541,7 @@ class _InlineBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: background,
@@ -517,24 +564,25 @@ class _DetailLine extends StatelessWidget {
   final String? value;
   final String? sensitiveValue;
   final bool isSensitive;
-  final bool multiline;
   final Color? valueColor;
+  final bool multiline;
 
   const _DetailLine({
     required this.label,
     this.value,
     this.sensitiveValue,
     this.isSensitive = false,
-    this.multiline = false,
     this.valueColor,
-  });
+    this.multiline = false,
+  }) : assert(value != null || sensitiveValue != null);
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
     return Row(
-      crossAxisAlignment: multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      crossAxisAlignment:
+          multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         SizedBox(
           width: 72,
@@ -550,17 +598,16 @@ class _DetailLine extends StatelessWidget {
         Expanded(
           child: isSensitive
               ? SensitiveValueText(
-                  visibleText: sensitiveValue ?? '',
+                  visibleText: sensitiveValue!,
                   style: TextStyle(
                     fontSize: 13.4,
                     height: 1.4,
                     color: valueColor ?? cs.onSurface,
                     fontWeight: FontWeight.w700,
                   ),
-                  maxLines: multiline ? 10 : 1,
                 )
               : Text(
-                  value ?? '',
+                  value!,
                   style: TextStyle(
                     fontSize: 13.4,
                     height: 1.4,
@@ -570,6 +617,35 @@ class _DetailLine extends StatelessWidget {
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _StatusPill({
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.4,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
     );
   }
 }
@@ -585,21 +661,18 @@ class _WarrantyChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = expired ? Colors.red.shade700 : Theme.of(context).colorScheme.onSurface;
+    final color = expired ? Colors.red.shade700 : Colors.green.shade700;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: expired
-            ? Colors.red.withOpacity(0.10)
-            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 12.5,
+          fontSize: 12.3,
           fontWeight: FontWeight.w800,
           color: color,
         ),

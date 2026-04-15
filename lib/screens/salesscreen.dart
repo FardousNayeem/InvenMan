@@ -88,7 +88,11 @@ class _SalesPageState extends State<SalesPage> {
           sale.category.toLowerCase().contains(_searchQuery) ||
           (sale.customerName ?? '').toLowerCase().contains(_searchQuery) ||
           (sale.customerPhone ?? '').toLowerCase().contains(_searchQuery) ||
-          (sale.customerAddress ?? '').toLowerCase().contains(_searchQuery);
+          (sale.customerAddress ?? '').toLowerCase().contains(_searchQuery) ||
+          (sale.isInstallment &&
+              'docs ${sale.installmentImagePaths.length}'
+                  .toLowerCase()
+                  .contains(_searchQuery));
     }).toList();
   }
 
@@ -222,8 +226,8 @@ class _SalesPageState extends State<SalesPage> {
                             ? 'No matching sales found'
                             : 'No sales yet',
                         message: isSearching
-                            ? 'Try searching by item, category, customer, phone, or address.'
-                            : 'Completed sales will appear here with payment type, customer details, warranties, and product image snapshots.',
+                            ? 'Try searching by item, category, customer, phone, address, or installment documents.'
+                            : 'Completed sales will appear here with payment type, customer details, warranties, and installment document snapshots.',
                         action: isSearching
                             ? OutlinedButton.icon(
                                 onPressed: _cancelSearch,

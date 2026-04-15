@@ -89,10 +89,14 @@ class _InventoryPageState extends State<InventoryPage> {
     if (_searchQuery.isEmpty) return allItems;
 
     return allItems.where((item) {
+      final colorsText = item.colors.join(' ').toLowerCase();
+
       return item.name.toLowerCase().contains(_searchQuery) ||
           item.description.toLowerCase().contains(_searchQuery) ||
           item.category.toLowerCase().contains(_searchQuery) ||
-          item.supplier.toLowerCase().contains(_searchQuery);
+          item.brand.toLowerCase().contains(_searchQuery) ||
+          item.supplier.toLowerCase().contains(_searchQuery) ||
+          colorsText.contains(_searchQuery);
     }).toList();
   }
 
@@ -181,9 +185,17 @@ class _InventoryPageState extends State<InventoryPage> {
       MaterialPageRoute(
         builder: (_) => ItemDetailsScreen(
           item: item,
-          onEdit: () => _showEditItemDialog(item),
-          onSell: () => _showSellItemDialog(item),
-          onDelete: () => _confirmDelete(item),
+          onEdit: (currentItem) async {
+            await _showEditItemDialog(currentItem);
+          },
+          onSell: (currentItem) async {
+            await _showSellItemDialog(currentItem);
+          },
+          onDelete: (currentItem) async {
+            if (currentItem.id != null) {
+              await _confirmDelete(currentItem);
+            }
+          },
         ),
       ),
     );
@@ -273,7 +285,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             ? 'No matching items found'
                             : 'Inventory is empty',
                         message: isSearching
-                            ? 'Try a different item name, description, category, or supplier.'
+                            ? 'Try a different item name, description, category, brand, supplier, or color.'
                             : 'Add your first product to start tracking stock, warranties, images, and sales.',
                         action: isSearching
                             ? OutlinedButton.icon(

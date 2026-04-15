@@ -3,13 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:invenman/models/item.dart';
+import 'package:invenman/services/db_services.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class ItemDetailsScreen extends StatefulWidget {
   final Item item;
-  final VoidCallback? onEdit;
-  final VoidCallback? onSell;
-  final VoidCallback? onDelete;
+  final Future<void> Function(Item item)? onEdit;
+  final Future<void> Function(Item item)? onSell;
+  final Future<void> Function(Item item)? onDelete;
 
   const ItemDetailsScreen({
     super.key,
@@ -24,9 +25,55 @@ class ItemDetailsScreen extends StatefulWidget {
 }
 
 class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
+  late Item _item;
   int _selectedImageIndex = 0;
+  bool _isRefreshingItem = false;
 
-  Item get item => widget.item;
+  Item get item => _item;
+
+  @override
+  void initState() {
+    super.initState();
+    _item = widget.item;
+  }
+
+  Future<void> _reloadItemFromDb() async {
+    if (_item.id == null || _isRefreshingItem) return;
+
+    _isRefreshingItem = true;
+    try {
+      final freshItem = await DBHelper.fetchItemById(_item.id!);
+      if (!mounted || freshItem == null) return;
+
+      setState(() {
+        _item = freshItem;
+        if (_item.imagePaths.isEmpty) {
+          _selectedImageIndex = 0;
+        } else if (_selectedImageIndex >= _item.imagePaths.length) {
+          _selectedImageIndex = _item.imagePaths.length - 1;
+        }
+      });
+    } finally {
+      _isRefreshingItem = false;
+    }
+  }
+
+  Future<void> _handleEdit() async {
+    if (widget.onEdit == null) return;
+    await widget.onEdit!.call(item);
+    await _reloadItemFromDb();
+  }
+
+  Future<void> _handleSell() async {
+    if (widget.onSell == null) return;
+    await widget.onSell!.call(item);
+    await _reloadItemFromDb();
+  }
+
+  Future<void> _handleDelete() async {
+    if (widget.onDelete == null) return;
+    await widget.onDelete!.call(item);
+  }
 
   String _formatDate(DateTime date) {
     return DateFormat('d MMM yyyy • h:mm a').format(date.toLocal());
@@ -161,14 +208,16 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                       });
                     },
                     category: item.category,
+                    brand: item.brand,
+                    colors: item.colors,
                     supplier: item.supplier,
                     stockLabel: _stockLabel,
                     stockColor: stockColor,
                     mrp: item.sellingPrice.toStringAsFixed(0),
                     canSell: item.quantity > 0,
-                    onSell: widget.onSell,
-                    onEdit: widget.onEdit,
-                    onDelete: widget.onDelete,
+                    onSell: widget.onSell == null ? null : _handleSell,
+                    onEdit: widget.onEdit == null ? null : _handleEdit,
+                    onDelete: widget.onDelete == null ? null : _handleDelete,
                   ),
                   const SizedBox(height: 18),
                   if (isCompact)
@@ -337,20 +386,24 @@ class _TopSection extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onImageSelected;
   final String category;
+  final String brand;
+  final List<String> colors;
   final String supplier;
   final String stockLabel;
   final Color stockColor;
   final String mrp;
   final bool canSell;
-  final VoidCallback? onSell;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
+  final Future<void> Function()? onSell;
+  final Future<void> Function()? onEdit;
+  final Future<void> Function()? onDelete;
 
   const _TopSection({
     required this.imagePaths,
     required this.selectedIndex,
     required this.onImageSelected,
     required this.category,
+    required this.brand,
+    required this.colors,
     required this.supplier,
     required this.stockLabel,
     required this.stockColor,
@@ -360,6 +413,8 @@ class _TopSection extends StatelessWidget {
     this.onEdit,
     this.onDelete,
   });
+
+  String get _brandText => brand.trim().isEmpty ? 'Unbranded' : brand.trim();
 
   @override
   Widget build(BuildContext context) {
@@ -387,6 +442,15 @@ class _TopSection extends StatelessWidget {
                     icon: Icons.category_rounded,
                     label: category,
                   ),
+                  AppHeroPill(
+                    icon: Icons.workspace_premium_outlined,
+                    label: _brandText,
+                  ),
+                  if (colors.isNotEmpty)
+                    AppHeroPill(
+                      icon: Icons.palette_outlined,
+                      label: colors.join(', '),
+                    ),
                   AppHeroPill(
                     icon: Icons.inventory_2_outlined,
                     label: stockLabel,
@@ -428,6 +492,15 @@ class _TopSection extends StatelessWidget {
                       icon: Icons.category_rounded,
                       label: category,
                     ),
+                    AppHeroPill(
+                      icon: Icons.workspace_premium_outlined,
+                      label: _brandText,
+                    ),
+                    if (colors.isNotEmpty)
+                      AppHeroPill(
+                        icon: Icons.palette_outlined,
+                        label: colors.join(', '),
+                      ),
                     AppHeroPill(
                       icon: Icons.inventory_2_outlined,
                       label: stockLabel,
@@ -532,9 +605,9 @@ class _ThumbnailRail extends StatelessWidget {
 
 class _ActionStrip extends StatelessWidget {
   final bool canSell;
-  final VoidCallback? onSell;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
+  final Future<void> Function()? onSell;
+  final Future<void> Function()? onEdit;
+  final Future<void> Function()? onDelete;
 
   const _ActionStrip({
     required this.canSell,
@@ -643,6 +716,12 @@ class _OverviewCard extends StatelessWidget {
     required this.marginPercent,
   });
 
+  String get _brandText =>
+      item.brand.trim().isEmpty ? 'Not provided' : item.brand.trim();
+
+  String get _colorsText =>
+      item.colors.isEmpty ? 'Not provided' : item.colors.join(', ');
+
   @override
   Widget build(BuildContext context) {
     return AppSectionCard(
@@ -717,6 +796,10 @@ class _OverviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
+          AppLineItem(label: 'Brand', value: _brandText),
+          const SizedBox(height: 8),
+          AppLineItem(label: 'Colors', value: _colorsText),
+          const SizedBox(height: 8),
           AppLineItem(
             label: 'Supplier',
             value: item.supplier.trim().isEmpty ? 'Not provided' : item.supplier,

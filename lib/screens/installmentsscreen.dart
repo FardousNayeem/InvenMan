@@ -149,7 +149,8 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
           (plan.customerPhone ?? '').toLowerCase().contains(_searchQuery) ||
           (plan.customerAddress ?? '').toLowerCase().contains(_searchQuery) ||
           plan.status.toLowerCase().contains(_searchQuery) ||
-          entry.thisMonthStatus.toLowerCase().contains(_searchQuery);
+          entry.thisMonthStatus.toLowerCase().contains(_searchQuery) ||
+          'docs ${plan.installmentImagePaths.length}'.contains(_searchQuery);
     }).toList();
   }
 
@@ -255,7 +256,7 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
                             : 'No installment plans yet',
                         message: isSearching
                             ? 'Try searching by item, customer, phone, address, or status.'
-                            : 'When an item is sold using installment payment, its plan will appear here with progress, balance, and due tracking.',
+                            : 'When an item is sold using installment payment, its plan will appear here with progress, balance, due tracking, and installment documents.',
                         action: isSearching
                             ? OutlinedButton.icon(
                                 onPressed: _cancelSearch,

@@ -202,6 +202,11 @@ class _WideCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      _DetailLine(
+                        label: 'Images',
+                        value: '${plan.installmentImagePaths.length}',
+                      ),
                       const SizedBox(height: 12),
                       _ProgressStrip(
                         value: progressValue,
@@ -265,6 +270,11 @@ class _WideCard extends StatelessWidget {
               label: 'Plan: $planStatusLabel',
               color: planStatusColor,
             ),
+            if (plan.installmentImagePaths.isNotEmpty)
+              _StatusChip(
+                label: 'Docs: ${plan.installmentImagePaths.length}',
+                color: Colors.teal.shade700,
+              ),
           ],
         ),
       ],
@@ -353,6 +363,11 @@ class _CompactCard extends StatelessWidget {
                 label: 'Next due',
                 value: formattedNextDueDate,
               ),
+              const SizedBox(height: 8),
+              _DetailLine(
+                label: 'Images',
+                value: '${plan.installmentImagePaths.length}',
+              ),
               const SizedBox(height: 12),
               _ProgressStrip(
                 value: progressValue,
@@ -406,6 +421,11 @@ class _CompactCard extends StatelessWidget {
               label: 'Plan: $planStatusLabel',
               color: planStatusColor,
             ),
+            if (plan.installmentImagePaths.isNotEmpty)
+              _StatusChip(
+                label: 'Docs: ${plan.installmentImagePaths.length}',
+                color: Colors.teal.shade700,
+              ),
           ],
         ),
       ],

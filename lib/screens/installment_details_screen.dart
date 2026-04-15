@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -435,6 +437,11 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                       icon: Icons.calendar_month_rounded,
                                       label: '${plan.durationMonths} month(s)',
                                     ),
+                                    if (plan.installmentImagePaths.isNotEmpty)
+                                      AppHeroPill(
+                                        icon: Icons.collections_outlined,
+                                        label: '${plan.installmentImagePaths.length} docs',
+                                      ),
                                   ],
                                 ),
                                 const Spacer(),
@@ -465,6 +472,12 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       ),
                       child: Column(
                         children: [
+                          if (plan.installmentImagePaths.isNotEmpty) ...[
+                            _InstallmentImageGallery(
+                              imagePaths: plan.installmentImagePaths,
+                            ),
+                            const SizedBox(height: AppUi.sectionGap),
+                          ],
                           if (isCompact)
                             Column(
                               children: [
@@ -560,6 +573,54 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 }
 
+class _InstallmentImageGallery extends StatelessWidget {
+  final List<String> imagePaths;
+
+  const _InstallmentImageGallery({
+    required this.imagePaths,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return AppSectionCard(
+      title: 'Installment Documents',
+      subtitle: 'Images captured for this installment agreement or process',
+      child: imagePaths.isEmpty
+          ? Text(
+              'No installment images added.',
+              style: TextStyle(
+                fontSize: 14.25,
+                color: cs.onSurfaceVariant,
+              ),
+            )
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: imagePaths.map((path) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    color: cs.surfaceContainerHighest,
+                    child: Image.file(
+                      File(path),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.broken_image_rounded,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+    );
+  }
+}
+
 class _InstallmentDetailData {
   final InstallmentPlan plan;
   final List<InstallmentPayment> payments;
@@ -609,7 +670,9 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: AppMetricTile(
                   label: 'Progress',
-                  valueText: '${plan.paidMonths}/${plan.durationMonths}',
+                  valueText: plan.status == 'completed' || plan.remainingBalance <= 0.009
+                      ? '${plan.durationMonths}/${plan.durationMonths}'
+                      : '${plan.paidMonths}/${plan.durationMonths}',
                   icon: Icons.stacked_line_chart_rounded,
                 ),
               ),
@@ -656,6 +719,12 @@ class _SummaryCard extends StatelessWidget {
           AppLineItem(
             label: 'Collected',
             value: money(totalCollected),
+            labelWidth: 108,
+          ),
+          const SizedBox(height: 8),
+          AppLineItem(
+            label: 'Documents',
+            value: '${plan.installmentImagePaths.length}',
             labelWidth: 108,
           ),
         ],

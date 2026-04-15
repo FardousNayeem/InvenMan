@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -16,7 +17,7 @@ class DBHelper {
   static bool _isInitialized = false;
 
   static const String _databaseName = 'inventory.db';
-  static const int _databaseVersion = 10;
+  static const int _databaseVersion = 11;
 
   static Future<void> _initPlatform() async {
     if (_isInitialized) return;
@@ -79,7 +80,6 @@ class DBHelper {
       return newPath;
     }
 
-    // Old location
     final oldPath = join(await sqflite.getDatabasesPath(), _databaseName);
     final oldFile = File(oldPath);
 
@@ -99,6 +99,10 @@ class DBHelper {
       await _migrateToV10(db);
     }
 
+    if (oldVersion < 11) {
+      await _migrateToV11(db);
+    }
+
     await _ensureIndexes(db);
   }
 
@@ -112,6 +116,8 @@ class DBHelper {
             name TEXT NOT NULL,
             description TEXT NOT NULL DEFAULT '',
             category TEXT NOT NULL,
+            brand TEXT NOT NULL DEFAULT '',
+            colors_json TEXT NOT NULL DEFAULT '[]',
             cost_price REAL NOT NULL,
             selling_price REAL NOT NULL,
             quantity INTEGER NOT NULL CHECK (quantity >= 0),
@@ -124,6 +130,8 @@ class DBHelper {
         ''');
       } else {
         await _ensureColumn(txn, 'items', 'description', "TEXT NOT NULL DEFAULT ''");
+        await _ensureColumn(txn, 'items', 'brand', "TEXT NOT NULL DEFAULT ''");
+        await _ensureColumn(txn, 'items', 'colors_json', "TEXT NOT NULL DEFAULT '[]'");
         await _ensureColumn(txn, 'items', 'supplier', "TEXT NOT NULL DEFAULT ''");
         await _ensureColumn(txn, 'items', 'warranties_json', "TEXT NOT NULL DEFAULT '{}'");
         await _ensureColumn(txn, 'items', 'image_paths_json', "TEXT NOT NULL DEFAULT '[]'");
@@ -150,8 +158,8 @@ class DBHelper {
               CHECK (payment_type IN ('direct', 'installment')),
             installment_months INTEGER
               CHECK (installment_months IS NULL OR installment_months > 0),
+            installment_image_paths_json TEXT NOT NULL DEFAULT '[]',
             warranties_json TEXT NOT NULL DEFAULT '{}',
-            image_paths_json TEXT NOT NULL DEFAULT '[]',
             sold_at TEXT NOT NULL,
             CHECK (
               (payment_type = 'direct' AND installment_months IS NULL) OR
@@ -175,14 +183,14 @@ class DBHelper {
         await _ensureColumn(
           txn,
           'sale_records',
-          'warranties_json',
-          "TEXT NOT NULL DEFAULT '{}'",
+          'installment_image_paths_json',
+          "TEXT NOT NULL DEFAULT '[]'",
         );
         await _ensureColumn(
           txn,
           'sale_records',
-          'image_paths_json',
-          "TEXT NOT NULL DEFAULT '[]'",
+          'warranties_json',
+          "TEXT NOT NULL DEFAULT '{}'",
         );
         await _ensureColumn(txn, 'sale_records', 'sold_at', "TEXT NOT NULL DEFAULT ''");
       }
@@ -303,6 +311,90 @@ class DBHelper {
     });
   }
 
+  static Future<void> _migrateToV11(sqflite.Database db) async {
+    await db.transaction((txn) async {
+      await _ensureColumn(txn, 'items', 'brand', "TEXT NOT NULL DEFAULT ''");
+      await _ensureColumn(txn, 'items', 'colors_json', "TEXT NOT NULL DEFAULT '[]'");
+      await _ensureColumn(
+        txn,
+        'sale_records',
+        'installment_image_paths_json',
+        "TEXT NOT NULL DEFAULT '[]'",
+      );
+
+      await _backfillMissingTimestamps(txn);
+
+      await txn.execute("""
+        UPDATE items
+        SET brand = COALESCE(brand, '')
+        WHERE brand IS NULL
+      """);
+
+      await txn.execute("""
+        UPDATE items
+        SET colors_json = '[]'
+        WHERE colors_json IS NULL OR colors_json = ''
+      """);
+
+      await txn.execute("""
+        UPDATE sale_records
+        SET installment_image_paths_json = '[]'
+        WHERE installment_image_paths_json IS NULL OR installment_image_paths_json = ''
+      """);
+
+      await txn.execute("""
+        UPDATE installment_plans
+        SET image_paths_json = '[]'
+        WHERE image_paths_json IS NULL OR image_paths_json = ''
+      """);
+
+      final saleMaps = await txn.query(
+        'sale_records',
+        columns: ['id', 'installment_image_paths_json'],
+        where: "payment_type = 'installment'",
+      );
+
+      for (final saleMap in saleMaps) {
+        final saleId = saleMap['id'] as int?;
+        if (saleId == null) continue;
+
+        final imagesJson =
+            saleMap['installment_image_paths_json'] as String? ?? '[]';
+
+        final planMaps = await txn.query(
+          'installment_plans',
+          columns: ['id', 'image_paths_json'],
+          where: 'sale_record_id = ?',
+          whereArgs: [saleId],
+          limit: 1,
+        );
+
+        if (planMaps.isEmpty) continue;
+
+        final planId = planMaps.first['id'] as int?;
+        if (planId == null) continue;
+
+        final existingPlanImages =
+            planMaps.first['image_paths_json'] as String? ?? '[]';
+
+        if ((existingPlanImages.isEmpty || existingPlanImages == '[]') &&
+            imagesJson.isNotEmpty) {
+          await txn.update(
+            'installment_plans',
+            {
+              'image_paths_json': imagesJson,
+              'updated_at': _nowUtc().toIso8601String(),
+            },
+            where: 'id = ?',
+            whereArgs: [planId],
+          );
+        }
+      }
+
+      await _normalizeExistingInstallmentValues(txn);
+    });
+  }
+
   static Future<bool> _tableExists(
     sqflite.DatabaseExecutor db,
     String tableName,
@@ -369,6 +461,11 @@ class DBHelper {
       db,
       'idx_items_category',
       'CREATE INDEX idx_items_category ON items(category)',
+    );
+    await _ensureIndex(
+      db,
+      'idx_items_brand',
+      'CREATE INDEX idx_items_brand ON items(brand)',
     );
     await _ensureIndex(
       db,
@@ -539,6 +636,8 @@ class DBHelper {
         name TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         category TEXT NOT NULL,
+        brand TEXT NOT NULL DEFAULT '',
+        colors_json TEXT NOT NULL DEFAULT '[]',
         cost_price REAL NOT NULL,
         selling_price REAL NOT NULL,
         quantity INTEGER NOT NULL CHECK (quantity >= 0),
@@ -567,8 +666,8 @@ class DBHelper {
           CHECK (payment_type IN ('direct', 'installment')),
         installment_months INTEGER
           CHECK (installment_months IS NULL OR installment_months > 0),
+        installment_image_paths_json TEXT NOT NULL DEFAULT '[]',
         warranties_json TEXT NOT NULL DEFAULT '{}',
-        image_paths_json TEXT NOT NULL DEFAULT '[]',
         sold_at TEXT NOT NULL,
         CHECK (
           (payment_type = 'direct' AND installment_months IS NULL) OR
@@ -712,6 +811,47 @@ class DBHelper {
     return trimmed.isEmpty ? 'Not provided' : trimmed;
   }
 
+  static String _formatBrand(String brand) {
+    final trimmed = brand.trim();
+    return trimmed.isEmpty ? 'Not provided' : trimmed;
+  }
+
+  static List<String> _normalizeColors(List<String> colors) {
+    final seen = <String>{};
+    final cleaned = <String>[];
+
+    for (final raw in colors) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) continue;
+
+      final normalized = _titleCase(trimmed);
+      final key = normalized.toLowerCase();
+
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      cleaned.add(normalized);
+    }
+
+    return cleaned;
+  }
+
+  static String _formatColors(List<String> colors) {
+    final cleaned = _normalizeColors(colors);
+    if (cleaned.isEmpty) return 'Not provided';
+    return cleaned.join(', ');
+  }
+
+  static String _titleCase(String input) {
+    return input
+        .split(RegExp(r'\s+'))
+        .where((e) => e.trim().isNotEmpty)
+        .map((word) {
+          if (word.length == 1) return word.toUpperCase();
+          return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+        })
+        .join(' ');
+  }
+
   static String _normalizeText(String value) => value.trim();
 
   static bool _sameText(String a, String b) {
@@ -730,12 +870,57 @@ class DBHelper {
     return true;
   }
 
+  static bool _sameStringLists(List<String> a, List<String> b) {
+    final normalizedA = _normalizeColors(a);
+    final normalizedB = _normalizeColors(b);
+
+    if (normalizedA.length != normalizedB.length) return false;
+    for (int i = 0; i < normalizedA.length; i++) {
+      if (normalizedA[i].toLowerCase() != normalizedB[i].toLowerCase()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   static String _moneyText(double value) => _roundMoney(value).toStringAsFixed(0);
 
   static String _arrowChange(String before, String after) => '$before -> $after';
 
+  static void _validateItemFinancials({
+    required double costPrice,
+    required double sellingPrice,
+  }) {
+    if (costPrice < 0 || sellingPrice < 0) {
+      throw Exception('Cost price and MRP cannot be negative.');
+    }
+    if (costPrice > sellingPrice) {
+      throw Exception('Cost price cannot be greater than MRP.');
+    }
+  }
+
+  static List<String> _normalizeInstallmentImages(List<String> paths) {
+    final seen = <String>{};
+    final cleaned = <String>[];
+
+    for (final raw in paths) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) continue;
+      if (seen.contains(trimmed)) continue;
+      seen.add(trimmed);
+      cleaned.add(trimmed);
+    }
+
+    if (cleaned.length > 5) {
+      return cleaned.take(5).toList();
+    }
+    return cleaned;
+  }
+
   static String _buildItemSnapshot(Item item) {
     return [
+      'Brand: ${_formatBrand(item.brand)}',
+      'Colors: ${_formatColors(item.colors)}',
       'Qty: ${item.quantity}',
       'Cost: ${_moneyText(item.costPrice)}',
       'Sell: ${_moneyText(item.sellingPrice)}',
@@ -760,6 +945,16 @@ class DBHelper {
     }
     if (!_sameText(before.category, after.category)) {
       changes.add('Category: ${_arrowChange(before.category, after.category)}');
+    }
+    if (!_sameText(before.brand, after.brand)) {
+      changes.add(
+        'Brand: ${_arrowChange(_formatBrand(before.brand), _formatBrand(after.brand))}',
+      );
+    }
+    if (!_sameStringLists(before.colors, after.colors)) {
+      changes.add(
+        'Colors: ${_arrowChange(_formatColors(before.colors), _formatColors(after.colors))}',
+      );
     }
     if (before.quantity != after.quantity) {
       changes.add('Qty: ${_arrowChange('${before.quantity}', '${after.quantity}')}');
@@ -798,18 +993,32 @@ class DBHelper {
   }
 
   static Future<void> insertItem(Item item) async {
-    final dbClient = await db;
+    _validateItemFinancials(
+      costPrice: item.costPrice,
+      sellingPrice: item.sellingPrice,
+    );
 
-    await dbClient.insert('items', item.toMap());
+    final dbClient = await db;
+    final normalizedItem = item.copyWith(
+      brand: item.brand.trim(),
+      colors: _normalizeColors(item.colors),
+    );
+
+    await dbClient.insert('items', normalizedItem.toMap());
 
     await logHistory(
-      item.name,
+      normalizedItem.name,
       'Added',
-      _buildItemSnapshot(item),
+      _buildItemSnapshot(normalizedItem),
     );
   }
 
   static Future<void> updateItem(Item item) async {
+    _validateItemFinancials(
+      costPrice: item.costPrice,
+      sellingPrice: item.sellingPrice,
+    );
+
     final dbClient = await db;
 
     Item? previousItem;
@@ -825,17 +1034,22 @@ class DBHelper {
       }
     }
 
-    await dbClient.update(
-      'items',
-      item.toMap(),
-      where: 'id = ?',
-      whereArgs: [item.id],
+    final normalizedItem = item.copyWith(
+      brand: item.brand.trim(),
+      colors: _normalizeColors(item.colors),
     );
 
-    final historyName = previousItem?.name ?? item.name;
+    await dbClient.update(
+      'items',
+      normalizedItem.toMap(),
+      where: 'id = ?',
+      whereArgs: [normalizedItem.id],
+    );
+
+    final historyName = previousItem?.name ?? normalizedItem.name;
     final details = previousItem == null
-        ? _buildItemSnapshot(item)
-        : _buildItemEditDetails(previousItem, item);
+        ? _buildItemSnapshot(normalizedItem)
+        : _buildItemEditDetails(previousItem, normalizedItem);
 
     await logHistory(
       historyName,
@@ -949,41 +1163,51 @@ class DBHelper {
     double? downPayment,
   }) async {
     final dbClient = await db;
+    final normalizedImages = sale.isInstallment
+        ? _normalizeInstallmentImages(sale.installmentImagePaths)
+        : const <String>[];
 
     await dbClient.transaction((txn) async {
-      final saleId = await txn.insert('sale_records', sale.toMap());
+      final normalizedSale = sale.copyWith(
+        installmentImagePaths: normalizedImages,
+      );
 
-      if (sale.paymentType == 'installment' && sale.installmentMonths != null) {
+      final saleId = await txn.insert('sale_records', normalizedSale.toMap());
+
+      if (normalizedSale.paymentType == 'installment' &&
+          normalizedSale.installmentMonths != null) {
         await _createInstallmentPlanForSaleTxn(
           txn,
           saleRecordId: saleId,
-          sale: sale.copyWith(id: saleId),
+          sale: normalizedSale.copyWith(id: saleId),
           downPayment: downPayment ?? 0,
         );
       }
 
       final details = StringBuffer()
-        ..write('Qty: ${sale.quantitySold}')
-        ..write(', Sell: ${_moneyText(sale.sellPrice)}')
-        ..write(', Profit: ${_moneyText(sale.profit)}');
+        ..write('Qty: ${normalizedSale.quantitySold}')
+        ..write(', Sell: ${_moneyText(normalizedSale.sellPrice)}')
+        ..write(', Profit: ${_moneyText(normalizedSale.profit)}');
 
-      if ((sale.customerName ?? '').trim().isNotEmpty) {
-        details.write(', Customer: ${sale.customerName}');
+      if ((normalizedSale.customerName ?? '').trim().isNotEmpty) {
+        details.write(', Customer: ${normalizedSale.customerName}');
       }
-      if ((sale.customerPhone ?? '').trim().isNotEmpty) {
-        details.write(', Phone: ${sale.customerPhone}');
+      if ((normalizedSale.customerPhone ?? '').trim().isNotEmpty) {
+        details.write(', Phone: ${normalizedSale.customerPhone}');
       }
 
-      details.write(', Payment: ${sale.paymentType}');
-      if (sale.paymentType == 'installment' && sale.installmentMonths != null) {
-        details.write(', Installment: ${sale.installmentMonths} month(s)');
+      details.write(', Payment: ${normalizedSale.paymentType}');
+      if (normalizedSale.paymentType == 'installment' &&
+          normalizedSale.installmentMonths != null) {
+        details.write(', Installment: ${normalizedSale.installmentMonths} month(s)');
         details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
+        details.write(', Installment Images: ${normalizedImages.length}');
       }
 
-      details.write(', Warranties: ${_formatWarranties(sale.warranties)}');
+      details.write(', Warranties: ${_formatWarranties(normalizedSale.warranties)}');
 
       await txn.insert('history_entries', {
-        'item_name': sale.itemName,
+        'item_name': normalizedSale.itemName,
         'action': 'Sold',
         'details': details.toString(),
         'created_at': _nowUtc().toIso8601String(),
@@ -1041,6 +1265,7 @@ class DBHelper {
     required String paymentType,
     int? installmentMonths,
     double? downPayment,
+    List<String> installmentImagePaths = const [],
   }) async {
     final dbClient = await db;
 
@@ -1066,6 +1291,10 @@ class DBHelper {
         (installmentMonths == null || installmentMonths <= 0)) {
       throw Exception('Installment duration must be greater than zero.');
     }
+
+    final normalizedInstallmentImages = paymentType == 'installment'
+        ? _normalizeInstallmentImages(installmentImagePaths)
+        : const <String>[];
 
     if (paymentType == 'installment') {
       if (downPayment == null) {
@@ -1109,6 +1338,7 @@ class DBHelper {
       customerAddress: customerAddress,
       paymentType: paymentType,
       installmentMonths: installmentMonths,
+      installmentImagePaths: normalizedInstallmentImages,
       warranties: item.warranties,
       soldAt: now,
     );
@@ -1149,6 +1379,7 @@ class DBHelper {
       if (paymentType == 'installment' && installmentMonths != null) {
         details.write(', Installment: $installmentMonths month(s)');
         details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
+        details.write(', Installment Images: ${normalizedInstallmentImages.length}');
       }
 
       details.write(', Warranties: ${_formatWarranties(item.warranties)}');
@@ -1191,14 +1422,16 @@ class DBHelper {
     final monthlyAmount =
         scheduleAmounts.isNotEmpty ? scheduleAmounts.first : 0.0;
     final nextDueDate = _addMonths(sale.soldAt, 1);
+    final normalizedImages = _normalizeInstallmentImages(sale.installmentImagePaths);
 
-    await txn.insert('installment_plans', {
+    final planId = await txn.insert('installment_plans', {
       'sale_record_id': saleRecordId,
       'item_name': sale.itemName,
       'category': sale.category,
       'customer_name': sale.customerName,
       'customer_phone': sale.customerPhone,
       'customer_address': sale.customerAddress,
+      'image_paths_json': sale.isInstallment ? '[${normalizedImages.map((e) => '"${e.replaceAll('"', '\\"')}"').join(',')}]' : '[]',
       'total_amount': totalAmount,
       'down_payment': normalizedDownPayment,
       'financed_amount': financedAmount,
@@ -1214,15 +1447,6 @@ class DBHelper {
       'created_at': now.toIso8601String(),
       'updated_at': now.toIso8601String(),
     });
-
-    final planMaps = await txn.query(
-      'installment_plans',
-      where: 'sale_record_id = ?',
-      whereArgs: [saleRecordId],
-      limit: 1,
-    );
-
-    final planId = planMaps.first['id'] as int;
 
     for (int i = 0; i < durationMonths; i++) {
       final dueDate = _addMonths(sale.soldAt, i + 1);
@@ -1251,7 +1475,7 @@ class DBHelper {
       'item_name': sale.itemName,
       'action': 'Installment',
       'details':
-          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}',
+          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Images: ${normalizedImages.length}',
       'created_at': now.toIso8601String(),
     });
 
@@ -1634,7 +1858,7 @@ class DBHelper {
       final payment = InstallmentPayment.fromMap(paymentMaps.first);
 
       final normalizedPaidDate = amountPaid > 0 ? (paidDate ?? _nowUtc()) : null;
-      final normalizedNote = (note ?? '').trim().isEmpty ? null : note!.trim();
+      final normalizedNote = (note ?? '').trim().isEmpty ? null : note?.trim();
       final normalizedAmountDue = amountPaid > payment.amountDue
           ? _wholeMoney(amountPaid)
           : _wholeMoney(payment.amountDue);
