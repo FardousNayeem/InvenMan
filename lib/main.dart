@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:invenman/db.dart';
+import 'package:invenman/services/db_services.dart';
 import 'package:invenman/screens/homescreen.dart';
 import 'package:invenman/theme/app_ui.dart';
 

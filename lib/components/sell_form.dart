@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:invenman/components/app_text_field.dart';
 import 'package:invenman/components/sensitive_value_text.dart';
-import 'package:invenman/db.dart';
+import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/item.dart';
 
 class SellItemDialog extends StatefulWidget {

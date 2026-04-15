@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:invenman/components/app_text_field.dart';
-import 'package:invenman/db.dart';
+import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/services/image_service.dart';
+import 'package:invenman/services/image_services.dart';
 
 class ItemFormDialog extends StatefulWidget {
   final Item? existingItem;

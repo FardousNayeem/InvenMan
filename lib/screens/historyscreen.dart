@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import 'package:invenman/db.dart';
+import 'package:invenman/services/db_services.dart';
 import 'package:invenman/main.dart';
 import 'package:invenman/models/history.dart';
 import 'package:invenman/theme/app_sort_button.dart';

@@ -5,6 +5,8 @@ class Item {
   final String name;
   final String description;
   final String category;
+  final String brand;
+  final List<String> colors;
   final double costPrice;
   final double sellingPrice;
   final int quantity;
@@ -13,13 +15,14 @@ class Item {
   final List<String> imagePaths;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
 
   Item({
     this.id,
     required this.name,
     required this.description,
     required this.category,
+    this.brand = '',
+    this.colors = const [],
     required this.costPrice,
     required this.sellingPrice,
     required this.quantity,
@@ -33,15 +36,19 @@ class Item {
   factory Item.fromMap(Map<String, dynamic> map) {
     final warrantiesJson = map['warranties_json'] as String? ?? '{}';
     final imagePathsJson = map['image_paths_json'] as String? ?? '[]';
+    final colorsJson = map['colors_json'] as String? ?? '[]';
 
     final decodedWarranties = jsonDecode(warrantiesJson) as Map<String, dynamic>;
     final decodedImagePaths = jsonDecode(imagePathsJson) as List<dynamic>;
+    final decodedColors = jsonDecode(colorsJson) as List<dynamic>;
 
     return Item(
       id: map['id'] as int?,
       name: map['name'] as String,
       description: map['description'] as String? ?? '',
       category: map['category'] as String,
+      brand: map['brand'] as String? ?? '',
+      colors: decodedColors.map((e) => e.toString()).toList(),
       costPrice: (map['cost_price'] as num).toDouble(),
       sellingPrice: (map['selling_price'] as num).toDouble(),
       quantity: map['quantity'] as int,
@@ -61,6 +68,8 @@ class Item {
       'name': name,
       'description': description,
       'category': category,
+      'brand': brand,
+      'colors_json': jsonEncode(colors),
       'cost_price': costPrice,
       'selling_price': sellingPrice,
       'quantity': quantity,
@@ -77,6 +86,8 @@ class Item {
     String? name,
     String? description,
     String? category,
+    String? brand,
+    List<String>? colors,
     double? costPrice,
     double? sellingPrice,
     int? quantity,
@@ -91,6 +102,8 @@ class Item {
       name: name ?? this.name,
       description: description ?? this.description,
       category: category ?? this.category,
+      brand: brand ?? this.brand,
+      colors: colors ?? this.colors,
       costPrice: costPrice ?? this.costPrice,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       quantity: quantity ?? this.quantity,
