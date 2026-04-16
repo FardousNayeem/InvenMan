@@ -414,8 +414,8 @@ class _SaleInstallmentImageGallery extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: AppSectionCard(
-        title: 'Installment Documents',
-        subtitle: 'Images captured for Installment agreement',
+        title: 'Installment Files',
+        subtitle: 'Installment Agreement Images',
         trailing: FilledButton.tonalIcon(
           onPressed: onEditDocuments,
           icon: const Icon(Icons.edit_rounded),

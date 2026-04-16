@@ -26,6 +26,29 @@ class InstallmentDocumentSyncResult {
   });
 }
 
+class DatabaseImportSummary {
+  final int itemsInserted;
+  final int salesInserted;
+  final int installmentPlansInserted;
+  final int installmentPaymentsInserted;
+  final int historyInserted;
+
+  const DatabaseImportSummary({
+    required this.itemsInserted,
+    required this.salesInserted,
+    required this.installmentPlansInserted,
+    required this.installmentPaymentsInserted,
+    required this.historyInserted,
+  });
+
+  int get totalRowsInserted =>
+      itemsInserted +
+      salesInserted +
+      installmentPlansInserted +
+      installmentPaymentsInserted +
+      historyInserted;
+}
+
 class DBHelper {
   static sqflite.Database? _db;
   static bool _isInitialized = false;
@@ -108,6 +131,307 @@ class DBHelper {
     }
 
     return newPath;
+  }
+
+    static bool get _isDesktopPlatform =>
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+
+  static sqflite.DatabaseFactory get _platformDatabaseFactory =>
+      _isDesktopPlatform ? databaseFactory : sqflite.databaseFactory;
+
+  static Future<sqflite.Database> _openDatabaseAtPath(String path) async {
+    await _initPlatform();
+
+    return _platformDatabaseFactory.openDatabase(
+      path,
+      options: sqflite.OpenDatabaseOptions(
+        version: _databaseVersion,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onCreate: (db, version) async {
+          await createDbTables(db);
+          await ensureDbIndexes(db);
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          await runDbMigrations(
+            db,
+            oldVersion,
+            newVersion,
+            nowIsoString: () => _nowUtc().toIso8601String(),
+            normalizeExistingInstallmentValues:
+                _normalizeExistingInstallmentValues,
+          );
+        },
+      ),
+    );
+  }
+
+  static Future<String> getDatabasePath() async {
+    await _initPlatform();
+    return _resolveDatabasePath();
+  }
+
+  static Future<File> exportDatabaseToPath(String destinationPath) async {
+    final dbClient = await db;
+    final outFile = File(destinationPath);
+
+    if (!await outFile.parent.exists()) {
+      await outFile.parent.create(recursive: true);
+    }
+
+    if (await outFile.exists()) {
+      await outFile.delete();
+    }
+
+    final escapedPath = destinationPath.replaceAll("'", "''");
+
+    try {
+      await dbClient.execute('PRAGMA wal_checkpoint(FULL)');
+      await dbClient.execute("VACUUM INTO '$escapedPath'");
+      return outFile;
+    } catch (_) {
+      final sourcePath = await getDatabasePath();
+      await close();
+
+      try {
+        final sourceFile = File(sourcePath);
+        await sourceFile.copy(destinationPath);
+      } finally {
+        await db;
+      }
+
+      return outFile;
+    }
+  }
+
+  static Future<DatabaseImportSummary> importDatabaseFromPath(
+    String sourcePath,
+  ) async {
+    final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      throw Exception('Selected file could not be found.');
+    }
+
+    await _assertImportFileLooksValid(sourcePath);
+
+    final tempDir = await getTemporaryDirectory();
+    final tempCopyPath = join(
+      tempDir.path,
+      'invenman_import_${DateTime.now().millisecondsSinceEpoch}.sqlite',
+    );
+
+    final tempCopy = await sourceFile.copy(tempCopyPath);
+
+    sqflite.Database? importDb;
+
+    try {
+      importDb = await _openDatabaseAtPath(tempCopy.path);
+      final targetDb = await db;
+
+      int itemsInserted = 0;
+      int salesInserted = 0;
+      int plansInserted = 0;
+      int paymentsInserted = 0;
+      int historyInserted = 0;
+
+      final itemIdMap = <int, int>{};
+      final saleIdMap = <int, int>{};
+      final planIdMap = <int, int>{};
+
+      final itemRows = await importDb.query('items', orderBy: 'id ASC');
+      final saleRows = await importDb.query('sale_records', orderBy: 'id ASC');
+      final planRows =
+          await importDb.query('installment_plans', orderBy: 'id ASC');
+      final paymentRows =
+          await importDb.query('installment_payments', orderBy: 'id ASC');
+      final historyRows =
+          await importDb.query('history_entries', orderBy: 'id ASC');
+
+      await targetDb.transaction((txn) async {
+        for (final row in itemRows) {
+          final item = Item.fromMap(row);
+          final sanitizedItem = item.copyWith(
+            imagePaths: await _keepOnlyExistingFiles(item.imagePaths),
+          );
+
+          final newId = await txn.insert(
+            'items',
+            _withoutId(sanitizedItem.toMap()),
+          );
+
+          if (item.id != null) {
+            itemIdMap[item.id!] = newId;
+          }
+          itemsInserted++;
+        }
+
+        for (final row in saleRows) {
+          final sale = SaleRecord.fromMap(row);
+          final sanitizedSale = sale.copyWith(
+            itemId: sale.itemId == null ? null : itemIdMap[sale.itemId!],
+            installmentImagePaths: await _keepOnlyExistingFiles(
+              sale.installmentImagePaths,
+            ),
+          );
+
+          final newId = await txn.insert(
+            'sale_records',
+            _withoutId(sanitizedSale.toMap()),
+          );
+
+          if (sale.id != null) {
+            saleIdMap[sale.id!] = newId;
+          }
+          salesInserted++;
+        }
+
+        for (final row in planRows) {
+          final plan = InstallmentPlan.fromMap(row);
+          final newSaleRecordId = saleIdMap[plan.saleRecordId];
+
+          if (newSaleRecordId == null) {
+            continue;
+          }
+
+          final sanitizedPlan = plan.copyWith(
+            saleRecordId: newSaleRecordId,
+            installmentImagePaths: await _keepOnlyExistingFiles(
+              plan.installmentImagePaths,
+            ),
+          );
+
+          final newId = await txn.insert(
+            'installment_plans',
+            _withoutId(sanitizedPlan.toMap()),
+          );
+
+          if (plan.id != null) {
+            planIdMap[plan.id!] = newId;
+          }
+          plansInserted++;
+        }
+
+        for (final row in paymentRows) {
+          final payment = InstallmentPayment.fromMap(row);
+          final newPlanId = planIdMap[payment.installmentPlanId];
+
+          if (newPlanId == null) {
+            continue;
+          }
+
+          final sanitizedPayment = payment.copyWith(
+            installmentPlanId: newPlanId,
+          );
+
+          await txn.insert(
+            'installment_payments',
+            _withoutId(sanitizedPayment.toMap()),
+          );
+
+          paymentsInserted++;
+        }
+
+        for (final row in historyRows) {
+          final history = HistoryEntry.fromMap(row);
+
+          await txn.insert(
+            'history_entries',
+            _withoutId(history.toMap()),
+          );
+
+          historyInserted++;
+        }
+      });
+
+      return DatabaseImportSummary(
+        itemsInserted: itemsInserted,
+        salesInserted: salesInserted,
+        installmentPlansInserted: plansInserted,
+        installmentPaymentsInserted: paymentsInserted,
+        historyInserted: historyInserted,
+      );
+    } on sqflite.DatabaseException {
+      throw Exception('Selected file is not a valid InvenMan backup.');
+    } finally {
+      await importDb?.close();
+
+      if (await tempCopy.exists()) {
+        await tempCopy.delete();
+      }
+    }
+  }
+
+  static Future<void> _assertImportFileLooksValid(String sourcePath) async {
+    sqflite.Database? validationDb;
+
+    try {
+      validationDb = await _platformDatabaseFactory.openDatabase(sourcePath);
+
+      final tables = await validationDb.rawQuery('''
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+      ''');
+
+      final tableNames = tables
+          .map((e) => (e['name'] as String?) ?? '')
+          .where((e) => e.isNotEmpty)
+          .toSet();
+
+      const requiredTables = {
+        'items',
+        'sale_records',
+        'installment_plans',
+        'installment_payments',
+        'history_entries',
+      };
+
+      if (!tableNames.containsAll(requiredTables)) {
+        throw Exception('Selected file is not a valid InvenMan backup.');
+      }
+    } finally {
+      await validationDb?.close();
+    }
+  }
+
+  static Map<String, dynamic> _withoutId(Map<String, dynamic> map) {
+    final copy = Map<String, dynamic>.from(map);
+    copy.remove('id');
+    return copy;
+  }
+
+  static Future<List<String>> _keepOnlyExistingFiles(List<String> paths) async {
+    final cleaned = <String>[];
+    final seen = <String>{};
+
+    for (final rawPath in paths) {
+      final path = rawPath.trim();
+      if (path.isEmpty || seen.contains(path)) continue;
+
+      final file = File(path);
+      if (await file.exists()) {
+        cleaned.add(path);
+        seen.add(path);
+      }
+    }
+
+    return cleaned;
+  }
+
+  static Future<void> deleteAllAppData() async {
+    await close();
+
+    final supportDir = await getApplicationSupportDirectory();
+    final rootDir = Directory(join(supportDir.path, 'invenman'));
+
+    if (await rootDir.exists()) {
+      await rootDir.delete(recursive: true);
+    }
+
+    await db;
   }
 
   static DateTime _nowUtc() => DateTime.now().toUtc();
@@ -601,7 +925,7 @@ class DBHelper {
           normalizedSale.installmentMonths != null) {
         details.write(', Installment: ${normalizedSale.installmentMonths} month(s)');
         details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
-        details.write(', Docs: ${normalizedImages.length}');
+        details.write(', Files: ${normalizedImages.length}');
       }
 
       details.write(', Warranties: ${_formatWarranties(normalizedSale.warranties)}');
@@ -791,7 +1115,7 @@ class DBHelper {
       if (paymentType == 'installment' && installmentMonths != null) {
         details.write(', Installment: $installmentMonths month(s)');
         details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
-        details.write(', Docs: ${normalizedInstallmentImages.length}');
+        details.write(', Files: ${normalizedInstallmentImages.length}');
       }
 
       details.write(', Warranties: ${_formatWarranties(item.warranties)}');
@@ -886,7 +1210,7 @@ class DBHelper {
       'item_name': sale.itemName,
       'action': 'Installment',
       'details':
-          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Installment Docs: ${normalizedImages.length}',
+          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Installment Files: ${normalizedImages.length}',
       'created_at': now.toIso8601String(),
     });
 
@@ -1544,12 +1868,7 @@ class DBHelper {
   }
 
   static Future<void> clearAllData() async {
-    final dbClient = await db;
-    await dbClient.delete('installment_payments');
-    await dbClient.delete('installment_plans');
-    await dbClient.delete('history_entries');
-    await dbClient.delete('sale_records');
-    await dbClient.delete('items');
+    await deleteAllAppData();
   }
 
   static Future<void> close() async {

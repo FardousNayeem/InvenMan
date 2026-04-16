@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:invenman/main.dart';
+import 'package:invenman/screens/settings_screen.dart';
 import 'package:invenman/screens/historyscreen.dart';
 import 'package:invenman/screens/installmentsscreen.dart';
 import 'package:invenman/screens/inventoryscreen.dart';
@@ -66,13 +67,23 @@ class _HomeScreenState extends State<HomeScreen> {
     final isCompactHeader = width < 560;
 
     final screens = [
-      InventoryPage(onDataChanged: _handleDataChanged),
-      SalesPage(refreshToken: _refreshToken),
+      InventoryPage(
+        key: ValueKey('inventory_$_refreshToken'),
+        onDataChanged: _handleDataChanged,
+      ),
+      SalesPage(
+        key: ValueKey('sales_$_refreshToken'),
+        refreshToken: _refreshToken,
+      ),
       InstallmentsPage(
+        key: ValueKey('installments_$_refreshToken'),
         refreshToken: _refreshToken,
         onDataChanged: _handleDataChanged,
       ),
-      HistoryPage(refreshToken: _refreshToken),
+      HistoryPage(
+        key: ValueKey('history_$_refreshToken'),
+        refreshToken: _refreshToken,
+      ),
     ];
 
     final pageMeta = _pageMeta;
@@ -231,6 +242,42 @@ class _HomeScreenState extends State<HomeScreen> {
                       size: isCompactHeader ? 19 : 21,
                       key: ValueKey(isDark),
                     ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(
+              right: isCompactHeader ? 6 : 8,
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(isCompactHeader ? 14 : 16),
+                boxShadow: AppUi.softShadow,
+              ),
+              child: SizedBox(
+                width: isCompactHeader ? 38 : 42,
+                height: isCompactHeader ? 38 : 42,
+                child: IconButton.filledTonal(
+                  tooltip: 'Settings',
+                  style: IconButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    backgroundColor: cs.surfaceContainerHighest,
+                    foregroundColor: cs.onSurface,
+                  ),
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SettingsScreen(
+                          onDataChanged: _handleDataChanged,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: Icon(
+                    Icons.settings_rounded,
+                    size: isCompactHeader ? 19 : 21,
                   ),
                 ),
               ),

@@ -658,7 +658,7 @@ class _InstallmentImageGallery extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return AppSectionCard(
-      title: 'Installment Documents',
+      title: 'Installment Files',
       subtitle: 'Installment Agreement Images',
       trailing: FilledButton.tonalIcon(
         onPressed: onEditDocuments,
