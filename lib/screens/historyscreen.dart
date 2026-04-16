@@ -901,7 +901,6 @@ class _HistoryEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final compact = MediaQuery.of(context).size.width < 760;
 
     final detailPresenter = _HistoryDetailPresenter(

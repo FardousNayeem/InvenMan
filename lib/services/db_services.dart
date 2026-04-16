@@ -1,19 +1,21 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
+import 'package:path/path.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:archive/archive_io.dart';
+import 'package:archive/archive.dart';
 
 import 'package:invenman/models/history.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
-import 'package:invenman/services/image_service.dart';
 import 'package:invenman/services/db_migrations.dart';
 
 class InstallmentDocumentSyncResult {
@@ -27,6 +29,7 @@ class InstallmentDocumentSyncResult {
     required this.imagePaths,
   });
 }
+
 
 class DatabaseImportSummary {
   final int itemsInserted;
@@ -185,20 +188,20 @@ class DBHelper {
 
   static Future<String> _resolveDatabasePath() async {
     final supportDir = await getApplicationSupportDirectory();
-    final dbDir = Directory(p.join(supportDir.path, 'invenman', 'databases'));
+    final dbDir = Directory(join(supportDir.path, 'invenman', 'databases'));
 
     if (!await dbDir.exists()) {
       await dbDir.create(recursive: true);
     }
 
-    final newPath = p.join(dbDir.path, _databaseName);
+    final newPath = join(dbDir.path, _databaseName);
     final newFile = File(newPath);
 
     if (await newFile.exists()) {
       return newPath;
     }
 
-    final oldPath = p.join(await sqflite.getDatabasesPath(), _databaseName);
+    final oldPath = join(await sqflite.getDatabasesPath(), _databaseName);
     final oldFile = File(oldPath);
 
     if (await oldFile.exists()) {
@@ -208,13 +211,14 @@ class DBHelper {
     return newPath;
   }
 
+
   static bool get _isDesktopPlatform =>
-    defaultTargetPlatform == TargetPlatform.windows ||
-    defaultTargetPlatform == TargetPlatform.linux ||
-    defaultTargetPlatform == TargetPlatform.macOS;
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.macOS;
 
   static sqflite.DatabaseFactory get _platformDatabaseFactory =>
-    _isDesktopPlatform ? databaseFactory : sqflite.databaseFactory;
+      _isDesktopPlatform ? databaseFactory : sqflite.databaseFactory;
 
   static Future<sqflite.Database> _openDatabaseAtPath(String path) async {
     await _initPlatform();
@@ -256,27 +260,106 @@ class DBHelper {
   }
 
   static Future<void> _deleteDirectoryIfExists(Directory dir) async {
-    if (await dir.exists()) {
-      await dir.delete(recursive: true);
+    if (!await dir.exists()) return;
+
+    for (var attempt = 0; attempt < 6; attempt++) {
+      try {
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+        return;
+      } on FileSystemException {
+        if (attempt == 5) rethrow;
+        await Future.delayed(Duration(milliseconds: 120 * (attempt + 1)));
+      }
     }
   }
 
   static Future<void> _deleteFileIfExists(File file) async {
-    if (await file.exists()) {
-      await file.delete();
+    if (!await file.exists()) return;
+
+    for (var attempt = 0; attempt < 6; attempt++) {
+      try {
+        if (await file.exists()) {
+          await file.delete();
+        }
+        return;
+      } on FileSystemException {
+        if (attempt == 5) rethrow;
+        await Future.delayed(Duration(milliseconds: 120 * (attempt + 1)));
+      }
     }
   }
 
-  static AppImageType _inferImageTypeFromPath(String path) {
+  static Future<Directory> _makeUniqueTempDir(
+    String prefix, {
+    bool createNow = true,
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+
+    for (var i = 0; i < 1000; i++) {
+      final suffix = '${DateTime.now().microsecondsSinceEpoch}_$i';
+      final dir = Directory(p.join(tempDir.path, '${prefix}_$suffix'));
+
+      if (!await dir.exists()) {
+        if (createNow) {
+          await dir.create(recursive: true);
+        }
+        return dir;
+      }
+    }
+
+    throw Exception('Could not allocate a temporary working directory.');
+  }
+
+  static Future<void> _extractArchiveManually(
+    Archive archive,
+    String outputPath,
+  ) async {
+    final root = Directory(outputPath);
+    if (!await root.exists()) {
+      await root.create(recursive: true);
+    }
+
+    for (final entry in archive) {
+      final safeName = entry.name.replaceAll('\\', '/').trim();
+      if (safeName.isEmpty) continue;
+
+      final outPath = p.join(outputPath, safeName);
+
+      if (entry.isFile) {
+        final outFile = File(outPath);
+        if (!await outFile.parent.exists()) {
+          await outFile.parent.create(recursive: true);
+        }
+
+        final data = entry.content;
+        if (data is Uint8List) {
+          await outFile.writeAsBytes(data, flush: true);
+        } else if (data is List<int>) {
+          await outFile.writeAsBytes(data, flush: true);
+        } else {
+          throw Exception('Could not extract backup file: $safeName');
+        }
+      } else {
+        final outDir = Directory(outPath);
+        if (!await outDir.exists()) {
+          await outDir.create(recursive: true);
+        }
+      }
+    }
+  }
+
+  static String _inferAssetKindFromPath(String path) {
     final normalized = path.replaceAll('\\', '/').toLowerCase();
     if (normalized.contains('/installment_images/')) {
-      return AppImageType.installment;
+      return 'installment';
     }
-    return AppImageType.product;
+    return 'product';
   }
 
-  static String _assetFolderNameForType(AppImageType type) {
-    return type == AppImageType.installment
+  static String _assetFolderNameForKind(String kind) {
+    return kind == 'installment'
         ? 'assets/installment_images'
         : 'assets/product_images';
   }
@@ -339,87 +422,6 @@ class DBHelper {
     }
   }
 
-  static Future<File> exportBackupPackageToPath(String destinationPath) async {
-    final tempDir = await getTemporaryDirectory();
-    final workDir = Directory(
-      p.join(tempDir.path, 'invenman_export_${DateTime.now().millisecondsSinceEpoch}'),
-    );
-
-    await workDir.create(recursive: true);
-
-    try {
-      final dbSnapshotPath = p.join(workDir.path, _backupDatabaseFileName);
-      await exportDatabaseToPath(dbSnapshotPath);
-
-      final assetEntries = await _collectBackupAssetEntries();
-      final manifest = BackupManifest(
-        app: 'InvenMan',
-        backupVersion: _backupFormatVersion,
-        createdAt: _nowUtc().toIso8601String(),
-        databaseFile: _backupDatabaseFileName,
-        dbSchemaVersion: _databaseVersion,
-        assets: assetEntries,
-      );
-
-      final manifestFile = File(p.join(workDir.path, _backupManifestFileName));
-      await manifestFile.writeAsString(
-        jsonEncode(manifest.toMap()),
-        flush: true,
-      );
-
-      final archive = Archive();
-
-      final dbFile = File(dbSnapshotPath);
-      archive.addFile(
-        ArchiveFile(
-          _backupDatabaseFileName,
-          await dbFile.length(),
-          await dbFile.readAsBytes(),
-        ),
-      );
-
-      archive.addFile(
-        ArchiveFile(
-          _backupManifestFileName,
-          await manifestFile.length(),
-          await manifestFile.readAsBytes(),
-        ),
-      );
-
-      for (final entry in assetEntries) {
-        final file = File(entry.originalPath);
-        if (!await file.exists()) continue;
-
-        archive.addFile(
-          ArchiveFile(
-            entry.archivePath,
-            await file.length(),
-            await file.readAsBytes(),
-          ),
-        );
-      }
-
-      final zipData = ZipEncoder().encode(archive);
-      // ignore: unnecessary_null_comparison
-      if (zipData == null) {
-        throw Exception('Could not build backup package.');
-      }
-
-      final outFile = File(destinationPath);
-      if (!await outFile.parent.exists()) {
-        await outFile.parent.create(recursive: true);
-      }
-      if (await outFile.exists()) {
-        await outFile.delete();
-      }
-
-      await outFile.writeAsBytes(zipData, flush: true);
-      return outFile;
-    } finally {
-      await _deleteDirectoryIfExists(workDir);
-    }
-  }
-
   static Future<List<BackupAssetManifestEntry>> _collectBackupAssetEntries() async {
     final dbClient = await db;
     final usedArchivePaths = <String>{};
@@ -435,10 +437,9 @@ class DBHelper {
         if (!await file.exists()) continue;
 
         seenOriginalPaths.add(path);
-
-        final type = _inferImageTypeFromPath(path);
+        final kind = _inferAssetKindFromPath(path);
         final archivePath = _buildUniqueArchiveAssetPath(
-          folderName: _assetFolderNameForType(type),
+          folderName: _assetFolderNameForKind(kind),
           originalPath: path,
           usedArchivePaths: usedArchivePaths,
         );
@@ -447,7 +448,7 @@ class DBHelper {
           BackupAssetManifestEntry(
             originalPath: path,
             archivePath: archivePath,
-            kind: type == AppImageType.installment ? 'installment' : 'product',
+            kind: kind,
           ),
         );
       }
@@ -474,6 +475,74 @@ class DBHelper {
     return entries;
   }
 
+  static Future<File> exportBackupPackageToPath(String destinationPath) async {
+    final workDir = await _makeUniqueTempDir('invenman_export');
+
+    try {
+      final dbSnapshotPath = p.join(workDir.path, _backupDatabaseFileName);
+      await exportDatabaseToPath(dbSnapshotPath);
+
+      final assetEntries = await _collectBackupAssetEntries();
+      final manifest = BackupManifest(
+        app: 'InvenMan',
+        backupVersion: _backupFormatVersion,
+        createdAt: _nowUtc().toIso8601String(),
+        databaseFile: _backupDatabaseFileName,
+        dbSchemaVersion: _databaseVersion,
+        assets: assetEntries,
+      );
+
+      final manifestFile = File(p.join(workDir.path, _backupManifestFileName));
+      await manifestFile.writeAsString(jsonEncode(manifest.toMap()), flush: true);
+
+      final archive = Archive();
+
+      final dbFile = File(dbSnapshotPath);
+      archive.addFile(ArchiveFile(
+        _backupDatabaseFileName,
+        await dbFile.length(),
+        await dbFile.readAsBytes(),
+      ));
+
+      archive.addFile(ArchiveFile(
+        _backupManifestFileName,
+        await manifestFile.length(),
+        await manifestFile.readAsBytes(),
+      ));
+
+      for (final entry in assetEntries) {
+        final file = File(entry.originalPath);
+        if (!await file.exists()) continue;
+
+        archive.addFile(ArchiveFile(
+          entry.archivePath,
+          await file.length(),
+          await file.readAsBytes(),
+        ));
+      }
+
+      final zipData = ZipEncoder().encode(archive);
+      if (zipData == null) {
+        throw Exception('Could not build backup package.');
+      }
+
+      final outFile = File(destinationPath);
+      if (!await outFile.parent.exists()) {
+        await outFile.parent.create(recursive: true);
+      }
+      if (await outFile.exists()) {
+        await outFile.delete();
+      }
+
+      await outFile.writeAsBytes(zipData, flush: true);
+      return outFile;
+    } finally {
+      try {
+        await _deleteDirectoryIfExists(workDir);
+      } catch (_) {}
+    }
+  }
+
   static Future<DatabaseImportSummary> importBackupPackageFromPath(
     String sourcePath,
   ) async {
@@ -482,32 +551,33 @@ class DBHelper {
       throw Exception('Selected backup file could not be found.');
     }
 
-    final tempDir = await getTemporaryDirectory();
-    final extractDir = Directory(
-      p.join(tempDir.path, 'invenman_import_${DateTime.now().millisecondsSinceEpoch}'),
-    );
-
-    await extractDir.create(recursive: true);
+    final extractDir = await _makeUniqueTempDir('invenman_import');
 
     try {
       final bytes = await sourceFile.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
-      extractArchiveToDisk(archive, extractDir.path);
+      await _extractArchiveManually(archive, extractDir.path);
 
       final manifestFile = File(p.join(extractDir.path, _backupManifestFileName));
       if (!await manifestFile.exists()) {
         throw Exception('Selected file is not a valid InvenMan backup.');
       }
 
-      final manifestMap = jsonDecode(await manifestFile.readAsString())
-          as Map<String, dynamic>;
+      final manifestMap =
+          jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
       final manifest = BackupManifest.fromMap(manifestMap);
 
-      if (manifest.app != 'InvenMan') {
+      if (manifest.app.trim().toLowerCase() != 'invenman') {
         throw Exception('Selected file is not a valid InvenMan backup.');
       }
 
-      final extractedDbFile = File(p.join(extractDir.path, manifest.databaseFile));
+      if (manifest.databaseFile.trim().isEmpty) {
+        throw Exception('Backup database is missing.');
+      }
+
+      final extractedDbFile = File(
+        p.join(extractDir.path, manifest.databaseFile),
+      );
       if (!await extractedDbFile.exists()) {
         throw Exception('Backup database is missing.');
       }
@@ -523,9 +593,22 @@ class DBHelper {
       );
     } on ArchiveException {
       throw Exception('Selected file is not a valid InvenMan backup.');
+    } on FormatException {
+      throw Exception('Selected file is not a valid InvenMan backup.');
+    } on FileSystemException catch (e) {
+      throw Exception('Import failed: ${e.message}');
     } finally {
-      await _deleteDirectoryIfExists(extractDir);
+      try {
+        await Future.delayed(const Duration(milliseconds: 120));
+        await _deleteDirectoryIfExists(extractDir);
+      } catch (_) {}
     }
+  }
+
+  static Future<DatabaseImportSummary> importDatabaseFromPath(
+    String sourcePath,
+  ) {
+    return importBackupPackageFromPath(sourcePath);
   }
 
   static Future<Map<String, String>> _restoreBackupAssets({
@@ -540,19 +623,36 @@ class DBHelper {
         continue;
       }
 
-      final type = entry.kind == 'installment'
-          ? AppImageType.installment
-          : AppImageType.product;
-
-      final importedPath = await ImageService.importBackupImage(
-        sourceFile: extractedFile,
-        type: type,
+      final importedPath = await _copyImportedAssetToAppStorage(
+        extractedFile,
+        kind: entry.kind,
       );
-
       remap[entry.originalPath] = importedPath;
     }
 
     return remap;
+  }
+
+  static Future<String> _copyImportedAssetToAppStorage(
+    File sourceFile, {
+    required String kind,
+  }) async {
+    final baseDir = await getApplicationSupportDirectory();
+    final folderName = kind == 'installment' ? 'installment_images' : 'product_images';
+    final targetDir = Directory(p.join(baseDir.path, 'invenman', folderName));
+    if (!await targetDir.exists()) {
+      await targetDir.create(recursive: true);
+    }
+
+    final ext = p.extension(sourceFile.path).isEmpty ? '.jpg' : p.extension(sourceFile.path);
+    final prefix = kind == 'installment' ? 'installment' : 'product';
+    final targetPath = p.join(
+      targetDir.path,
+      '${prefix}_${DateTime.now().microsecondsSinceEpoch}$ext',
+    );
+
+    final copied = await sourceFile.copy(targetPath);
+    return copied.path;
   }
 
   static Future<DatabaseImportSummary> _importDatabaseFromPreparedPath(
@@ -566,12 +666,8 @@ class DBHelper {
 
     await _assertImportFileLooksValid(sourcePath);
 
-    final tempDir = await getTemporaryDirectory();
-    final tempCopyPath = p.join(
-      tempDir.path,
-      'invenman_import_db_${DateTime.now().millisecondsSinceEpoch}.sqlite',
-    );
-
+    final tempDir = await _makeUniqueTempDir('invenman_import_db');
+    final tempCopyPath = p.join(tempDir.path, 'database.sqlite');
     final tempCopy = await sourceFile.copy(tempCopyPath);
 
     sqflite.Database? importDb;
@@ -592,12 +688,9 @@ class DBHelper {
 
       final itemRows = await importDb.query('items', orderBy: 'id ASC');
       final saleRows = await importDb.query('sale_records', orderBy: 'id ASC');
-      final planRows =
-          await importDb.query('installment_plans', orderBy: 'id ASC');
-      final paymentRows =
-          await importDb.query('installment_payments', orderBy: 'id ASC');
-      final historyRows =
-          await importDb.query('history_entries', orderBy: 'id ASC');
+      final planRows = await importDb.query('installment_plans', orderBy: 'id ASC');
+      final paymentRows = await importDb.query('installment_payments', orderBy: 'id ASC');
+      final historyRows = await importDb.query('history_entries', orderBy: 'id ASC');
 
       await targetDb.transaction((txn) async {
         for (final row in itemRows) {
@@ -606,11 +699,7 @@ class DBHelper {
             imagePaths: _remapImportedPaths(item.imagePaths, pathRemap),
           );
 
-          final newId = await txn.insert(
-            'items',
-            _withoutId(sanitizedItem.toMap()),
-          );
-
+          final newId = await txn.insert('items', _withoutId(sanitizedItem.toMap()));
           if (item.id != null) {
             itemIdMap[item.id!] = newId;
           }
@@ -631,7 +720,6 @@ class DBHelper {
             'sale_records',
             _withoutId(sanitizedSale.toMap()),
           );
-
           if (sale.id != null) {
             saleIdMap[sale.id!] = newId;
           }
@@ -641,7 +729,6 @@ class DBHelper {
         for (final row in planRows) {
           final plan = InstallmentPlan.fromMap(row);
           final newSaleRecordId = saleIdMap[plan.saleRecordId];
-
           if (newSaleRecordId == null) {
             continue;
           }
@@ -658,7 +745,6 @@ class DBHelper {
             'installment_plans',
             _withoutId(sanitizedPlan.toMap()),
           );
-
           if (plan.id != null) {
             planIdMap[plan.id!] = newId;
           }
@@ -668,7 +754,6 @@ class DBHelper {
         for (final row in paymentRows) {
           final payment = InstallmentPayment.fromMap(row);
           final newPlanId = planIdMap[payment.installmentPlanId];
-
           if (newPlanId == null) {
             continue;
           }
@@ -676,23 +761,16 @@ class DBHelper {
           final sanitizedPayment = payment.copyWith(
             installmentPlanId: newPlanId,
           );
-
           await txn.insert(
             'installment_payments',
             _withoutId(sanitizedPayment.toMap()),
           );
-
           paymentsInserted++;
         }
 
         for (final row in historyRows) {
           final history = HistoryEntry.fromMap(row);
-
-          await txn.insert(
-            'history_entries',
-            _withoutId(history.toMap()),
-          );
-
+          await txn.insert('history_entries', _withoutId(history.toMap()));
           historyInserted++;
         }
       });
@@ -708,7 +786,10 @@ class DBHelper {
       throw Exception('Selected file is not a valid InvenMan backup.');
     } finally {
       await importDb?.close();
-      await _deleteFileIfExists(tempCopy);
+      try {
+        await Future.delayed(const Duration(milliseconds: 120));
+        await _deleteDirectoryIfExists(tempDir);
+      } catch (_) {}
     }
   }
 
@@ -723,7 +804,6 @@ class DBHelper {
       final mapped = pathRemap[original];
       if (mapped == null || mapped.trim().isEmpty) continue;
       if (seen.contains(mapped)) continue;
-
       cleaned.add(mapped);
       seen.add(mapped);
     }
@@ -735,7 +815,13 @@ class DBHelper {
     sqflite.Database? validationDb;
 
     try {
-      validationDb = await _platformDatabaseFactory.openDatabase(sourcePath);
+      validationDb = await _platformDatabaseFactory.openDatabase(
+        sourcePath,
+        options: sqflite.OpenDatabaseOptions(
+          readOnly: true,
+          singleInstance: false,
+        ),
+      );
 
       final tables = await validationDb.rawQuery('''
         SELECT name
@@ -1268,7 +1354,7 @@ class DBHelper {
           normalizedSale.installmentMonths != null) {
         details.write(', Installment: ${normalizedSale.installmentMonths} month(s)');
         details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
-        details.write(', Files: ${normalizedImages.length}');
+        details.write(', Docs: ${normalizedImages.length}');
       }
 
       details.write(', Warranties: ${_formatWarranties(normalizedSale.warranties)}');
@@ -1458,7 +1544,7 @@ class DBHelper {
       if (paymentType == 'installment' && installmentMonths != null) {
         details.write(', Installment: $installmentMonths month(s)');
         details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
-        details.write(', Files: ${normalizedInstallmentImages.length}');
+        details.write(', Docs: ${normalizedInstallmentImages.length}');
       }
 
       details.write(', Warranties: ${_formatWarranties(item.warranties)}');
@@ -1553,7 +1639,7 @@ class DBHelper {
       'item_name': sale.itemName,
       'action': 'Installment',
       'details':
-          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Installment Files: ${normalizedImages.length}',
+          'Plan created: ${durationMonths} month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Installment Docs: ${normalizedImages.length}',
       'created_at': now.toIso8601String(),
     });
 
