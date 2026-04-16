@@ -2,9 +2,7 @@
 
 **InvenMan** is a modern inventory management app built with Flutter for small businesses, resellers, and independent sellers who need a simple but practical way to manage stock, sales, warranties, and installment-based transactions.
 
-The app is designed around real daily business workflows. Users can add products, update stock, record sales, track profit, manage customer details, monitor installment payments, and review a full activity history from one place. The goal is to make inventory handling fast, clear, and reliable without overwhelming the user with unnecessary complexity.
-
-InvenMan currently includes a stable **free version** focused on strong local inventory operations. A more advanced **premium version** is planned, with features such as user authentication, profile-based syncing across devices, analytics, cloud-backed data, and AI-assisted tools.
+The app is designed around real daily business workflows. Users can add products, update stock, record sales, track profit, manage customer details, monitor installment payments, and review a full activity history from one place.
 
 ---
 
@@ -12,171 +10,163 @@ InvenMan currently includes a stable **free version** focused on strong local in
 
 InvenMan helps users manage the full lifecycle of items in inventory:
 
-- add and organize products
-- store pricing and supplier information
-- attach images and warranty details
-- sell products through direct or installment payments
-- calculate and track profit
-- maintain a searchable history of important actions
-
-The app is built with a strong focus on usability, responsive design, and practical record keeping for real-world business usage.
+* add and organize products
+* store pricing and supplier information
+* attach images and warranty details
+* sell products through direct or installment payments
+* calculate and track profit
+* maintain a searchable history of important actions
 
 ---
 
 ## Core Features
 
 ### Inventory Management
-- Add new items with:
-  - name
-  - category
-  - description
-  - cost price
-  - selling price
-  - quantity
-  - supplier
-  - warranty details
-  - item images
-- Edit existing inventory records
-- Delete items from inventory
-- View full item details in a clean dedicated details screen
-- Track stock levels, including low-stock and out-of-stock cases
-- Search and sort inventory for faster access
+
+* Add, edit, and delete items
+* Track stock levels and pricing
+* Attach images and warranty details
+* Search and sort inventory quickly
 
 ### Sales Management
-- Record direct sales quickly
-- Record installment-based sales
-- Store customer details for each sale:
-  - name
-  - phone
-  - address
-- Automatically calculate profit per sale
-- Preserve warranty information at the time of sale
-- View full sales history with dedicated details screens
+
+* Record direct and installment-based sales
+* Store customer details (name, phone, address)
+* Automatically calculate profit
+* Preserve warranty information at time of sale
 
 ### Installment Tracking
-- Create installment plans directly from sales
-- Track:
-  - total amount
-  - down payment
-  - financed amount
-  - duration
-  - monthly payment flow
-  - remaining balance
-- Support realistic payment behavior:
-  - partial payments
-  - overpayments
-  - dynamic rebalancing of future dues
-- Mark plans as active, overdue, or completed
-- Monitor installment progress with detailed plan views
-- Record and edit installment payments over time
 
-### Warranty Tracking
-- Store warranty duration by component or category
-- Preserve sale warranty data for future reference
-- View remaining warranty information for sold items
-- Maintain warranty context across item and sales records
+* Create installment plans from sales
+* Track payments, balance, and progress
+* Support partial and flexible payments
+* Monitor active, overdue, and completed plans
 
 ### History & Audit Trail
-- Keep a timeline of major events across the app
-- Track events such as:
-  - item added
-  - item edited
-  - item deleted
-  - item sold
-  - installment plan created
-  - installment payment recorded
-- Search and sort history entries
-- Review activity in grouped chronological format
-- Designed to become a stronger audit trail as the app evolves
 
-### Privacy & Visibility Controls
-- Sensitive value hiding option for privacy
-- Useful when showing the app to employees, partners, or customers without exposing internal pricing or profit data
+* Full timeline of app activity
+* Track all key operations (sales, edits, payments, etc.)
+* Searchable and chronologically grouped
+
+### Privacy Controls
+
+* Hide sensitive values like cost and profit
+* Useful for shared usage scenarios
 
 ### Responsive UI
-- Built with Flutter for cross-platform support
-- Designed to remain fluid across Android and Windows use cases
-- Clean details screens for inventory, sales, installments, and history
+
+* Optimized for Android and Windows
+* Clean, structured detail screens across modules
+
+---
+
+## Data Management (New)
+
+InvenMan now includes a **portable backup system**:
+
+### Backup & Restore
+
+* Export data as a single `.inv` backup file
+* Includes:
+
+  * full SQLite database
+  * product images
+  * installment documents
+* Import backups to:
+
+  * restore data
+  * merge data across devices
+
+### Data Deletion
+
+* Secure “Delete All Data” option
+* Requires confirmation input to prevent accidental loss
+* Completely wipes local database and stored files
+
+### Notes
+
+* All data is stored locally in the free version
+* Import currently **appends data** (does not replace existing data)
+* Backups are fully portable across supported platforms
 
 ---
 
 ## Current Version
 
-The current free version focuses on **local-first inventory operations** and practical business tracking. It is intended to be stable, usable, and polished enough for everyday management tasks.
+The free version focuses on **local-first inventory operations** with reliable data handling.
 
 ### Free Version Highlights
-- local inventory database
-- inventory CRUD
-- direct sales
-- installment sales
-- profit tracking
-- warranty tracking
-- searchable history
-- responsive item/sales/installment details
-- privacy toggle for sensitive business values
+
+* local SQLite database
+* inventory CRUD
+* direct & installment sales
+* profit tracking
+* warranty tracking
+* history tracking
+* backup & restore system
+* full data wipe controls
+* responsive UI
 
 ---
 
 ## Planned Premium Version
 
-The premium version is planned as a production-grade evolution of InvenMan, expanding from local inventory management into a connected business platform.
+The premium version will evolve InvenMan into a connected platform:
 
-### Planned Premium Features
-- user authentication
-- user profiles
-- sync inventory across multiple devices
-- cloud-backed storage
-- advanced analytics and insights
-- richer reporting
-- premium-only tools and workflows
-- chatbot integration
+### Planned Features
 
-The premium version will not simply add features on top of the free version. It is intended to be rebuilt more carefully with stronger architecture for sync, account-based data, and long-term scalability.
+* user authentication
+* multi-device sync
+* cloud backup & restore
+* advanced analytics
+* reporting tools
+* AI-assisted features
+* chatbot integration
+
+The premium version will be built with a stronger architecture focused on sync, accounts, and scalability.
 
 ---
 
 ## Why InvenMan
 
-InvenMan is built for users who need more than a basic stock list but do not want the overhead of large enterprise systems.
+InvenMan is designed for users who need practical business tracking without unnecessary complexity.
 
-It is especially useful for:
-- mobile and electronics resellers
-- small retail businesses
-- repair and resell businesses
-- side-hustle sellers
-- local businesses managing stock manually today
-- businesses that sell products on installment terms
+Ideal for:
 
-The app focuses on practical record keeping, business clarity, and future growth.
+* small retailers
+* resellers
+* installment-based sellers
+* repair & resell businesses
+* side-hustle businesses
 
 ---
 
 ## Tech Stack
 
-- **Flutter**
-- **Dart**
-- **SQLite / sqflite**
-- **sqflite_common_ffi** for desktop database support
+* Flutter
+* Dart
+* SQLite (sqflite)
+* sqflite_common_ffi (desktop support)
 
 ---
 
 ## Status
 
-- Free version: **stable and actively refined**
-- Premium version: **planned and under design**
+* Free version: **stable**
+* Premium version: **planned**
 
 ---
 
 ## Vision
 
-The long-term vision for InvenMan is to become a complete inventory and sales operations platform for small and growing businesses — starting with strong local inventory management and expanding into sync, analytics, automation, and intelligent assistance.
+To evolve into a complete inventory and sales platform for small businesses — starting with strong local tools and expanding into sync, analytics, and intelligent assistance.
 
 ---
 
 ## License
 
-This project is licensed under the **Apache License 2.0**.  
-See the `LICENSE` file in the repository for full details.
+Apache License 2.0
+See `LICENSE` for details.
 
 ---
 
@@ -184,5 +174,5 @@ See the `LICENSE` file in the repository for full details.
 
 **Fardous Nayeem**
 
-- GitHub: [FardousNayeem](https://github.com/FardousNayeem/)
-- LinkedIn: [Fardous Nayeem](https://www.linkedin.com/in/fardous-nayeem/)
+* GitHub: https://github.com/FardousNayeem/
+* LinkedIn: https://www.linkedin.com/in/fardous-nayeem/
