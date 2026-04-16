@@ -2,16 +2,18 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
-import 'package:path/path.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:archive/archive_io.dart';
 
 import 'package:invenman/models/history.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
+import 'package:invenman/services/image_service.dart';
 import 'package:invenman/services/db_migrations.dart';
 
 class InstallmentDocumentSyncResult {
@@ -49,12 +51,85 @@ class DatabaseImportSummary {
       historyInserted;
 }
 
+class BackupAssetManifestEntry {
+  final String originalPath;
+  final String archivePath;
+  final String kind;
+
+  const BackupAssetManifestEntry({
+    required this.originalPath,
+    required this.archivePath,
+    required this.kind,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'originalPath': originalPath,
+        'archivePath': archivePath,
+        'kind': kind,
+      };
+
+  factory BackupAssetManifestEntry.fromMap(Map<String, dynamic> map) {
+    return BackupAssetManifestEntry(
+      originalPath: map['originalPath'] as String? ?? '',
+      archivePath: map['archivePath'] as String? ?? '',
+      kind: map['kind'] as String? ?? 'product',
+    );
+  }
+}
+
+class BackupManifest {
+  final String app;
+  final int backupVersion;
+  final String createdAt;
+  final String databaseFile;
+  final int dbSchemaVersion;
+  final List<BackupAssetManifestEntry> assets;
+
+  const BackupManifest({
+    required this.app,
+    required this.backupVersion,
+    required this.createdAt,
+    required this.databaseFile,
+    required this.dbSchemaVersion,
+    required this.assets,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'app': app,
+        'backupVersion': backupVersion,
+        'createdAt': createdAt,
+        'databaseFile': databaseFile,
+        'dbSchemaVersion': dbSchemaVersion,
+        'assets': assets.map((e) => e.toMap()).toList(),
+      };
+
+  factory BackupManifest.fromMap(Map<String, dynamic> map) {
+    final rawAssets = (map['assets'] as List<dynamic>? ?? const []);
+    return BackupManifest(
+      app: map['app'] as String? ?? '',
+      backupVersion: (map['backupVersion'] as num?)?.toInt() ?? 1,
+      createdAt: map['createdAt'] as String? ?? '',
+      databaseFile: map['databaseFile'] as String? ?? 'database.sqlite',
+      dbSchemaVersion: (map['dbSchemaVersion'] as num?)?.toInt() ?? 1,
+      assets: rawAssets
+          .whereType<Map>()
+          .map((e) => BackupAssetManifestEntry.fromMap(
+                Map<String, dynamic>.from(e),
+              ))
+          .toList(),
+    );
+  }
+}
+
 class DBHelper {
   static sqflite.Database? _db;
   static bool _isInitialized = false;
 
   static const String _databaseName = 'inventory.db';
   static const int _databaseVersion = 12;
+  static const String _backupManifestFileName = 'manifest.json';
+  static const String _backupDatabaseFileName = 'database.sqlite';
+  static const int _backupFormatVersion = 1;
 
   static Future<void> _initPlatform() async {
     if (_isInitialized) return;
@@ -110,20 +185,20 @@ class DBHelper {
 
   static Future<String> _resolveDatabasePath() async {
     final supportDir = await getApplicationSupportDirectory();
-    final dbDir = Directory(join(supportDir.path, 'invenman', 'databases'));
+    final dbDir = Directory(p.join(supportDir.path, 'invenman', 'databases'));
 
     if (!await dbDir.exists()) {
       await dbDir.create(recursive: true);
     }
 
-    final newPath = join(dbDir.path, _databaseName);
+    final newPath = p.join(dbDir.path, _databaseName);
     final newFile = File(newPath);
 
     if (await newFile.exists()) {
       return newPath;
     }
 
-    final oldPath = join(await sqflite.getDatabasesPath(), _databaseName);
+    final oldPath = p.join(await sqflite.getDatabasesPath(), _databaseName);
     final oldFile = File(oldPath);
 
     if (await oldFile.exists()) {
@@ -133,13 +208,13 @@ class DBHelper {
     return newPath;
   }
 
-    static bool get _isDesktopPlatform =>
-      defaultTargetPlatform == TargetPlatform.windows ||
-      defaultTargetPlatform == TargetPlatform.linux ||
-      defaultTargetPlatform == TargetPlatform.macOS;
+  static bool get _isDesktopPlatform =>
+    defaultTargetPlatform == TargetPlatform.windows ||
+    defaultTargetPlatform == TargetPlatform.linux ||
+    defaultTargetPlatform == TargetPlatform.macOS;
 
   static sqflite.DatabaseFactory get _platformDatabaseFactory =>
-      _isDesktopPlatform ? databaseFactory : sqflite.databaseFactory;
+    _isDesktopPlatform ? databaseFactory : sqflite.databaseFactory;
 
   static Future<sqflite.Database> _openDatabaseAtPath(String path) async {
     await _initPlatform();
@@ -172,6 +247,63 @@ class DBHelper {
   static Future<String> getDatabasePath() async {
     await _initPlatform();
     return _resolveDatabasePath();
+  }
+
+  static Map<String, dynamic> _withoutId(Map<String, dynamic> map) {
+    final copy = Map<String, dynamic>.from(map);
+    copy.remove('id');
+    return copy;
+  }
+
+  static Future<void> _deleteDirectoryIfExists(Directory dir) async {
+    if (await dir.exists()) {
+      await dir.delete(recursive: true);
+    }
+  }
+
+  static Future<void> _deleteFileIfExists(File file) async {
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  static AppImageType _inferImageTypeFromPath(String path) {
+    final normalized = path.replaceAll('\\', '/').toLowerCase();
+    if (normalized.contains('/installment_images/')) {
+      return AppImageType.installment;
+    }
+    return AppImageType.product;
+  }
+
+  static String _assetFolderNameForType(AppImageType type) {
+    return type == AppImageType.installment
+        ? 'assets/installment_images'
+        : 'assets/product_images';
+  }
+
+  static String _buildUniqueArchiveAssetPath({
+    required String folderName,
+    required String originalPath,
+    required Set<String> usedArchivePaths,
+  }) {
+    final extRaw = p.extension(originalPath);
+    final ext = extRaw.isEmpty ? '.jpg' : extRaw;
+
+    final base = p.basenameWithoutExtension(originalPath)
+        .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')
+        .trim();
+
+    final safeBase = base.isEmpty ? 'asset' : base;
+    var candidate = '$folderName/$safeBase$ext';
+    var counter = 1;
+
+    while (usedArchivePaths.contains(candidate)) {
+      candidate = '$folderName/${safeBase}_$counter$ext';
+      counter++;
+    }
+
+    usedArchivePaths.add(candidate);
+    return candidate;
   }
 
   static Future<File> exportDatabaseToPath(String destinationPath) async {
@@ -207,20 +339,237 @@ class DBHelper {
     }
   }
 
-  static Future<DatabaseImportSummary> importDatabaseFromPath(
+  static Future<File> exportBackupPackageToPath(String destinationPath) async {
+    final tempDir = await getTemporaryDirectory();
+    final workDir = Directory(
+      p.join(tempDir.path, 'invenman_export_${DateTime.now().millisecondsSinceEpoch}'),
+    );
+
+    await workDir.create(recursive: true);
+
+    try {
+      final dbSnapshotPath = p.join(workDir.path, _backupDatabaseFileName);
+      await exportDatabaseToPath(dbSnapshotPath);
+
+      final assetEntries = await _collectBackupAssetEntries();
+      final manifest = BackupManifest(
+        app: 'InvenMan',
+        backupVersion: _backupFormatVersion,
+        createdAt: _nowUtc().toIso8601String(),
+        databaseFile: _backupDatabaseFileName,
+        dbSchemaVersion: _databaseVersion,
+        assets: assetEntries,
+      );
+
+      final manifestFile = File(p.join(workDir.path, _backupManifestFileName));
+      await manifestFile.writeAsString(
+        jsonEncode(manifest.toMap()),
+        flush: true,
+      );
+
+      final archive = Archive();
+
+      final dbFile = File(dbSnapshotPath);
+      archive.addFile(
+        ArchiveFile(
+          _backupDatabaseFileName,
+          await dbFile.length(),
+          await dbFile.readAsBytes(),
+        ),
+      );
+
+      archive.addFile(
+        ArchiveFile(
+          _backupManifestFileName,
+          await manifestFile.length(),
+          await manifestFile.readAsBytes(),
+        ),
+      );
+
+      for (final entry in assetEntries) {
+        final file = File(entry.originalPath);
+        if (!await file.exists()) continue;
+
+        archive.addFile(
+          ArchiveFile(
+            entry.archivePath,
+            await file.length(),
+            await file.readAsBytes(),
+          ),
+        );
+      }
+
+      final zipData = ZipEncoder().encode(archive);
+      // ignore: unnecessary_null_comparison
+      if (zipData == null) {
+        throw Exception('Could not build backup package.');
+      }
+
+      final outFile = File(destinationPath);
+      if (!await outFile.parent.exists()) {
+        await outFile.parent.create(recursive: true);
+      }
+      if (await outFile.exists()) {
+        await outFile.delete();
+      }
+
+      await outFile.writeAsBytes(zipData, flush: true);
+      return outFile;
+    } finally {
+      await _deleteDirectoryIfExists(workDir);
+    }
+  }
+
+  static Future<List<BackupAssetManifestEntry>> _collectBackupAssetEntries() async {
+    final dbClient = await db;
+    final usedArchivePaths = <String>{};
+    final seenOriginalPaths = <String>{};
+    final entries = <BackupAssetManifestEntry>[];
+
+    Future<void> addPaths(List<String> paths) async {
+      for (final rawPath in paths) {
+        final path = rawPath.trim();
+        if (path.isEmpty || seenOriginalPaths.contains(path)) continue;
+
+        final file = File(path);
+        if (!await file.exists()) continue;
+
+        seenOriginalPaths.add(path);
+
+        final type = _inferImageTypeFromPath(path);
+        final archivePath = _buildUniqueArchiveAssetPath(
+          folderName: _assetFolderNameForType(type),
+          originalPath: path,
+          usedArchivePaths: usedArchivePaths,
+        );
+
+        entries.add(
+          BackupAssetManifestEntry(
+            originalPath: path,
+            archivePath: archivePath,
+            kind: type == AppImageType.installment ? 'installment' : 'product',
+          ),
+        );
+      }
+    }
+
+    final itemRows = await dbClient.query('items');
+    for (final row in itemRows) {
+      final item = Item.fromMap(row);
+      await addPaths(item.imagePaths);
+    }
+
+    final saleRows = await dbClient.query('sale_records');
+    for (final row in saleRows) {
+      final sale = SaleRecord.fromMap(row);
+      await addPaths(sale.installmentImagePaths);
+    }
+
+    final planRows = await dbClient.query('installment_plans');
+    for (final row in planRows) {
+      final plan = InstallmentPlan.fromMap(row);
+      await addPaths(plan.installmentImagePaths);
+    }
+
+    return entries;
+  }
+
+  static Future<DatabaseImportSummary> importBackupPackageFromPath(
     String sourcePath,
   ) async {
     final sourceFile = File(sourcePath);
     if (!await sourceFile.exists()) {
-      throw Exception('Selected file could not be found.');
+      throw Exception('Selected backup file could not be found.');
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final extractDir = Directory(
+      p.join(tempDir.path, 'invenman_import_${DateTime.now().millisecondsSinceEpoch}'),
+    );
+
+    await extractDir.create(recursive: true);
+
+    try {
+      final bytes = await sourceFile.readAsBytes();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      extractArchiveToDisk(archive, extractDir.path);
+
+      final manifestFile = File(p.join(extractDir.path, _backupManifestFileName));
+      if (!await manifestFile.exists()) {
+        throw Exception('Selected file is not a valid InvenMan backup.');
+      }
+
+      final manifestMap = jsonDecode(await manifestFile.readAsString())
+          as Map<String, dynamic>;
+      final manifest = BackupManifest.fromMap(manifestMap);
+
+      if (manifest.app != 'InvenMan') {
+        throw Exception('Selected file is not a valid InvenMan backup.');
+      }
+
+      final extractedDbFile = File(p.join(extractDir.path, manifest.databaseFile));
+      if (!await extractedDbFile.exists()) {
+        throw Exception('Backup database is missing.');
+      }
+
+      final pathRemap = await _restoreBackupAssets(
+        extractDir: extractDir,
+        manifest: manifest,
+      );
+
+      return await _importDatabaseFromPreparedPath(
+        extractedDbFile.path,
+        pathRemap: pathRemap,
+      );
+    } on ArchiveException {
+      throw Exception('Selected file is not a valid InvenMan backup.');
+    } finally {
+      await _deleteDirectoryIfExists(extractDir);
+    }
+  }
+
+  static Future<Map<String, String>> _restoreBackupAssets({
+    required Directory extractDir,
+    required BackupManifest manifest,
+  }) async {
+    final remap = <String, String>{};
+
+    for (final entry in manifest.assets) {
+      final extractedFile = File(p.join(extractDir.path, entry.archivePath));
+      if (!await extractedFile.exists()) {
+        continue;
+      }
+
+      final type = entry.kind == 'installment'
+          ? AppImageType.installment
+          : AppImageType.product;
+
+      final importedPath = await ImageService.importBackupImage(
+        sourceFile: extractedFile,
+        type: type,
+      );
+
+      remap[entry.originalPath] = importedPath;
+    }
+
+    return remap;
+  }
+
+  static Future<DatabaseImportSummary> _importDatabaseFromPreparedPath(
+    String sourcePath, {
+    required Map<String, String> pathRemap,
+  }) async {
+    final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      throw Exception('Prepared import database could not be found.');
     }
 
     await _assertImportFileLooksValid(sourcePath);
 
     final tempDir = await getTemporaryDirectory();
-    final tempCopyPath = join(
+    final tempCopyPath = p.join(
       tempDir.path,
-      'invenman_import_${DateTime.now().millisecondsSinceEpoch}.sqlite',
+      'invenman_import_db_${DateTime.now().millisecondsSinceEpoch}.sqlite',
     );
 
     final tempCopy = await sourceFile.copy(tempCopyPath);
@@ -254,7 +603,7 @@ class DBHelper {
         for (final row in itemRows) {
           final item = Item.fromMap(row);
           final sanitizedItem = item.copyWith(
-            imagePaths: await _keepOnlyExistingFiles(item.imagePaths),
+            imagePaths: _remapImportedPaths(item.imagePaths, pathRemap),
           );
 
           final newId = await txn.insert(
@@ -272,8 +621,9 @@ class DBHelper {
           final sale = SaleRecord.fromMap(row);
           final sanitizedSale = sale.copyWith(
             itemId: sale.itemId == null ? null : itemIdMap[sale.itemId!],
-            installmentImagePaths: await _keepOnlyExistingFiles(
+            installmentImagePaths: _remapImportedPaths(
               sale.installmentImagePaths,
+              pathRemap,
             ),
           );
 
@@ -298,8 +648,9 @@ class DBHelper {
 
           final sanitizedPlan = plan.copyWith(
             saleRecordId: newSaleRecordId,
-            installmentImagePaths: await _keepOnlyExistingFiles(
+            installmentImagePaths: _remapImportedPaths(
               plan.installmentImagePaths,
+              pathRemap,
             ),
           );
 
@@ -357,11 +708,27 @@ class DBHelper {
       throw Exception('Selected file is not a valid InvenMan backup.');
     } finally {
       await importDb?.close();
-
-      if (await tempCopy.exists()) {
-        await tempCopy.delete();
-      }
+      await _deleteFileIfExists(tempCopy);
     }
+  }
+
+  static List<String> _remapImportedPaths(
+    List<String> originalPaths,
+    Map<String, String> pathRemap,
+  ) {
+    final cleaned = <String>[];
+    final seen = <String>{};
+
+    for (final original in originalPaths) {
+      final mapped = pathRemap[original];
+      if (mapped == null || mapped.trim().isEmpty) continue;
+      if (seen.contains(mapped)) continue;
+
+      cleaned.add(mapped);
+      seen.add(mapped);
+    }
+
+    return cleaned;
   }
 
   static Future<void> _assertImportFileLooksValid(String sourcePath) async {
@@ -397,35 +764,11 @@ class DBHelper {
     }
   }
 
-  static Map<String, dynamic> _withoutId(Map<String, dynamic> map) {
-    final copy = Map<String, dynamic>.from(map);
-    copy.remove('id');
-    return copy;
-  }
-
-  static Future<List<String>> _keepOnlyExistingFiles(List<String> paths) async {
-    final cleaned = <String>[];
-    final seen = <String>{};
-
-    for (final rawPath in paths) {
-      final path = rawPath.trim();
-      if (path.isEmpty || seen.contains(path)) continue;
-
-      final file = File(path);
-      if (await file.exists()) {
-        cleaned.add(path);
-        seen.add(path);
-      }
-    }
-
-    return cleaned;
-  }
-
   static Future<void> deleteAllAppData() async {
     await close();
 
     final supportDir = await getApplicationSupportDirectory();
-    final rootDir = Directory(join(supportDir.path, 'invenman'));
+    final rootDir = Directory(p.join(supportDir.path, 'invenman'));
 
     if (await rootDir.exists()) {
       await rootDir.delete(recursive: true);

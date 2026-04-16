@@ -434,21 +434,13 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       icon: Icons.arrow_back_rounded,
                       onPressed: _handleBack,
                     ),
+                    title: Text(
+                      plan.itemName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     flexibleSpace: FlexibleSpaceBar(
-                      titlePadding: const EdgeInsetsDirectional.only(
-                        start: 20,
-                        end: 20,
-                        bottom: 18,
-                      ),
-                      title: Text(
-                        plan.itemName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.65,
-                        ),
-                      ),
+                      collapseMode: CollapseMode.parallax,
                       background: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -464,45 +456,67 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                         child: SafeArea(
                           bottom: false,
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 88),
+                            padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                const Spacer(),
+
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      plan.itemName,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 34,
+                                        height: 1.0,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -1.0,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      (plan.customerName ?? '').trim().isNotEmpty
+                                          ? 'Installment plan for ${plan.customerName}'
+                                          : 'Installment schedule and payment tracking',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        height: 1.2,
+                                        color: cs.onSurfaceVariant,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 24),
+
                                 Wrap(
                                   spacing: 10,
                                   runSpacing: 10,
                                   children: [
-                                    AppHeroPill(
+                                    _HeaderChip(
                                       icon: Icons.category_rounded,
                                       label: plan.category,
                                     ),
-                                    AppHeroPill(
+                                    _HeaderChip(
                                       icon: Icons.flag_rounded,
                                       label: _planStatusLabel(plan.status),
-                                      accentColor: planStatusColor,
+                                      iconColor: planStatusColor,
                                     ),
-                                    AppHeroPill(
+                                    _HeaderChip(
                                       icon: Icons.calendar_month_rounded,
                                       label: '${plan.durationMonths} month(s)',
                                     ),
                                     if (plan.installmentImagePaths.isNotEmpty)
-                                      AppHeroPill(
+                                      _HeaderChip(
                                         icon: Icons.collections_outlined,
-                                        label:
-                                            '${plan.installmentImagePaths.length} docs',
+                                        label: '${plan.installmentImagePaths.length} docs',
                                       ),
                                   ],
-                                ),
-                                const Spacer(),
-                                Text(
-                                  (plan.customerName ?? '').trim().isNotEmpty
-                                      ? 'Installment plan for ${plan.customerName}'
-                                      : 'Installment schedule and payment tracking',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: cs.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
                                 ),
                               ],
                             ),
@@ -657,79 +671,97 @@ class _InstallmentImageGallery extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return AppSectionCard(
-      title: 'Installment Files',
-      subtitle: 'Installment Agreement Images',
-      trailing: FilledButton.tonalIcon(
-        onPressed: onEditDocuments,
-        icon: const Icon(Icons.edit_rounded),
-        label: const Text('Edit documents'),
-      ),
-      child: imagePaths.isEmpty
-          ? Text(
-              'No installment images added.',
-              style: TextStyle(
-                fontSize: 14.25,
-                color: cs.onSurfaceVariant,
-              ),
-            )
-          : Column(
-              children: List.generate(imagePaths.length, (index) {
-                final path = imagePaths[index];
+    return SizedBox(
+      width: double.infinity,
+      child: AppSectionCard(
+        title: 'Installment Files',
+        subtitle: 'Installment Agreement Images',
+        trailing: FilledButton.tonalIcon(
+          onPressed: onEditDocuments,
+          icon: const Icon(Icons.edit_rounded),
+          label: const Text('Edit documents'),
+        ),
+        child: imagePaths.isEmpty
+            ? SizedBox(
+                width: double.infinity,
+                child: Text(
+                  'No installment images added.',
+                  style: TextStyle(
+                    fontSize: 14.25,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              )
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 10.0;
+                  final hasTwoColumns = constraints.maxWidth >= 360;
+                  final thumbWidth = hasTwoColumns
+                      ? (constraints.maxWidth - spacing) / 2
+                      : constraints.maxWidth;
 
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: index == imagePaths.length - 1 ? 0 : 10,
-                  ),
-                  child: GestureDetector(
-                    onTap: () => onOpenViewer(index),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        width: double.infinity,
-                        height: 110,
-                        color: cs.surfaceContainerHighest,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.file(
-                              File(path),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.broken_image_rounded,
-                                color: cs.onSurfaceVariant,
-                              ),
-                            ),
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.55),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  '${index + 1}/${imagePaths.length}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
+                  return SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: WrapAlignment.start,
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: List.generate(imagePaths.length, (index) {
+                        final path = imagePaths[index];
+
+                        return GestureDetector(
+                          onTap: () => onOpenViewer(index),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              width: thumbWidth,
+                              height: 150,
+                              color: cs.surfaceContainerHighest,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.file(
+                                    File(path),
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Icon(
+                                      Icons.broken_image_rounded,
+                                      color: cs.onSurfaceVariant,
+                                    ),
                                   ),
-                                ),
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.55),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      }),
                     ),
-                  ),
-                );
-              }),
-            ),
+                  );
+                },
+              ),
+      ),
     );
   }
 }
@@ -1250,6 +1282,54 @@ class _ScheduleCard extends StatelessWidget {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip({
+    required this.icon,
+    required this.label,
+    this.iconColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: iconColor ?? cs.onSurface,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
+            ),
+          ),
+        ],
       ),
     );
   }

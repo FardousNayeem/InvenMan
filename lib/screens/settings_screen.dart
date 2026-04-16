@@ -22,28 +22,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _busy = false;
 
   Future<void> _exportData() async {
-    final savePath = await FilePicker.platform.saveFile(
-      dialogTitle: 'Export InvenMan database',
-      fileName: 'invenman_backup_${DateTime.now().millisecondsSinceEpoch}.sqlite',
+    final savePath = await FilePicker.saveFile(
+      dialogTitle: 'Export InvenMan backup',
+      fileName: 'invenman_backup_${DateTime.now().millisecondsSinceEpoch}.inv',
       type: FileType.custom,
-      allowedExtensions: const ['sqlite', 'db'],
+      allowedExtensions: const ['inv'],
     );
 
     if (savePath == null || savePath.trim().isEmpty) return;
 
     await _runBusy(() async {
-      await DBHelper.exportDatabaseToPath(savePath);
+      await DBHelper.exportBackupPackageToPath(savePath);
 
       if (!mounted) return;
-      _showSnackBar('Database exported successfully.');
+      _showSnackBar('Backup exported successfully.');
     });
   }
 
   Future<void> _importData() async {
-    final picked = await FilePicker.platform.pickFiles(
-      dialogTitle: 'Import InvenMan database',
+    final picked = await FilePicker.pickFiles(
+      dialogTitle: 'Import InvenMan backup',
       type: FileType.custom,
-      allowedExtensions: const ['sqlite', 'db'],
+      allowedExtensions: const ['inv'],
       allowMultiple: false,
       withData: false,
     );
@@ -79,7 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!confirmed) return;
 
     await _runBusy(() async {
-      final summary = await DBHelper.importDatabaseFromPath(path);
+      final summary = await DBHelper.importBackupPackageFromPath(path);
 
       widget.onDataChanged?.call();
 
@@ -221,17 +221,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _SettingsActionTile(
                     icon: Icons.ios_share_rounded,
-                    title: 'Export database',
+                    title: 'Export Backup',
                     subtitle:
-                        'Save a SQLite backup file to a location you choose.',
+                        'Save a portable .inv backup containing your database and images.',
                     onTap: _busy ? null : _exportData,
                   ),
                   const SizedBox(height: 12),
                   _SettingsActionTile(
                     icon: Icons.download_rounded,
-                    title: 'Import database',
+                    title: 'Import Backup',
                     subtitle:
-                        'Append records from a previously exported SQLite backup.',
+                        'Restore and append records from a previously exported .inv backup file.',
                     onTap: _busy ? null : _importData,
                   ),
                   const SizedBox(height: 12),
@@ -258,7 +258,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Current export/import is database-only. Since your app stores image/document files separately from SQLite, missing file paths are ignored during import if those files do not exist on this device.',
+                      'Save a portable backup file containing your database and images.',
                       style: TextStyle(
                         color: cs.onSurfaceVariant,
                         fontSize: 13,

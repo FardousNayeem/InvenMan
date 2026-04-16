@@ -16,7 +16,8 @@ dependencies:
   shared_preferences: any
   sqflite: any
   sqflite_common_ffi: any
-  file_picker: ^6.1.1
+  file_picker: ^11.0.2
+  archive: ^4.0.7
   image: any
   image_picker: any
 

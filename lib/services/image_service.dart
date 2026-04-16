@@ -121,7 +121,7 @@ class ImageService {
       return galleryPhotos.take(remaining).toList();
     }
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.image,
       allowMultiple: remaining > 1,
       withData: false,
@@ -240,5 +240,28 @@ class ImageService {
     final prefix = type == AppImageType.product ? 'product' : 'installment';
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     return '${prefix}_$timestamp.jpg';
+  }
+
+    static Future<Directory> getAppRootDirectory() async {
+    final baseDir = await getApplicationSupportDirectory();
+    final dir = Directory(p.join(baseDir.path, 'invenman'));
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
+  }
+
+  static Future<Directory> getImageDirectory(AppImageType type) {
+    return _getImageDirectory(type);
+  }
+
+  static Future<String> importBackupImage({
+    required File sourceFile,
+    required AppImageType type,
+  }) async {
+    final targetDir = await _getImageDirectory(type);
+    final targetPath = p.join(targetDir.path, _buildFileName(type));
+    final copied = await sourceFile.copy(targetPath);
+    return copied.path;
   }
 }
