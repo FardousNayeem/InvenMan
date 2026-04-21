@@ -31,10 +31,15 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   late final TextEditingController _quantityController;
   late final TextEditingController _colorInputController;
   late final FocusNode _categoryFocusNode;
+  late final FocusNode _brandFocusNode;
+
+  bool _showCategorySuggestionPanel = false;
+  bool _showBrandSuggestionPanel = false;
 
   final List<_WarrantyFieldData> _warrantyFields = [];
   List<String> _imagePaths = [];
   List<String> _categorySuggestions = [];
+  List<String> _brandSuggestions = [];
   List<String> _colors = [];
 
   bool _isSubmitting = false;
@@ -49,8 +54,12 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
 
     _nameController = TextEditingController(text: item?.name ?? '');
     _descriptionController = TextEditingController(text: item?.description ?? '');
-    _categoryController = TextEditingController(text: item?.category ?? '');
-    _brandController = TextEditingController(text: item?.brand ?? '');
+    _categoryController = TextEditingController(
+      text: _normalizeCategory(item?.category ?? ''),
+    );
+    _brandController = TextEditingController(
+      text: _normalizeBrand(item?.brand ?? ''),
+    );
     _supplierController = TextEditingController(text: item?.supplier ?? '');
     _costPriceController = TextEditingController(
       text: item != null ? item.costPrice.toStringAsFixed(0) : '',
@@ -63,14 +72,11 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     );
     _colorInputController = TextEditingController();
 
-    _categoryFocusNode = FocusNode()
-      ..addListener(() {
-        if (mounted) setState(() {});
-      });
+    _categoryFocusNode = FocusNode()..addListener(_handleCategoryFocusChange);
+    _brandFocusNode = FocusNode()..addListener(_handleBrandFocusChange);
 
-    _categoryController.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _categoryController.addListener(_handleCategoryChanged);
+    _brandController.addListener(_handleBrandChanged);
 
     _costPriceController.addListener(() {
       if (mounted) setState(() {});
@@ -96,6 +102,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     }
 
     _loadCategorySuggestions();
+    _loadBrandSuggestions();
   }
 
   @override
@@ -110,6 +117,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     _quantityController.dispose();
     _colorInputController.dispose();
     _categoryFocusNode.dispose();
+    _brandFocusNode.dispose();
 
     for (final field in _warrantyFields) {
       field.dispose();
@@ -127,21 +135,142 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     });
   }
 
+  Future<void> _loadBrandSuggestions() async {
+    final brands = await DBHelper.fetchDistinctBrands();
+    if (!mounted) return;
+
+    setState(() {
+      _brandSuggestions = _dedupeBrands(brands);
+    });
+  }
+
+  void _handleCategoryFocusChange() {
+    if (_categoryFocusNode.hasFocus) {
+      if (!_showCategorySuggestionPanel && mounted) {
+        setState(() => _showCategorySuggestionPanel = true);
+      }
+      return;
+    }
+
+    Future.delayed(const Duration(milliseconds: 140), () {
+      if (!mounted) return;
+      if (_categoryFocusNode.hasFocus) return;
+      if (_showCategorySuggestionPanel) {
+        setState(() => _showCategorySuggestionPanel = false);
+      }
+    });
+  }
+
+  void _handleBrandFocusChange() {
+    if (_brandFocusNode.hasFocus) {
+      if (!_showBrandSuggestionPanel && mounted) {
+        setState(() => _showBrandSuggestionPanel = true);
+      }
+      return;
+    }
+
+    Future.delayed(const Duration(milliseconds: 140), () {
+      if (!mounted) return;
+      if (_brandFocusNode.hasFocus) return;
+      if (_showBrandSuggestionPanel) {
+        setState(() => _showBrandSuggestionPanel = false);
+      }
+    });
+  }
+
+  void _handleCategoryChanged() {
+    final normalized = _normalizeCategory(_categoryController.text);
+
+    if (_categoryController.text != normalized) {
+      _categoryController.value = TextEditingValue(
+        text: normalized,
+        selection: TextSelection.collapsed(offset: normalized.length),
+      );
+      return;
+    }
+
+    if (!_showCategorySuggestionPanel && _categoryFocusNode.hasFocus && mounted) {
+      setState(() => _showCategorySuggestionPanel = true);
+      return;
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  void _handleBrandChanged() {
+    final normalized = _normalizeBrand(_brandController.text);
+
+    if (_brandController.text != normalized) {
+      _brandController.value = TextEditingValue(
+        text: normalized,
+        selection: TextSelection.collapsed(offset: normalized.length),
+      );
+      return;
+    }
+
+    if (!_showBrandSuggestionPanel && _brandFocusNode.hasFocus && mounted) {
+      setState(() => _showBrandSuggestionPanel = true);
+      return;
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  String _normalizeCategory(String value) {
+    return value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .join(' ')
+        .toUpperCase();
+  }
+
+  String _normalizeBrand(String value) {
+    final cleaned = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .join(' ');
+
+    if (cleaned.isEmpty) return '';
+
+    final lower = cleaned.toLowerCase();
+    return '${lower[0].toUpperCase()}${lower.substring(1)}';
+  }
+
   List<String> _dedupeCategories(List<String> categories) {
     final seen = <String>{};
     final cleaned = <String>[];
 
     for (final raw in categories) {
-      final trimmed = raw.trim();
-      if (trimmed.isEmpty) continue;
+      final normalized = _normalizeCategory(raw);
+      if (normalized.isEmpty) continue;
+      if (seen.contains(normalized)) continue;
 
-      final key = trimmed.toLowerCase();
+      seen.add(normalized);
+      cleaned.add(normalized);
+    }
+
+    cleaned.sort();
+    return cleaned;
+  }
+
+  List<String> _dedupeBrands(List<String> brands) {
+    final seen = <String>{};
+    final cleaned = <String>[];
+
+    for (final raw in brands) {
+      final normalized = _normalizeBrand(raw);
+      if (normalized.isEmpty) continue;
+
+      final key = normalized.toLowerCase();
       if (seen.contains(key)) continue;
 
       seen.add(key);
-      cleaned.add(trimmed);
+      cleaned.add(normalized);
     }
 
+    cleaned.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return cleaned;
   }
 
@@ -175,7 +304,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   List<String> get _filteredCategorySuggestions {
     if (_categorySuggestions.isEmpty) return const [];
 
-    final input = _categoryController.text.trim().toLowerCase();
+    final input = _normalizeCategory(_categoryController.text);
 
     if (input.isEmpty) {
       return _categorySuggestions.take(8).toList();
@@ -185,12 +314,11 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     final contains = <String>[];
 
     for (final category in _categorySuggestions) {
-      final lower = category.toLowerCase();
-      if (lower == input) continue;
+      if (category == input) continue;
 
-      if (lower.startsWith(input)) {
+      if (category.startsWith(input)) {
         startsWith.add(category);
-      } else if (lower.contains(input)) {
+      } else if (category.contains(input)) {
         contains.add(category);
       }
     }
@@ -198,24 +326,79 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     return [...startsWith, ...contains].take(8).toList();
   }
 
+  List<String> get _filteredBrandSuggestions {
+    if (_brandSuggestions.isEmpty) return const [];
+
+    final input = _normalizeBrand(_brandController.text);
+    final inputLower = input.toLowerCase();
+
+    if (inputLower.isEmpty) {
+      return _brandSuggestions.take(8).toList();
+    }
+
+    final startsWith = <String>[];
+    final contains = <String>[];
+
+    for (final brand in _brandSuggestions) {
+      final brandLower = brand.toLowerCase();
+      if (brandLower == inputLower) continue;
+
+      if (brandLower.startsWith(inputLower)) {
+        startsWith.add(brand);
+      } else if (brandLower.contains(inputLower)) {
+        contains.add(brand);
+      }
+    }
+
+    return [...startsWith, ...contains].take(8).toList();
+  }
+
   bool get _showCategorySuggestions {
-    return _categoryFocusNode.hasFocus && _categorySuggestions.isNotEmpty;
+    return _showCategorySuggestionPanel && _categorySuggestions.isNotEmpty;
+  }
+
+  bool get _showBrandSuggestions {
+    return _showBrandSuggestionPanel && _brandSuggestions.isNotEmpty;
   }
 
   bool get _hasExactCategoryMatch {
-    final input = _categoryController.text.trim().toLowerCase();
+    final input = _normalizeCategory(_categoryController.text);
     if (input.isEmpty) return false;
-    return _categorySuggestions.any((c) => c.toLowerCase() == input);
+    return _categorySuggestions.any((c) => c == input);
+  }
+
+  bool get _hasExactBrandMatch {
+    final input = _normalizeBrand(_brandController.text).toLowerCase();
+    if (input.isEmpty) return false;
+    return _brandSuggestions.any((b) => b.toLowerCase() == input);
   }
 
   void _applyCategorySuggestion(String value) {
+    final normalized = _normalizeCategory(value);
+
     setState(() {
       _categoryController.value = TextEditingValue(
-        text: value,
-        selection: TextSelection.collapsed(offset: value.length),
+        text: normalized,
+        selection: TextSelection.collapsed(offset: normalized.length),
       );
+      _showCategorySuggestionPanel = false;
     });
+
     _categoryFocusNode.unfocus();
+  }
+
+  void _applyBrandSuggestion(String value) {
+    final normalized = _normalizeBrand(value);
+
+    setState(() {
+      _brandController.value = TextEditingValue(
+        text: normalized,
+        selection: TextSelection.collapsed(offset: normalized.length),
+      );
+      _showBrandSuggestionPanel = false;
+    });
+
+    _brandFocusNode.unfocus();
   }
 
   void _addColor() {
@@ -359,12 +542,14 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
       final warranties = _buildWarranties();
       final now = DateTime.now().toUtc();
       final normalizedColors = _normalizeColors(_colors);
+      final normalizedCategory = _normalizeCategory(_categoryController.text);
+      final normalizedBrand = _normalizeBrand(_brandController.text);
 
       final item = (_isEditing ? widget.existingItem! : null)?.copyWith(
             name: _nameController.text.trim(),
             description: _descriptionController.text.trim(),
-            category: _categoryController.text.trim(),
-            brand: _brandController.text.trim(),
+            category: normalizedCategory,
+            brand: normalizedBrand,
             colors: normalizedColors,
             supplier: _supplierController.text.trim(),
             costPrice: double.parse(_costPriceController.text.trim()),
@@ -377,8 +562,8 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
           Item(
             name: _nameController.text.trim(),
             description: _descriptionController.text.trim(),
-            category: _categoryController.text.trim(),
-            brand: _brandController.text.trim(),
+            category: normalizedCategory,
+            brand: normalizedBrand,
             colors: normalizedColors,
             costPrice: double.parse(_costPriceController.text.trim()),
             sellingPrice: double.parse(_sellingPriceController.text.trim()),
@@ -410,10 +595,100 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     }
   }
 
+  InputDecoration _suggestionFieldDecoration(
+    BuildContext context, {
+    required String labelText,
+    String? hintText,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      filled: true,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: cs.outlineVariant),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionPanel({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required List<String> suggestions,
+    required String emptyText,
+    required ValueChanged<String> onSelected,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (suggestions.isEmpty)
+            Text(
+              emptyText,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: cs.onSurfaceVariant,
+                height: 1.4,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: suggestions.map((value) {
+                return ActionChip(
+                  label: Text(value),
+                  onPressed: () => onSelected(value),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final filteredSuggestions = _filteredCategorySuggestions;
+    final filteredCategorySuggestions = _filteredCategorySuggestions;
+    final filteredBrandSuggestions = _filteredBrandSuggestions;
     final moneyRelationshipError = _validateCostAgainstMrp();
 
     return Dialog(
@@ -473,84 +748,30 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                               TextFormField(
                                 controller: _categoryController,
                                 focusNode: _categoryFocusNode,
-                                decoration: InputDecoration(
+                                textCapitalization: TextCapitalization.characters,
+                                decoration: _suggestionFieldDecoration(
+                                  context,
                                   labelText: 'Category',
                                   hintText: 'AC, Fridge, Rice Cooker...',
-                                  filled: true,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                    borderSide: BorderSide(
-                                      color: cs.outlineVariant,
-                                    ),
-                                  ),
                                 ),
-                                validator: (value) =>
-                                    value == null || value.trim().isEmpty ? 'Required' : null,
+                                validator: (value) => value == null || value.trim().isEmpty
+                                    ? 'Required'
+                                    : null,
                               ),
                               if (_showCategorySuggestions) ...[
                                 const SizedBox(height: 10),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: cs.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: cs.outlineVariant),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.auto_awesome_rounded,
-                                            size: 16,
-                                            color: cs.onSurfaceVariant,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            _categoryController.text.trim().isEmpty
-                                                ? 'Previously used categories'
-                                                : _hasExactCategoryMatch
-                                                    ? 'Matching saved categories'
-                                                    : 'Suggested saved categories',
-                                            style: TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: cs.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      if (filteredSuggestions.isEmpty)
-                                        Text(
-                                          'No saved category matches yet. You can create a new one.',
-                                          style: TextStyle(
-                                            fontSize: 12.5,
-                                            color: cs.onSurfaceVariant,
-                                            height: 1.4,
-                                          ),
-                                        )
-                                      else
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: filteredSuggestions.map((category) {
-                                            return ActionChip(
-                                              label: Text(category),
-                                              onPressed: () => _applyCategorySuggestion(category),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(14),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ),
-                                    ],
-                                  ),
+                                _buildSuggestionPanel(
+                                  context: context,
+                                  icon: Icons.auto_awesome_rounded,
+                                  title: _categoryController.text.trim().isEmpty
+                                      ? 'Previously used categories'
+                                      : _hasExactCategoryMatch
+                                          ? 'Matching saved categories'
+                                          : 'Suggested saved categories',
+                                  suggestions: filteredCategorySuggestions,
+                                  emptyText:
+                                      'No saved category matches yet. You can create a new one.',
+                                  onSelected: _applyCategorySuggestion,
                                 ),
                               ],
                             ],
@@ -567,12 +788,39 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                     ),
                     const SizedBox(height: 14),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: AppTextField(
-                            controller: _brandController,
-                            label: 'Brand',
-                            hint: 'Optional',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _brandController,
+                                focusNode: _brandFocusNode,
+                                textCapitalization: TextCapitalization.words,
+                                decoration: _suggestionFieldDecoration(
+                                  context,
+                                  labelText: 'Brand',
+                                  hintText: 'Optional',
+                                ),
+                              ),
+                              if (_showBrandSuggestions) ...[
+                                const SizedBox(height: 10),
+                                _buildSuggestionPanel(
+                                  context: context,
+                                  icon: Icons.sell_rounded,
+                                  title: _brandController.text.trim().isEmpty
+                                      ? 'Previously used brands'
+                                      : _hasExactBrandMatch
+                                          ? 'Matching saved brands'
+                                          : 'Suggested saved brands',
+                                  suggestions: filteredBrandSuggestions,
+                                  emptyText:
+                                      'No saved brand matches yet. You can create a new one.',
+                                  onSelected: _applyBrandSuggestion,
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         const SizedBox(width: 12),

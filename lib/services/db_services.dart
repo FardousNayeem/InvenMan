@@ -655,6 +655,143 @@ class DBHelper {
     return copied.path;
   }
 
+  static String _normalizeStoredCategory(String value) {
+    return value.trim().toUpperCase();
+  }
+
+  static String _normalizeStoredBrand(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '';
+    return _titleCase(trimmed);
+  }
+
+  static String _formatBrand(String brand) {
+    final normalized = _normalizeStoredBrand(brand);
+    return normalized.isEmpty ? 'Not provided' : normalized;
+  }
+
+  static Future<List<String>> fetchDistinctCategories() async {
+    final dbClient = await db;
+
+    final result = await dbClient.rawQuery('''
+      SELECT DISTINCT category
+      FROM items
+      WHERE TRIM(category) != ''
+      ORDER BY category COLLATE NOCASE ASC
+    ''');
+
+    final seen = <String>{};
+    final categories = <String>[];
+
+    for (final row in result) {
+      final raw = (row['category'] as String?)?.trim() ?? '';
+      if (raw.isEmpty) continue;
+
+      final normalized = _normalizeStoredCategory(raw);
+      if (seen.add(normalized)) {
+        categories.add(normalized);
+      }
+    }
+
+    return categories;
+  }
+
+  static Future<List<String>> fetchDistinctBrands() async {
+    final dbClient = await db;
+
+    final result = await dbClient.rawQuery('''
+      SELECT DISTINCT brand
+      FROM items
+      WHERE TRIM(brand) != ''
+      ORDER BY brand COLLATE NOCASE ASC
+    ''');
+
+    final seen = <String>{};
+    final brands = <String>[];
+
+    for (final row in result) {
+      final raw = (row['brand'] as String?)?.trim() ?? '';
+      if (raw.isEmpty) continue;
+
+      final normalized = _normalizeStoredBrand(raw);
+      final key = normalized.toLowerCase();
+
+      if (seen.add(key)) {
+        brands.add(normalized);
+      }
+    }
+
+    return brands;
+  }
+
+  static Future<void> insertItem(Item item) async {
+    _validateItemFinancials(
+      costPrice: item.costPrice,
+      sellingPrice: item.sellingPrice,
+    );
+
+    final dbClient = await db;
+    final normalizedItem = item.copyWith(
+      category: _normalizeStoredCategory(item.category),
+      brand: _normalizeStoredBrand(item.brand),
+      colors: _normalizeColors(item.colors),
+    );
+
+    await dbClient.insert('items', normalizedItem.toMap());
+
+    await logHistory(
+      normalizedItem.name,
+      'Added',
+      _buildItemSnapshot(normalizedItem),
+    );
+  }
+
+  static Future<void> updateItem(Item item) async {
+    _validateItemFinancials(
+      costPrice: item.costPrice,
+      sellingPrice: item.sellingPrice,
+    );
+
+    final dbClient = await db;
+
+    Item? previousItem;
+    if (item.id != null) {
+      final maps = await dbClient.query(
+        'items',
+        where: 'id = ?',
+        whereArgs: [item.id],
+        limit: 1,
+      );
+      if (maps.isNotEmpty) {
+        previousItem = Item.fromMap(maps.first);
+      }
+    }
+
+    final normalizedItem = item.copyWith(
+      category: _normalizeStoredCategory(item.category),
+      brand: _normalizeStoredBrand(item.brand),
+      colors: _normalizeColors(item.colors),
+    );
+
+    await dbClient.update(
+      'items',
+      normalizedItem.toMap(),
+      where: 'id = ?',
+      whereArgs: [normalizedItem.id],
+    );
+
+    final historyName = previousItem?.name ?? normalizedItem.name;
+    final details = previousItem == null
+        ? _buildItemSnapshot(normalizedItem)
+        : _buildItemEditDetails(previousItem, normalizedItem);
+
+    await logHistory(
+      historyName,
+      'Edited',
+      details,
+    );
+  }
+
   static Future<DatabaseImportSummary> _importDatabaseFromPreparedPath(
     String sourcePath, {
     required Map<String, String> pathRemap,
@@ -960,11 +1097,6 @@ class DBHelper {
     return trimmed.isEmpty ? 'Not provided' : trimmed;
   }
 
-  static String _formatBrand(String brand) {
-    final trimmed = brand.trim();
-    return trimmed.isEmpty ? 'Not provided' : trimmed;
-  }
-
   static List<String> _normalizeColors(List<String> colors) {
     final seen = <String>{};
     final cleaned = <String>[];
@@ -1139,72 +1271,6 @@ class DBHelper {
     return changes.join(', ');
   }
 
-  static Future<void> insertItem(Item item) async {
-    _validateItemFinancials(
-      costPrice: item.costPrice,
-      sellingPrice: item.sellingPrice,
-    );
-
-    final dbClient = await db;
-    final normalizedItem = item.copyWith(
-      brand: item.brand.trim(),
-      colors: _normalizeColors(item.colors),
-    );
-
-    await dbClient.insert('items', normalizedItem.toMap());
-
-    await logHistory(
-      normalizedItem.name,
-      'Added',
-      _buildItemSnapshot(normalizedItem),
-    );
-  }
-
-  static Future<void> updateItem(Item item) async {
-    _validateItemFinancials(
-      costPrice: item.costPrice,
-      sellingPrice: item.sellingPrice,
-    );
-
-    final dbClient = await db;
-
-    Item? previousItem;
-    if (item.id != null) {
-      final maps = await dbClient.query(
-        'items',
-        where: 'id = ?',
-        whereArgs: [item.id],
-        limit: 1,
-      );
-      if (maps.isNotEmpty) {
-        previousItem = Item.fromMap(maps.first);
-      }
-    }
-
-    final normalizedItem = item.copyWith(
-      brand: item.brand.trim(),
-      colors: _normalizeColors(item.colors),
-    );
-
-    await dbClient.update(
-      'items',
-      normalizedItem.toMap(),
-      where: 'id = ?',
-      whereArgs: [normalizedItem.id],
-    );
-
-    final historyName = previousItem?.name ?? normalizedItem.name;
-    final details = previousItem == null
-        ? _buildItemSnapshot(normalizedItem)
-        : _buildItemEditDetails(previousItem, normalizedItem);
-
-    await logHistory(
-      historyName,
-      'Edited',
-      details,
-    );
-  }
-
   static Future<void> deleteItem(int id, String name) async {
     final dbClient = await db;
 
@@ -1287,22 +1353,6 @@ class DBHelper {
 
     if (maps.isEmpty) return null;
     return Item.fromMap(maps.first);
-  }
-
-  static Future<List<String>> fetchDistinctCategories() async {
-    final dbClient = await db;
-
-    final result = await dbClient.rawQuery('''
-      SELECT DISTINCT category
-      FROM items
-      WHERE TRIM(category) != ''
-      ORDER BY category COLLATE NOCASE ASC
-    ''');
-
-    return result
-        .map((e) => (e['category'] as String?)?.trim() ?? '')
-        .where((e) => e.isNotEmpty)
-        .toList();
   }
 
   static Future<void> insertSaleRecord(
