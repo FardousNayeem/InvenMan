@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:invenman/components/installment_file_editor.dart';
+import 'package:invenman/components/installment/installment_file_editor.dart';
 import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';

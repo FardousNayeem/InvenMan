@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:invenman/components/history_top_controls.dart';
-import 'package:invenman/components/history_group_header.dart';
-import 'package:invenman/components/history_event_card.dart';
-import 'package:invenman/components/history_insight_bar.dart';
-import 'package:invenman/components/history_detail_presenter.dart';
+import 'package:invenman/components/history/history_top_controls.dart';
+import 'package:invenman/components/history/history_group_header.dart';
+import 'package:invenman/components/history/history_event_card.dart';
+import 'package:invenman/components/history/history_insight_bar.dart';
+import 'package:invenman/components/history/history_detail_presenter.dart';
 
 import 'package:invenman/models/history.dart';
 import 'package:invenman/services/db_services.dart';

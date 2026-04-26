@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/installment_payment.dart';
-import 'package:invenman/components/installment_card.dart';
-import 'package:invenman/components/installments_top_controls.dart';
+import 'package:invenman/components/installment/installment_card.dart';
+import 'package:invenman/components/installment/installments_top_controls.dart';
 import 'package:invenman/screens/installment_details_screen.dart';
 import 'package:invenman/theme/app_ui.dart';
 

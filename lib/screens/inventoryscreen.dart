@@ -3,10 +3,10 @@ import 'package:intl/intl.dart';
 
 import 'package:invenman/services/db_services.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/components/top_controls.dart';
-import 'package:invenman/components/inventory_card.dart';
-import 'package:invenman/components/item_form.dart';
-import 'package:invenman/components/sell_form.dart';
+import 'package:invenman/components/inventory/top_controls.dart';
+import 'package:invenman/components/inventory/inventory_card.dart';
+import 'package:invenman/components/inventory/item_form.dart';
+import 'package:invenman/components/sales/sell_form.dart';
 import 'package:invenman/screens/item_details_screen.dart';
 import 'package:invenman/theme/app_ui.dart';
 
