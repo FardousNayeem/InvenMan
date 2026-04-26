@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:invenman/services/db_services.dart';
+import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/models/sale_record.dart';
 import 'package:invenman/components/sales/sale_card.dart';
 import 'package:invenman/components/sales/sales_top_controls.dart';

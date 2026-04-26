@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:invenman/components/common/app_text_field.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/services/db_services.dart';
+import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/services/image_service.dart';
 
 class ItemFormDialog extends StatefulWidget {

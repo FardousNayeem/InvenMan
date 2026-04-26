@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/services/db_services.dart';
+import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class ItemDetailsScreen extends StatefulWidget {

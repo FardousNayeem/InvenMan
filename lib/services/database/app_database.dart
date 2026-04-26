@@ -7,7 +7,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:invenman/services/database/db_shared.dart';
-import 'package:invenman/services/db_migrations.dart';
+import 'package:invenman/services/database/db_migrations.dart';
 
 class AppDatabase {
   const AppDatabase._();

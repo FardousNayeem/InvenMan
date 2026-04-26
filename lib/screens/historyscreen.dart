@@ -8,7 +8,7 @@ import 'package:invenman/components/history/history_insight_bar.dart';
 import 'package:invenman/components/history/history_detail_presenter.dart';
 
 import 'package:invenman/models/history.dart';
-import 'package:invenman/services/db_services.dart';
+import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class HistoryPage extends StatefulWidget {

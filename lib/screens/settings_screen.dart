@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import 'package:invenman/services/db_services.dart';
+import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class SettingsScreen extends StatefulWidget {
