@@ -87,18 +87,21 @@ class SellItemAction {
       throw Exception('Not enough stock available.');
     }
 
-    if (paymentType != 'direct' && paymentType != 'installment') {
+    final normalizedPaymentType = paymentType.trim().toLowerCase();
+
+    if (normalizedPaymentType != 'direct' &&
+        normalizedPaymentType != 'installment') {
       throw Exception('Payment type must be either direct or installment.');
     }
 
     final totalSaleAmount = _roundMoney(sellPricePerUnit * quantitySold);
 
-    if (paymentType == 'installment' &&
+    if (normalizedPaymentType == 'installment' &&
         (installmentMonths == null || installmentMonths <= 0)) {
       throw Exception('Installment duration must be greater than zero.');
     }
 
-    final normalizedInstallmentImages = paymentType == 'installment'
+    final normalizedInstallmentImages = normalizedPaymentType == 'installment'
         ? InstallmentRepository.normalizeInstallmentImages(
             installmentImagePaths,
           )
@@ -110,7 +113,7 @@ class SellItemAction {
       throw Exception('Please select at least one sold color.');
     }
 
-    if (paymentType == 'installment') {
+    if (normalizedPaymentType == 'installment') {
       if (downPayment == null) {
         throw Exception('Down payment is required for installment sales.');
       }
@@ -128,7 +131,7 @@ class SellItemAction {
       }
     }
 
-    if (paymentType == 'direct') {
+    if (normalizedPaymentType == 'direct') {
       installmentMonths = null;
       downPayment = null;
     }
@@ -140,7 +143,9 @@ class SellItemAction {
       updatedAt: now,
     );
 
-    final profit = (sellPricePerUnit - item.costPrice) * quantitySold;
+    final profit = _roundMoney(
+      (sellPricePerUnit - item.costPrice) * quantitySold,
+    );
 
     final sale = SaleRecord(
       itemId: item.id!,
@@ -153,7 +158,7 @@ class SellItemAction {
       customerName: customerName,
       customerPhone: customerPhone,
       customerAddress: customerAddress,
-      paymentType: paymentType,
+      paymentType: normalizedPaymentType,
       installmentMonths: installmentMonths,
       soldColors: normalizedSoldColors,
       installmentImagePaths: normalizedInstallmentImages,
@@ -172,7 +177,7 @@ class SellItemAction {
         sale,
       );
 
-      if (paymentType == 'installment' && installmentMonths != null) {
+      if (normalizedPaymentType == 'installment' && installmentMonths != null) {
         await InstallmentRepository.createInstallmentPlanForSaleTxn(
           txn,
           saleRecordId: saleId,
@@ -199,9 +204,9 @@ class SellItemAction {
         details.write(', Phone: $customerPhone');
       }
 
-      details.write(', Payment: $paymentType');
+      details.write(', Payment: $normalizedPaymentType');
 
-      if (paymentType == 'installment' && installmentMonths != null) {
+      if (normalizedPaymentType == 'installment' && installmentMonths != null) {
         details.write(', Installment: $installmentMonths month(s)');
         details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
         details.write(', Docs: ${normalizedInstallmentImages.length}');

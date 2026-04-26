@@ -7,7 +7,7 @@ import 'package:invenman/components/common/app_text_field.dart';
 import 'package:invenman/components/common/sensitive_value_text.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/services/database/db_services.dart';
-import 'package:invenman/services/image_service.dart';
+import 'package:invenman/services/media/image_service.dart';
 
 class SellItemDialog extends StatefulWidget {
   final Item item;

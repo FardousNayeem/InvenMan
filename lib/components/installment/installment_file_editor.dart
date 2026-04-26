@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:invenman/services/image_service.dart';
+import 'package:invenman/services/media/image_service.dart';
 
 class InstallmentDocumentEditorDialog extends StatefulWidget {
   final String title;

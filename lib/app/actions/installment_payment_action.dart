@@ -60,14 +60,22 @@ class RecordInstallmentPaymentAction {
       }
 
       final payment = InstallmentPayment.fromMap(paymentMaps.first);
+    
+      if (amountPaid > payment.amountDue) {
+        throw Exception('Payment cannot exceed due amount.');
+      }
 
-      final normalizedPaidDate = amountPaid > 0 ? (paidDate ?? _nowUtc()) : null;
+      final normalizedPaidDate = paidDate == null
+        ? null
+        : DateTime.utc(
+            paidDate.year,
+            paidDate.month,
+            paidDate.day,
+          );
       final normalizedNote = (note ?? '').trim().isEmpty ? null : note?.trim();
 
-      final normalizedAmountDue = amountPaid > payment.amountDue
-          ? _wholeMoney(amountPaid)
-          : _wholeMoney(payment.amountDue);
-
+      final normalizedAmountDue = _wholeMoney(payment.amountDue);
+      
       final newStatus = _paymentRowStatus(
         dueDate: payment.dueDate,
         amountDue: normalizedAmountDue,

@@ -12,7 +12,7 @@ import 'package:invenman/app/actions/installment_payment_action.dart';
 import 'package:invenman/app/actions/sell_item_action.dart';
 import 'package:invenman/app/actions/update_installment_documents_action.dart';
 
-import 'package:invenman/services/backup/backup_models.dart';
+import 'package:invenman/models/backup_models.dart';
 import 'package:invenman/services/backup/backup_service.dart';
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/repositories/history_repository.dart';

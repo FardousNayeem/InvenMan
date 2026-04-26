@@ -11,7 +11,7 @@ import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
-import 'package:invenman/services/backup/backup_models.dart';
+import 'package:invenman/models/backup_models.dart';
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
 
@@ -21,7 +21,8 @@ class BackupService {
   static const String _backupManifestFileName = 'manifest.json';
   static const String _backupDatabaseFileName = 'database.sqlite';
   static const int _backupFormatVersion = 1;
-
+  static int _importAssetSequence = 0;
+  
   static Map<String, dynamic> _withoutId(Map<String, dynamic> map) {
     final copy = Map<String, dynamic>.from(map);
     copy.remove('id');
@@ -371,15 +372,20 @@ class BackupService {
         throw Exception('Backup database is missing.');
       }
 
-      final pathRemap = await _restoreBackupAssets(
-        extractDir: extractDir,
-        manifest: manifest,
-      );
+    final pathRemap = await _restoreBackupAssets(
+      extractDir: extractDir,
+      manifest: manifest,
+    );
 
-      return _importDatabaseFromPreparedPath(
+    try {
+      return await _importDatabaseFromPreparedPath(
         extractedDbFile.path,
         pathRemap: pathRemap,
       );
+    } catch (_) {
+      await _deleteImportedAssets(pathRemap.values);
+      rethrow;
+    }  
     } on ArchiveException {
       throw Exception('Selected file is not a valid InvenMan backup.');
     } on FormatException {
@@ -442,9 +448,10 @@ class BackupService {
 
     final prefix = kind == 'installment' ? 'installment' : 'product';
 
+    _importAssetSequence = (_importAssetSequence + 1) % 100000;
     final targetPath = p.join(
       targetDir.path,
-      '${prefix}_${DateTime.now().microsecondsSinceEpoch}$ext',
+      '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$_importAssetSequence$ext',
     );
 
     final copied = await sourceFile.copy(targetPath);
@@ -675,6 +682,22 @@ class BackupService {
       }
     } finally {
       await validationDb?.close();
+    }
+  }
+
+  static Future<void> _deleteImportedAssets(Iterable<String> paths) async {
+    for (final path in paths) {
+      final trimmed = path.trim();
+      if (trimmed.isEmpty) continue;
+
+      try {
+        final file = File(trimmed);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (_) {
+
+      }
     }
   }
 
