@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:invenman/services/image_service.dart';
@@ -27,22 +28,44 @@ class _InstallmentDocumentEditorDialogState
   late List<String> _paths;
   bool _isSaving = false;
 
+  late final List<String> _initialPaths;
+  final Set<String> _newPaths = {};
+  final Set<String> _removedExistingPaths = {};
+  bool _didCommitChanges = false;
+
   @override
   void initState() {
     super.initState();
     _paths = List<String>.from(widget.initialPaths);
+    _initialPaths = List<String>.from(_paths);
+  }
+
+  @override
+  void dispose() {
+    if (!_didCommitChanges && _newPaths.isNotEmpty) {
+      unawaited(ImageService.deleteImageFiles(_newPaths));
+    }
+
+    super.dispose();
   }
 
   Future<void> _pickMore() async {
     try {
+      final before = _paths.toSet();
+
       final picked = await ImageService.pickAndProcessInstallmentImages(
         existingPaths: _paths,
         context: context,
       );
+
       if (!mounted) return;
 
+      final limited = picked.take(5).toList();
+      final addedPaths = limited.where((path) => !before.contains(path));
+
       setState(() {
-        _paths = picked.take(5).toList();
+        _paths = limited;
+        _newPaths.addAll(addedPaths);
       });
     } catch (e) {
       if (!mounted) return;
@@ -56,28 +79,45 @@ class _InstallmentDocumentEditorDialogState
     setState(() {
       _paths.remove(path);
     });
-    await ImageService.deleteImageFile(path);
+
+    if (_newPaths.remove(path)) {
+      await ImageService.deleteImageFile(path);
+      return;
+    }
+
+    if (_initialPaths.contains(path)) {
+      _removedExistingPaths.add(path);
+    }
   }
 
   Future<void> _save() async {
     if (_isSaving) return;
 
     setState(() => _isSaving = true);
+
     try {
       await widget.onSave(_paths);
+
+      final deletedPaths = _removedExistingPaths.where(
+        (path) => !_paths.contains(path),
+      );
+
+      await ImageService.deleteImageFiles(deletedPaths);
+
+      _didCommitChanges = true;
+      _newPaths.clear();
+      _removedExistingPaths.clear();
+
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
+
       setState(() => _isSaving = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
-      return;
-    }
-
-    if (mounted) {
-      setState(() => _isSaving = false);
     }
   }
 

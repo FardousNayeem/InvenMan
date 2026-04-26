@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:invenman/components/common/app_text_field.dart';
@@ -37,10 +38,15 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   bool _showBrandSuggestionPanel = false;
 
   final List<_WarrantyFieldData> _warrantyFields = [];
-  List<String> _imagePaths = [];
   List<String> _categorySuggestions = [];
   List<String> _brandSuggestions = [];
   List<String> _colors = [];
+  List<String> _imagePaths = [];
+
+  late final List<String> _initialImagePaths;
+  final Set<String> _newImagePaths = {};
+  final Set<String> _removedExistingImagePaths = {};
+  bool _didCommitImageChanges = false;
 
   bool _isSubmitting = false;
 
@@ -87,6 +93,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     });
 
     _imagePaths = List<String>.from(item?.imagePaths ?? const []);
+    _initialImagePaths = List<String>.from(_imagePaths);
     _colors = _normalizeColors(item?.colors ?? const []);
 
     final warranties = item?.warranties ?? const <String, int>{};
@@ -121,6 +128,9 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
 
     for (final field in _warrantyFields) {
       field.dispose();
+    }
+    if (!_didCommitImageChanges && _newImagePaths.isNotEmpty) {
+      unawaited(ImageService.deleteImageFiles(_newImagePaths));
     }
 
     super.dispose();
@@ -450,13 +460,19 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
 
   Future<void> _pickImages() async {
     try {
+      final before = _imagePaths.toSet();
+
       final picked = await ImageService.pickAndProcessImages(
         existingPaths: _imagePaths,
       );
+
       if (!mounted) return;
+
+      final addedPaths = picked.where((path) => !before.contains(path));
 
       setState(() {
         _imagePaths = picked;
+        _newImagePaths.addAll(addedPaths);
       });
     } catch (e) {
       if (!mounted) return;
@@ -470,9 +486,17 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
     setState(() {
       _imagePaths.remove(path);
     });
-    await ImageService.deleteImageFile(path);
-  }
 
+    if (_newImagePaths.remove(path)) {
+      await ImageService.deleteImageFile(path);
+      return;
+    }
+
+    if (_initialImagePaths.contains(path)) {
+      _removedExistingImagePaths.add(path);
+    }
+  }
+ 
   void _addWarrantyField() {
     if (_warrantyFields.length >= 5) return;
 
@@ -580,6 +604,15 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
       } else {
         await DBHelper.insertItem(item);
       }
+
+      final deletedPaths = _removedExistingImagePaths.where(
+        (path) => !_imagePaths.contains(path),
+      );
+
+      await ImageService.deleteImageFiles(deletedPaths);
+      _didCommitImageChanges = true;
+      _newImagePaths.clear();
+      _removedExistingImagePaths.clear();
 
       if (!mounted) return;
       Navigator.pop(context, true);

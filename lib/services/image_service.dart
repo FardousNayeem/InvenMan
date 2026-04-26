@@ -18,6 +18,7 @@ class ImageService {
   static const int maxImagesPerSet = 5;
   static const int _maxDimension = 1600;
   static const int _jpgQuality = 88;
+  static int _fileSequence = 0;
 
   static Future<List<String>> pickAndProcessImages({
     required List<String> existingPaths,
@@ -238,11 +239,18 @@ class ImageService {
 
   static String _buildFileName(AppImageType type) {
     final prefix = type == AppImageType.product ? 'product' : 'installment';
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${prefix}_$timestamp.jpg';
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    _fileSequence = (_fileSequence + 1) % 100000;
+    return '${prefix}_${timestamp}_$_fileSequence.jpg';
   }
 
-    static Future<Directory> getAppRootDirectory() async {
+  static Future<void> deleteImageFiles(Iterable<String> paths) async {
+    for (final path in paths) {
+      await deleteImageFile(path);
+    }
+  }
+
+  static Future<Directory> getAppRootDirectory() async {
     final baseDir = await getApplicationSupportDirectory();
     final dir = Directory(p.join(baseDir.path, 'invenman'));
     if (!await dir.exists()) {
