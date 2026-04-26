@@ -44,12 +44,11 @@ class InventoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = ResponsiveCardUtils.isCompact(context);
-    final stockColor = _stockColor();
-    final stockLabel = _stockLabel();
 
     return InteractiveCardShell(
       onTap: onTap,
       borderRadius: compact ? 24 : 26,
+      pressedScale: 0.988,
       child: Padding(
         padding: ResponsiveCardUtils.cardPadding(context),
         child: compact
@@ -57,8 +56,8 @@ class InventoryCard extends StatelessWidget {
                 item: item,
                 formattedCreatedAt: formattedCreatedAt,
                 formattedUpdatedAt: formattedUpdatedAt,
-                stockColor: stockColor,
-                stockLabel: stockLabel,
+                stockColor: _stockColor(),
+                stockLabel: _stockLabel(),
                 onSell: onSell,
                 onEdit: onEdit,
                 onDelete: onDelete,
@@ -67,8 +66,8 @@ class InventoryCard extends StatelessWidget {
                 item: item,
                 formattedCreatedAt: formattedCreatedAt,
                 formattedUpdatedAt: formattedUpdatedAt,
-                stockColor: stockColor,
-                stockLabel: stockLabel,
+                stockColor: _stockColor(),
+                stockLabel: _stockLabel(),
                 onSell: onSell,
                 onEdit: onEdit,
                 onDelete: onDelete,
@@ -118,20 +117,22 @@ class _InventoryCardWide extends StatelessWidget {
           child: _InventoryMainInfo(
             item: item,
             brandText: _brandText,
-            formattedCreatedAt: formattedCreatedAt,
-            formattedUpdatedAt: formattedUpdatedAt,
             stockColor: stockColor,
             stockLabel: stockLabel,
             compact: false,
           ),
         ),
-        const SizedBox(width: 18),
-        _InventoryActions(
-          item: item,
-          onSell: onSell,
-          onEdit: onEdit,
-          onDelete: onDelete,
-          compact: false,
+        const SizedBox(width: 16),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: _InventoryRightRail(
+            formattedCreatedAt: formattedCreatedAt,
+            formattedUpdatedAt: formattedUpdatedAt,
+            item: item,
+            onSell: onSell,
+            onEdit: onEdit,
+            onDelete: onDelete,
+          ),
         ),
       ],
     );
@@ -209,8 +210,6 @@ class _InventoryCardCompact extends StatelessWidget {
 class _InventoryMainInfo extends StatelessWidget {
   final Item item;
   final String brandText;
-  final String formattedCreatedAt;
-  final String formattedUpdatedAt;
   final Color stockColor;
   final String stockLabel;
   final bool compact;
@@ -218,8 +217,6 @@ class _InventoryMainInfo extends StatelessWidget {
   const _InventoryMainInfo({
     required this.item,
     required this.brandText,
-    required this.formattedCreatedAt,
-    required this.formattedUpdatedAt,
     required this.stockColor,
     required this.stockLabel,
     required this.compact,
@@ -227,45 +224,19 @@ class _InventoryMainInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 300),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _InventoryTitleRow(
-                item: item,
-                compact: compact,
-              ),
-              const SizedBox(height: 6),
-              _InventoryMetaChips(
-                item: item,
-                brandText: brandText,
-              ),
-              _InventoryOptionalDescriptionAndSupplier(item: item),
-              const SizedBox(height: 14),
-              _InventoryMetrics(
-                item: item,
-                stockColor: stockColor,
-                stockLabel: stockLabel,
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: ResponsiveChipWrap(
-            spacing: 8,
-            runSpacing: 6,
-            alignment: WrapAlignment.end,
-            children: [
-              MetaText(label: 'Added', value: formattedCreatedAt),
-              MetaText(label: 'Updated', value: formattedUpdatedAt),
-            ],
-          ),
+        _InventoryTitleRow(item: item, compact: compact),
+        const SizedBox(height: 8),
+        _InventoryMetaChips(item: item, brandText: brandText),
+        _InventoryOptionalDescriptionAndSupplier(item: item),
+        const SizedBox(height: 14),
+        _InventoryMetrics(
+          item: item,
+          stockColor: stockColor,
+          stockLabel: stockLabel,
         ),
       ],
     );
@@ -286,13 +257,9 @@ class _InventoryHeaderAndMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _InventoryTitleRow(
-          item: item,
-          compact: compact,
-        ),
+        _InventoryTitleRow(item: item, compact: compact),
         const SizedBox(height: 6),
         _InventoryMetaChips(
           item: item,
@@ -321,23 +288,27 @@ class _InventoryTitleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = item.name.trim().isEmpty ? 'Unnamed item' : item.name.trim();
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          title,
-          maxLines: compact ? 2 : 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: ResponsiveCardUtils.titleFontSize(context),
-            fontWeight: FontWeight.w800,
-            letterSpacing: compact ? -0.28 : -0.35,
-            height: compact ? 1.12 : 1.1,
+        Flexible(
+          child: Text(
+            title,
+            maxLines: compact ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: ResponsiveCardUtils.titleFontSize(context),
+              fontWeight: FontWeight.w800,
+              letterSpacing: compact ? -0.28 : -0.35,
+              height: 1.1,
+            ),
           ),
         ),
-        _CategoryPill(label: item.category),
+        const SizedBox(width: 10),
+        Flexible(
+          flex: 0,
+          child: _CategoryPill(label: item.category),
+        ),
       ],
     );
   }
@@ -440,6 +411,99 @@ class _InventoryOptionalDescriptionAndSupplier extends StatelessWidget {
   }
 }
 
+class _InventoryRightRail extends StatelessWidget {
+  final String formattedCreatedAt;
+  final String formattedUpdatedAt;
+  final Item item;
+  final VoidCallback onSell;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _InventoryRightRail({
+    required this.formattedCreatedAt,
+    required this.formattedUpdatedAt,
+    required this.item,
+    required this.onSell,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: ResponsiveCardUtils.visualSize(context) + 72,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _InventoryDateMeta(
+            formattedCreatedAt: formattedCreatedAt,
+            formattedUpdatedAt: formattedUpdatedAt,
+            alignEnd: true,
+            forceSingleLine: true,
+          ),
+          const Spacer(),
+          _InventoryActions(
+            item: item,
+            onSell: onSell,
+            onEdit: onEdit,
+            onDelete: onDelete,
+            compact: false,
+          ),
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+}
+
+class _InventoryDateMeta extends StatelessWidget {
+  final String formattedCreatedAt;
+  final String formattedUpdatedAt;
+  final bool alignEnd;
+  final bool forceSingleLine;
+
+  const _InventoryDateMeta({
+    required this.formattedCreatedAt,
+    required this.formattedUpdatedAt,
+    this.alignEnd = false,
+    this.forceSingleLine = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MetaText(label: 'Added', value: formattedCreatedAt),
+        const SizedBox(width: 10),
+        MetaText(label: 'Updated', value: formattedUpdatedAt),
+      ],
+    );
+
+    if (forceSingleLine) {
+      return Align(
+        alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+          child: row,
+        ),
+      );
+    }
+
+    return Wrap(
+      alignment: alignEnd ? WrapAlignment.end : WrapAlignment.start,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 4,
+      children: [
+        MetaText(label: 'Added', value: formattedCreatedAt),
+        MetaText(label: 'Updated', value: formattedUpdatedAt),
+      ],
+    );
+  }
+}
+
 class _InventoryDateAndActionsRow extends StatelessWidget {
   final String formattedCreatedAt;
   final String formattedUpdatedAt;
@@ -463,13 +527,9 @@ class _InventoryDateAndActionsRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: ResponsiveChipWrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              MetaText(label: 'Added', value: formattedCreatedAt),
-              MetaText(label: 'Updated', value: formattedUpdatedAt),
-            ],
+          child: _InventoryDateMeta(
+            formattedCreatedAt: formattedCreatedAt,
+            formattedUpdatedAt: formattedUpdatedAt,
           ),
         ),
         const SizedBox(width: 10),
@@ -553,47 +613,23 @@ class _InventoryActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (compact) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ActionButton(
-            width: 58,
-            height: 46,
-            icon: Icons.point_of_sale_rounded,
-            iconSize: 24,
-            borderRadius: 16,
-            filled: true,
-            tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
-            onPressed: item.quantity <= 0 ? null : onSell,
-          ),
-          const SizedBox(width: 8),
-          _OverflowActionButton(
-            compact: true,
-            size: 42,
-            onEdit: onEdit,
-            onDelete: onDelete,
-          ),
-        ],
-      );
-    }
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _ActionButton(
-          width: 84,
-          height: 56,
+          width: compact ? 64 : 92,
+          height: compact ? 52 : 64,
           icon: Icons.point_of_sale_rounded,
-          iconSize: 29,
-          borderRadius: 20,
+          iconSize: compact ? 24 : 32,
+          borderRadius: compact ? 16 : 20,
           filled: true,
           tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
           onPressed: item.quantity <= 0 ? null : onSell,
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: compact ? 8 : 10),
         _OverflowActionButton(
-          size: 48,
+          compact: compact,
+          size: compact ? 42 : 48,
           onEdit: onEdit,
           onDelete: onDelete,
         ),
@@ -629,6 +665,7 @@ class _InventoryItemVisual extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.55)),
       ),
       alignment: Alignment.center,
       child: Icon(
@@ -655,15 +692,27 @@ class _ItemImagePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: width,
-        height: height,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        alignment: Alignment.center,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.45)),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+            color: Colors.black.withOpacity(0.08),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(19),
         child: Padding(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(5),
           child: Image.file(
             File(path),
             fit: BoxFit.contain,
@@ -690,21 +739,27 @@ class _CategoryPill extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final text = label.trim().isEmpty ? 'Uncategorized' : label.trim();
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
       decoration: BoxDecoration(
         color: cs.secondaryContainer,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: cs.onSecondaryContainer.withOpacity(0.06),
+        ),
       ),
       child: Text(
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
         style: TextStyle(
           color: cs.onSecondaryContainer,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          fontSize: 11.8,
+          height: 1,
+          letterSpacing: 0.15,
         ),
       ),
     );
@@ -742,6 +797,7 @@ class _ActionButton extends StatelessWidget {
             style: FilledButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
+              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(borderRadius),
               ),
@@ -787,14 +843,13 @@ class _OverflowActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return PopupMenuButton<String>(
       tooltip: 'More actions',
       onSelected: (value) {
-        if (value == 'edit') {
-          onEdit();
-        } else if (value == 'delete') {
-          onDelete();
-        }
+        if (value == 'edit') onEdit();
+        if (value == 'delete') onDelete();
       },
       itemBuilder: (_) => const [
         PopupMenuItem(
@@ -814,16 +869,17 @@ class _OverflowActionButton extends StatelessWidget {
           ),
         ),
       ],
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
         width: size,
         height: size,
         decoration: BoxDecoration(
+          color: cs.surfaceContainerLow.withOpacity(0.68),
           borderRadius: BorderRadius.circular(compact ? 14 : 16),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
+          border: Border.all(color: cs.outlineVariant),
         ),
-        child: const Icon(Icons.more_horiz_rounded),
+        child: const Icon(Icons.more_vert_rounded),
       ),
     );
   }
