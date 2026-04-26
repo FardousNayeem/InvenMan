@@ -1,12 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:invenman/models/item.dart';
 
 import 'package:invenman/components/common/interactive_card_shell.dart';
 import 'package:invenman/components/common/meta_inline_chip.dart';
 import 'package:invenman/components/common/meta_text.dart';
 import 'package:invenman/components/common/metric_chip.dart';
+import 'package:invenman/components/common/responsive_card_utils.dart';
+import 'package:invenman/models/item.dart';
 
 class InventoryCard extends StatelessWidget {
   final Item item;
@@ -42,19 +43,22 @@ class InventoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 760;
+    final compact = ResponsiveCardUtils.isCompact(context);
+    final stockColor = _stockColor();
+    final stockLabel = _stockLabel();
 
     return InteractiveCardShell(
       onTap: onTap,
+      borderRadius: compact ? 24 : 26,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: ResponsiveCardUtils.cardPadding(context),
         child: compact
             ? _InventoryCardCompact(
                 item: item,
                 formattedCreatedAt: formattedCreatedAt,
                 formattedUpdatedAt: formattedUpdatedAt,
-                stockColor: _stockColor(),
-                stockLabel: _stockLabel(),
+                stockColor: stockColor,
+                stockLabel: stockLabel,
                 onSell: onSell,
                 onEdit: onEdit,
                 onDelete: onDelete,
@@ -63,8 +67,8 @@ class InventoryCard extends StatelessWidget {
                 item: item,
                 formattedCreatedAt: formattedCreatedAt,
                 formattedUpdatedAt: formattedUpdatedAt,
-                stockColor: _stockColor(),
-                stockLabel: _stockLabel(),
+                stockColor: stockColor,
+                stockLabel: stockLabel,
                 onSell: onSell,
                 onEdit: onEdit,
                 onDelete: onDelete,
@@ -95,186 +99,39 @@ class _InventoryCardWide extends StatelessWidget {
     required this.onDelete,
   });
 
-  String get _brandText =>
-      item.brand.trim().isEmpty ? 'Unbranded' : item.brand.trim();
+  String get _brandText {
+    final brand = item.brand.trim();
+    return brand.isEmpty ? 'Unbranded' : brand;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _InventoryItemVisual(
           item: item,
-          size: 102,
+          size: ResponsiveCardUtils.visualSize(context),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: ResponsiveCardUtils.horizontalGap(context)),
         Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 6,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            item.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 20.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.35,
-                              height: 1.1,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        _CategoryPill(label: item.category),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Flexible(
-                    flex: 4,
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 12,
-                        runSpacing: 6,
-                        children: [
-                          MetaText(label: 'Added', value: formattedCreatedAt),
-                          MetaText(label: 'Updated', value: formattedUpdatedAt),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  MetaInlineChip(
-                    icon: Icons.workspace_premium_outlined,
-                    text: _brandText,
-                  ),
-                  if (item.colors.isNotEmpty)
-                    MetaInlineChip(
-                      icon: Icons.palette_outlined,
-                      text: item.colors.join(', '),
-                    ),
-                ],
-              ),
-              if (item.description.trim().isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  item.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.8,
-                    height: 1.38,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-              if (item.supplier.trim().isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.local_shipping_outlined,
-                      size: 16,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        item.supplier,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  MetricChip(
-                    icon: Icons.shopping_bag_outlined,
-                    label: 'Cost',
-                    sensitiveText: item.costPrice.toStringAsFixed(0),
-                    isSensitive: true,
-                  ),
-                  MetricChip(
-                    icon: Icons.sell_outlined,
-                    label: 'MRP',
-                    valueText: item.sellingPrice.toStringAsFixed(0),
-                  ),
-                  MetricChip(
-                    icon: Icons.inventory_2_outlined,
-                    label: 'Stock',
-                    valueText: '${item.quantity} • $stockLabel',
-                    valueColor: stockColor,
-                  ),
-                  if (item.warranties.isNotEmpty)
-                    MetricChip(
-                      icon: Icons.verified_outlined,
-                      label: 'Warranty',
-                      valueText: '${item.warranties.length} type(s)',
-                    ),
-                  if (item.imagePaths.isNotEmpty)
-                    MetricChip(
-                      icon: Icons.image_outlined,
-                      label: 'Images',
-                      valueText: '${item.imagePaths.length}',
-                    ),
-                ],
-              ),
-            ],
+          child: _InventoryMainInfo(
+            item: item,
+            brandText: _brandText,
+            formattedCreatedAt: formattedCreatedAt,
+            formattedUpdatedAt: formattedUpdatedAt,
+            stockColor: stockColor,
+            stockLabel: stockLabel,
+            compact: false,
           ),
         ),
         const SizedBox(width: 18),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _ActionButton(
-              width: 84,
-              height: 56,
-              icon: Icons.point_of_sale_rounded,
-              iconSize: 29,
-              borderRadius: 20,
-              filled: true,
-              tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
-              onPressed: item.quantity <= 0 ? null : onSell,
-            ),
-            const SizedBox(width: 10),
-            _OverflowActionButton(
-              size: 48,
-              onEdit: onEdit,
-              onDelete: onDelete,
-            ),
-          ],
+        _InventoryActions(
+          item: item,
+          onSell: onSell,
+          onEdit: onEdit,
+          onDelete: onDelete,
+          compact: false,
         ),
       ],
     );
@@ -302,13 +159,13 @@ class _InventoryCardCompact extends StatelessWidget {
     required this.onDelete,
   });
 
-  String get _brandText =>
-      item.brand.trim().isEmpty ? 'Unbranded' : item.brand.trim();
+  String get _brandText {
+    final brand = item.brand.trim();
+    return brand.isEmpty ? 'Unbranded' : brand;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -317,170 +174,438 @@ class _InventoryCardCompact extends StatelessWidget {
           children: [
             _InventoryItemVisual(
               item: item,
-              size: 84,
+              size: ResponsiveCardUtils.visualSize(context),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18.8,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.28,
-                            height: 1.12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _CategoryPill(label: item.category),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      MetaInlineChip(
-                        icon: Icons.workspace_premium_outlined,
-                        text: _brandText,
-                      ),
-                      if (item.colors.isNotEmpty)
-                        MetaInlineChip(
-                          icon: Icons.palette_outlined,
-                          text: item.colors.join(', '),
-                        ),
-                    ],
-                  ),
-                  if (item.description.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      item.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        height: 1.35,
-                        color: cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                  if (item.supplier.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.local_shipping_outlined,
-                          size: 15.5,
-                          color: cs.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            item.supplier,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12.8,
-                              fontWeight: FontWeight.w700,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+              child: _InventoryHeaderAndMeta(
+                item: item,
+                brandText: _brandText,
+                compact: true,
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Wrap(
-                spacing: 10,
-                runSpacing: 6,
-                children: [
-                  MetaText(label: 'Added', value: formattedCreatedAt),
-                  MetaText(label: 'Updated', value: formattedUpdatedAt),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            _ActionButton(
-              width: 58,
-              height: 46,
-              icon: Icons.point_of_sale_rounded,
-              iconSize: 24,
-              borderRadius: 16,
-              filled: true,
-              tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
-              onPressed: item.quantity <= 0 ? null : onSell,
-            ),
-            const SizedBox(width: 8),
-            _OverflowActionButton(
-              compact: true,
-              size: 42,
-              onEdit: onEdit,
-              onDelete: onDelete,
-            ),
-          ],
+        _InventoryDateAndActionsRow(
+          formattedCreatedAt: formattedCreatedAt,
+          formattedUpdatedAt: formattedUpdatedAt,
+          item: item,
+          onSell: onSell,
+          onEdit: onEdit,
+          onDelete: onDelete,
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            MetricChip(
-              icon: Icons.shopping_bag_outlined,
-              label: 'Cost',
-              sensitiveText: item.costPrice.toStringAsFixed(0),
-              isSensitive: true,
-            ),
-            MetricChip(
-              icon: Icons.sell_outlined,
-              label: 'MRP',
-              valueText: item.sellingPrice.toStringAsFixed(0),
-            ),
-            MetricChip(
-              icon: Icons.inventory_2_outlined,
-              label: 'Stock',
-              valueText: '${item.quantity} • $stockLabel',
-              valueColor: stockColor,
-            ),
-            if (item.warranties.isNotEmpty)
-              MetricChip(
-                icon: Icons.verified_outlined,
-                label: 'Warranty',
-                valueText: '${item.warranties.length} type(s)',
-              ),
-            if (item.imagePaths.isNotEmpty)
-              MetricChip(
-                icon: Icons.image_outlined,
-                label: 'Images',
-                valueText: '${item.imagePaths.length}',
-              ),
-          ],
+        _InventoryMetrics(
+          item: item,
+          stockColor: stockColor,
+          stockLabel: stockLabel,
         ),
       ],
     );
   }
 }
 
+class _InventoryMainInfo extends StatelessWidget {
+  final Item item;
+  final String brandText;
+  final String formattedCreatedAt;
+  final String formattedUpdatedAt;
+  final Color stockColor;
+  final String stockLabel;
+  final bool compact;
 
+  const _InventoryMainInfo({
+    required this.item,
+    required this.brandText,
+    required this.formattedCreatedAt,
+    required this.formattedUpdatedAt,
+    required this.stockColor,
+    required this.stockLabel,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 6,
+              child: _InventoryTitleRow(
+                item: item,
+                compact: compact,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Flexible(
+              flex: 4,
+              child: Align(
+                alignment: Alignment.topRight,
+                child: ResponsiveChipWrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    MetaText(label: 'Added', value: formattedCreatedAt),
+                    MetaText(label: 'Updated', value: formattedUpdatedAt),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        _InventoryMetaChips(
+          item: item,
+          brandText: brandText,
+        ),
+        _InventoryOptionalDescriptionAndSupplier(item: item),
+        const SizedBox(height: 14),
+        _InventoryMetrics(
+          item: item,
+          stockColor: stockColor,
+          stockLabel: stockLabel,
+        ),
+      ],
+    );
+  }
+}
+
+class _InventoryHeaderAndMeta extends StatelessWidget {
+  final Item item;
+  final String brandText;
+  final bool compact;
+
+  const _InventoryHeaderAndMeta({
+    required this.item,
+    required this.brandText,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _InventoryTitleRow(
+          item: item,
+          compact: compact,
+        ),
+        const SizedBox(height: 6),
+        _InventoryMetaChips(
+          item: item,
+          brandText: brandText,
+          compact: compact,
+        ),
+        _InventoryOptionalDescriptionAndSupplier(
+          item: item,
+          compact: compact,
+        ),
+      ],
+    );
+  }
+}
+
+class _InventoryTitleRow extends StatelessWidget {
+  final Item item;
+  final bool compact;
+
+  const _InventoryTitleRow({
+    required this.item,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final title = item.name.trim().isEmpty ? 'Unnamed item' : item.name.trim();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            maxLines: compact ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: ResponsiveCardUtils.titleFontSize(context),
+              fontWeight: FontWeight.w800,
+              letterSpacing: compact ? -0.28 : -0.35,
+              height: compact ? 1.12 : 1.1,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _CategoryPill(label: item.category),
+      ],
+    );
+  }
+}
+
+class _InventoryMetaChips extends StatelessWidget {
+  final Item item;
+  final String brandText;
+  final bool compact;
+
+  const _InventoryMetaChips({
+    required this.item,
+    required this.brandText,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ResponsiveChipWrap(
+      spacing: compact ? 8 : 10,
+      runSpacing: 8,
+      children: [
+        MetaInlineChip(
+          icon: Icons.workspace_premium_outlined,
+          text: brandText,
+        ),
+        if (item.colors.isNotEmpty)
+          MetaInlineChip(
+            icon: Icons.palette_outlined,
+            text: item.colors.join(', '),
+          ),
+      ],
+    );
+  }
+}
+
+class _InventoryOptionalDescriptionAndSupplier extends StatelessWidget {
+  final Item item;
+  final bool compact;
+
+  const _InventoryOptionalDescriptionAndSupplier({
+    required this.item,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final description = item.description.trim();
+    final supplier = item.supplier.trim();
+
+    if (description.isEmpty && supplier.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (description.isNotEmpty) ...[
+          SizedBox(height: compact ? 6 : 8),
+          Text(
+            description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: compact ? 13.5 : 13.8,
+              height: compact ? 1.35 : 1.38,
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+        if (supplier.isNotEmpty) ...[
+          SizedBox(height: compact ? 6 : 8),
+          Row(
+            children: [
+              Icon(
+                Icons.local_shipping_outlined,
+                size: compact ? 15.5 : 16,
+                color: cs.onSurfaceVariant,
+              ),
+              SizedBox(width: compact ? 6 : 7),
+              Expanded(
+                child: Text(
+                  supplier,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 12.8 : 13,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InventoryDateAndActionsRow extends StatelessWidget {
+  final String formattedCreatedAt;
+  final String formattedUpdatedAt;
+  final Item item;
+  final VoidCallback onSell;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _InventoryDateAndActionsRow({
+    required this.formattedCreatedAt,
+    required this.formattedUpdatedAt,
+    required this.item,
+    required this.onSell,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: ResponsiveChipWrap(
+            spacing: 10,
+            runSpacing: 6,
+            children: [
+              MetaText(label: 'Added', value: formattedCreatedAt),
+              MetaText(label: 'Updated', value: formattedUpdatedAt),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        _InventoryActions(
+          item: item,
+          onSell: onSell,
+          onEdit: onEdit,
+          onDelete: onDelete,
+          compact: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _InventoryMetrics extends StatelessWidget {
+  final Item item;
+  final Color stockColor;
+  final String stockLabel;
+
+  const _InventoryMetrics({
+    required this.item,
+    required this.stockColor,
+    required this.stockLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ResponsiveChipWrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        MetricChip(
+          icon: Icons.shopping_bag_outlined,
+          label: 'Cost',
+          sensitiveText: item.costPrice.toStringAsFixed(0),
+          isSensitive: true,
+        ),
+        MetricChip(
+          icon: Icons.sell_outlined,
+          label: 'MRP',
+          valueText: item.sellingPrice.toStringAsFixed(0),
+        ),
+        MetricChip(
+          icon: Icons.inventory_2_outlined,
+          label: 'Stock',
+          valueText: '${item.quantity} • $stockLabel',
+          valueColor: stockColor,
+        ),
+        if (item.warranties.isNotEmpty)
+          MetricChip(
+            icon: Icons.verified_outlined,
+            label: 'Warranty',
+            valueText: '${item.warranties.length} type(s)',
+          ),
+        if (item.imagePaths.isNotEmpty)
+          MetricChip(
+            icon: Icons.image_outlined,
+            label: 'Images',
+            valueText: '${item.imagePaths.length}',
+          ),
+      ],
+    );
+  }
+}
+
+class _InventoryActions extends StatelessWidget {
+  final Item item;
+  final VoidCallback onSell;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final bool compact;
+
+  const _InventoryActions({
+    required this.item,
+    required this.onSell,
+    required this.onEdit,
+    required this.onDelete,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ActionButton(
+            width: 58,
+            height: 46,
+            icon: Icons.point_of_sale_rounded,
+            iconSize: 24,
+            borderRadius: 16,
+            filled: true,
+            tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
+            onPressed: item.quantity <= 0 ? null : onSell,
+          ),
+          const SizedBox(width: 8),
+          _OverflowActionButton(
+            compact: true,
+            size: 42,
+            onEdit: onEdit,
+            onDelete: onDelete,
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ActionButton(
+          width: 84,
+          height: 56,
+          icon: Icons.point_of_sale_rounded,
+          iconSize: 29,
+          borderRadius: 20,
+          filled: true,
+          tooltip: item.quantity <= 0 ? 'Out of stock' : 'Sell item',
+          onPressed: item.quantity <= 0 ? null : onSell,
+        ),
+        const SizedBox(width: 10),
+        _OverflowActionButton(
+          size: 48,
+          onEdit: onEdit,
+          onDelete: onDelete,
+        ),
+      ],
+    );
+  }
+}
 
 class _InventoryItemVisual extends StatelessWidget {
   final Item item;
@@ -568,6 +693,7 @@ class _CategoryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final text = label.trim().isEmpty ? 'Uncategorized' : label.trim();
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -577,7 +703,9 @@ class _CategoryPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
-        label,
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: cs.onSecondaryContainer,
           fontWeight: FontWeight.w700,

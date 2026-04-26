@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:invenman/models/installment_plan.dart';
 
 import 'package:invenman/components/common/card_panel.dart';
 import 'package:invenman/components/common/detail_line.dart';
 import 'package:invenman/components/common/inline_badge.dart';
 import 'package:invenman/components/common/interactive_card_shell.dart';
-
+import 'package:invenman/components/common/responsive_card_utils.dart';
+import 'package:invenman/components/common/status_pill.dart';
+import 'package:invenman/models/installment_plan.dart';
 
 class InstallmentCard extends StatelessWidget {
   final InstallmentPlan plan;
@@ -67,23 +68,26 @@ class InstallmentCard extends StatelessWidget {
 
   double _progressValue() {
     if (plan.durationMonths <= 0) return 0;
+
     if (plan.status == 'completed' || plan.remainingBalance <= 0.009) {
       return 1.0;
     }
+
     final value = plan.paidMonths / plan.durationMonths;
     return value.clamp(0.0, 1.0);
   }
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 820;
+    final compact = ResponsiveCardUtils.isCompact(context, breakpoint: 820);
 
     return InteractiveCardShell(
       onTap: onTap,
+      borderRadius: compact ? 24 : 28,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.all(compact ? 14 : 18),
         child: compact
-            ? _CompactCard(
+            ? _InstallmentCardCompact(
                 plan: plan,
                 thisMonthStatus: thisMonthStatus,
                 formattedStartDate: formattedStartDate,
@@ -94,7 +98,7 @@ class InstallmentCard extends StatelessWidget {
                 progressValue: _progressValue(),
                 money: _money,
               )
-            : _WideCard(
+            : _InstallmentCardWide(
                 plan: plan,
                 thisMonthStatus: thisMonthStatus,
                 formattedStartDate: formattedStartDate,
@@ -110,7 +114,7 @@ class InstallmentCard extends StatelessWidget {
   }
 }
 
-class _WideCard extends StatelessWidget {
+class _InstallmentCardWide extends StatelessWidget {
   final InstallmentPlan plan;
   final String thisMonthStatus;
   final String formattedStartDate;
@@ -121,7 +125,7 @@ class _WideCard extends StatelessWidget {
   final double progressValue;
   final String Function(double) money;
 
-  const _WideCard({
+  const _InstallmentCardWide({
     required this.plan,
     required this.thisMonthStatus,
     required this.formattedStartDate,
@@ -135,7 +139,12 @@ class _WideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final details = _InstallmentCardDetails.fromPlan(
+      plan: plan,
+      formattedStartDate: formattedStartDate,
+      formattedNextDueDate: formattedNextDueDate,
+      money: money,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,145 +154,38 @@ class _WideCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: CardPanel(
-                  title: 'Installment Details',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 10,
-                        runSpacing: 6,
-                        children: [
-                          Text(
-                            plan.itemName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.4,
-                              height: 1.15,
-                            ),
-                          ),
-                          InlineBadge(
-                            label: plan.category,
-                            background: cs.secondaryContainer,
-                            foreground: cs.onSecondaryContainer,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              children: [
-                                DetailLine(
-                                  label: 'Monthly',
-                                  value: money(plan.monthlyAmount),
-                                ),
-                                const SizedBox(height: 10),
-                                DetailLine(
-                                  label: 'Balance',
-                                  value: money(plan.remainingBalance),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 18),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                DetailLine(
-                                  label: 'Progress',
-                                  value: plan.status == 'completed' ||
-                                          plan.remainingBalance <= 0.009
-                                      ? '${plan.durationMonths}/${plan.durationMonths} paid'
-                                      : '${plan.paidMonths}/${plan.durationMonths} paid',
-                                ),
-                                const SizedBox(height: 10),
-                                DetailLine(
-                                  label: 'Started',
-                                  value: formattedStartDate,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                child: _InstallmentDetailsPanel(
+                  plan: plan,
+                  details: details,
+                  compact: false,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: CardPanel(
-                  title: 'Customer Details',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DetailLine(
-                        label: 'Name',
-                        value: (plan.customerName ?? '').trim().isEmpty
-                            ? 'Not provided'
-                            : plan.customerName!,
-                      ),
-                      const SizedBox(height: 10),
-                      DetailLine(
-                        label: 'Phone',
-                        value: (plan.customerPhone ?? '').trim().isEmpty
-                            ? 'Not provided'
-                            : plan.customerPhone!,
-                      ),
-                      const SizedBox(height: 10),
-                      DetailLine(
-                        label: 'Address',
-                        value: (plan.customerAddress ?? '').trim().isEmpty
-                            ? 'Not provided'
-                            : plan.customerAddress!,
-                        multiline: true,
-                      ),
-                      const SizedBox(height: 10),
-                      DetailLine(
-                        label: 'Next due',
-                        value: formattedNextDueDate,
-                      ),
-                    ],
-                  ),
+                child: _InstallmentCustomerPanel(
+                  details: details,
+                  compact: false,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        _FooterBar(
-          chips: [
-            _StatusChip(
-              label: 'This month: $thisMonthStatus',
-              color: currentMonthColor,
-            ),
-            _StatusChip(
-              label: 'Plan: $planStatusLabel',
-              color: planStatusColor,
-            ),
-            if (plan.installmentImagePaths.isNotEmpty)
-              _StatusChip(
-                label: 'Docs: ${plan.installmentImagePaths.length}',
-                color: Colors.teal.shade700,
-              ),
-          ],
-          progress: _ProgressStrip(
-            value: progressValue,
-            color: planStatusColor,
-            label: 'Completion',
-          ),
+        const SizedBox(height: 12),
+        _InstallmentStatusFooter(
+          plan: plan,
+          thisMonthStatus: thisMonthStatus,
+          planStatusLabel: planStatusLabel,
+          planStatusColor: planStatusColor,
+          currentMonthColor: currentMonthColor,
+          progressValue: progressValue,
+          compact: false,
         ),
       ],
     );
   }
 }
 
-class _CompactCard extends StatelessWidget {
+class _InstallmentCardCompact extends StatelessWidget {
   final InstallmentPlan plan;
   final String thisMonthStatus;
   final String formattedStartDate;
@@ -294,7 +196,7 @@ class _CompactCard extends StatelessWidget {
   final double progressValue;
   final String Function(double) money;
 
-  const _CompactCard({
+  const _InstallmentCardCompact({
     required this.plan,
     required this.thisMonthStatus,
     required this.formattedStartDate,
@@ -308,135 +210,158 @@ class _CompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final details = _InstallmentCardDetails.fromPlan(
+      plan: plan,
+      formattedStartDate: formattedStartDate,
+      formattedNextDueDate: formattedNextDueDate,
+      money: money,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CardPanel(
-          title: 'Installment Details',
+        _InstallmentDetailsPanel(
+          plan: plan,
+          details: details,
           compact: true,
+        ),
+        const SizedBox(height: 12),
+        _InstallmentCustomerPanel(
+          details: details,
+          compact: true,
+        ),
+        const SizedBox(height: 12),
+        _InstallmentStatusFooter(
+          plan: plan,
+          thisMonthStatus: thisMonthStatus,
+          planStatusLabel: planStatusLabel,
+          planStatusColor: planStatusColor,
+          currentMonthColor: currentMonthColor,
+          progressValue: progressValue,
+          compact: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _InstallmentDetailsPanel extends StatelessWidget {
+  final InstallmentPlan plan;
+  final _InstallmentCardDetails details;
+  final bool compact;
+
+  const _InstallmentDetailsPanel({
+    required this.plan,
+    required this.details,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CardPanel(
+      title: 'Installment details',
+      compact: compact,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InstallmentTitleRow(
+            plan: plan,
+            compact: compact,
+          ),
+          SizedBox(height: compact ? 12 : 16),
+          compact
+              ? _InstallmentDetailsCompact(details: details)
+              : _InstallmentDetailsWide(details: details),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstallmentTitleRow extends StatelessWidget {
+  final InstallmentPlan plan;
+  final bool compact;
+
+  const _InstallmentTitleRow({
+    required this.plan,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final itemName = plan.itemName.trim().isEmpty ? 'Unnamed item' : plan.itemName;
+    final category = plan.category.trim();
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
+      children: [
+        Text(
+          itemName,
+          style: TextStyle(
+            fontSize: compact ? 18.5 : 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: compact ? -0.35 : -0.4,
+            height: 1.15,
+          ),
+        ),
+        InlineBadge(
+          label: category.isEmpty ? 'Uncategorized' : category,
+          background: cs.secondaryContainer,
+          foreground: cs.onSecondaryContainer,
+        ),
+      ],
+    );
+  }
+}
+
+class _InstallmentDetailsWide extends StatelessWidget {
+  final _InstallmentCardDetails details;
+
+  const _InstallmentDetailsWide({
+    required this.details,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 10,
-                runSpacing: 6,
-                children: [
-                  Text(
-                    plan.itemName,
-                    style: const TextStyle(
-                      fontSize: 18.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.35,
-                      height: 1.15,
-                    ),
-                  ),
-                  InlineBadge(
-                    label: plan.category,
-                    background: Theme.of(context).colorScheme.secondaryContainer,
-                    foreground:
-                        Theme.of(context).colorScheme.onSecondaryContainer,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
               DetailLine(
                 label: 'Monthly',
-                value: money(plan.monthlyAmount),
+                sensitiveValue: details.monthlyAmount,
+                isSensitive: true,
+                labelMinWidth: 72,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               DetailLine(
                 label: 'Balance',
-                value: money(plan.remainingBalance),
+                sensitiveValue: details.remainingBalance,
+                isSensitive: true,
+                labelMinWidth: 72,
               ),
-              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+        const SizedBox(width: 18),
+        Expanded(
+          child: Column(
+            children: [
               DetailLine(
                 label: 'Progress',
-                value: plan.status == 'completed' ||
-                        plan.remainingBalance <= 0.009
-                    ? '${plan.durationMonths}/${plan.durationMonths} paid'
-                    : '${plan.paidMonths}/${plan.durationMonths} paid',
+                value: details.progressText,
+                labelMinWidth: 72,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               DetailLine(
                 label: 'Started',
-                value: formattedStartDate,
-              ),
-              const SizedBox(height: 8),
-              DetailLine(
-                label: 'Next due',
-                value: formattedNextDueDate,
-              ),
-              const SizedBox(height: 8),
-              DetailLine(
-                label: 'Images',
-                value: '${plan.installmentImagePaths.length}',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        CardPanel(
-          title: 'Customer Details',
-          compact: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DetailLine(
-                label: 'Name',
-                value: (plan.customerName ?? '').trim().isEmpty
-                    ? 'Not provided'
-                    : plan.customerName!,
-              ),
-              const SizedBox(height: 8),
-              DetailLine(
-                label: 'Phone',
-                value: (plan.customerPhone ?? '').trim().isEmpty
-                    ? 'Not provided'
-                    : plan.customerPhone!,
-              ),
-              const SizedBox(height: 8),
-              DetailLine(
-                label: 'Address',
-                value: (plan.customerAddress ?? '').trim().isEmpty
-                    ? 'Not provided'
-                    : plan.customerAddress!,
-                multiline: true,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        CardPanel(
-          compact: true,
-          title: 'Status',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _StatusChip(
-                    label: 'This month: $thisMonthStatus',
-                    color: currentMonthColor,
-                  ),
-                  _StatusChip(
-                    label: 'Plan: $planStatusLabel',
-                    color: planStatusColor,
-                  ),
-                  if (plan.installmentImagePaths.isNotEmpty)
-                    _StatusChip(
-                      label: 'Docs: ${plan.installmentImagePaths.length}',
-                      color: Colors.teal.shade700,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _ProgressStrip(
-                value: progressValue,
-                color: planStatusColor,
-                label: 'Completion',
+                value: details.formattedStartDate,
+                labelMinWidth: 72,
               ),
             ],
           ),
@@ -446,13 +371,201 @@ class _CompactCard extends StatelessWidget {
   }
 }
 
-class _FooterBar extends StatelessWidget {
-  final List<Widget> chips;
-  final Widget progress;
+class _InstallmentDetailsCompact extends StatelessWidget {
+  final _InstallmentCardDetails details;
 
-  const _FooterBar({
-    required this.chips,
-    required this.progress,
+  const _InstallmentDetailsCompact({
+    required this.details,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DetailLine(
+          label: 'Monthly',
+          sensitiveValue: details.monthlyAmount,
+          isSensitive: true,
+          labelMinWidth: 72,
+        ),
+        const SizedBox(height: 8),
+        DetailLine(
+          label: 'Balance',
+          sensitiveValue: details.remainingBalance,
+          isSensitive: true,
+          labelMinWidth: 72,
+        ),
+        const SizedBox(height: 8),
+        DetailLine(
+          label: 'Progress',
+          value: details.progressText,
+          labelMinWidth: 72,
+        ),
+        const SizedBox(height: 8),
+        DetailLine(
+          label: 'Started',
+          value: details.formattedStartDate,
+          labelMinWidth: 72,
+        ),
+        const SizedBox(height: 8),
+        DetailLine(
+          label: 'Next due',
+          value: details.formattedNextDueDate,
+          labelMinWidth: 72,
+        ),
+        const SizedBox(height: 8),
+        DetailLine(
+          label: 'Docs',
+          value: details.docsCount,
+          labelMinWidth: 72,
+        ),
+      ],
+    );
+  }
+}
+
+class _InstallmentCustomerPanel extends StatelessWidget {
+  final _InstallmentCardDetails details;
+  final bool compact;
+
+  const _InstallmentCustomerPanel({
+    required this.details,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CardPanel(
+      title: 'Customer details',
+      compact: compact,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DetailLine(
+            label: 'Name',
+            value: details.customerName,
+            labelMinWidth: 72,
+          ),
+          SizedBox(height: compact ? 8 : 10),
+          DetailLine(
+            label: 'Phone',
+            value: details.customerPhone,
+            labelMinWidth: 72,
+          ),
+          SizedBox(height: compact ? 8 : 10),
+          DetailLine(
+            label: 'Address',
+            value: details.customerAddress,
+            multiline: true,
+            labelMinWidth: 72,
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 10),
+            DetailLine(
+              label: 'Next due',
+              value: details.formattedNextDueDate,
+              labelMinWidth: 72,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InstallmentStatusFooter extends StatelessWidget {
+  final InstallmentPlan plan;
+  final String thisMonthStatus;
+  final String planStatusLabel;
+  final Color planStatusColor;
+  final Color currentMonthColor;
+  final double progressValue;
+  final bool compact;
+
+  const _InstallmentStatusFooter({
+    required this.plan,
+    required this.thisMonthStatus,
+    required this.planStatusLabel,
+    required this.planStatusColor,
+    required this.currentMonthColor,
+    required this.progressValue,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusChips = [
+      StatusPill(
+        label: 'This month: $thisMonthStatus',
+        color: currentMonthColor,
+      ),
+      StatusPill(
+        label: 'Plan: $planStatusLabel',
+        color: planStatusColor,
+      ),
+      if (plan.installmentImagePaths.isNotEmpty)
+        StatusPill(
+          label: 'Docs: ${plan.installmentImagePaths.length}',
+          color: Colors.teal.shade700,
+        ),
+    ];
+
+    if (compact) {
+      return CardPanel(
+        title: 'Status',
+        compact: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ResponsiveChipWrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: statusChips,
+            ),
+            const SizedBox(height: 14),
+            _ProgressStrip(
+              value: progressValue,
+              color: planStatusColor,
+              label: 'Completion',
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          flex: 7,
+          child: ResponsiveChipWrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: statusChips,
+          ),
+        ),
+        const SizedBox(width: 22),
+        Expanded(
+          flex: 5,
+          child: _ProgressPanel(
+            child: _ProgressStrip(
+              value: progressValue,
+              color: planStatusColor,
+              label: 'Completion',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProgressPanel extends StatelessWidget {
+  final Widget child;
+
+  const _ProgressPanel({
+    required this.child,
   });
 
   @override
@@ -460,39 +573,15 @@ class _FooterBar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.transparent,
+        color: cs.surfaceContainerHighest.withOpacity(0.40),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: cs.outlineVariant.withOpacity(0.35),
+        ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 7,
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: chips,
-            ),
-          ),
-          const SizedBox(width: 22),
-          Expanded(
-            flex: 5,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withOpacity(0.40),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: cs.outlineVariant.withOpacity(0.35),
-                ),
-              ),
-              child: progress,
-            ),
-          ),
-        ],
-      ),
+      child: child,
     );
   }
 }
@@ -561,36 +650,54 @@ class _ProgressStrip extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  final String label;
-  final Color color;
+class _InstallmentCardDetails {
+  final String monthlyAmount;
+  final String remainingBalance;
+  final String progressText;
+  final String formattedStartDate;
+  final String formattedNextDueDate;
+  final String docsCount;
+  final String customerName;
+  final String customerPhone;
+  final String customerAddress;
 
-  const _StatusChip({
-    required this.label,
-    required this.color,
+  const _InstallmentCardDetails({
+    required this.monthlyAmount,
+    required this.remainingBalance,
+    required this.progressText,
+    required this.formattedStartDate,
+    required this.formattedNextDueDate,
+    required this.docsCount,
+    required this.customerName,
+    required this.customerPhone,
+    required this.customerAddress,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.13),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.18),
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13.6,
-          fontWeight: FontWeight.w800,
-          color: color,
-          height: 1.1,
-        ),
-      ),
+  factory _InstallmentCardDetails.fromPlan({
+    required InstallmentPlan plan,
+    required String formattedStartDate,
+    required String formattedNextDueDate,
+    required String Function(double) money,
+  }) {
+    final completed = plan.status == 'completed' || plan.remainingBalance <= 0.009;
+
+    return _InstallmentCardDetails(
+      monthlyAmount: money(plan.monthlyAmount),
+      remainingBalance: money(plan.remainingBalance),
+      progressText: completed
+          ? '${plan.durationMonths}/${plan.durationMonths} paid'
+          : '${plan.paidMonths}/${plan.durationMonths} paid',
+      formattedStartDate: formattedStartDate,
+      formattedNextDueDate: formattedNextDueDate,
+      docsCount: '${plan.installmentImagePaths.length}',
+      customerName: _fallbackText(plan.customerName),
+      customerPhone: _fallbackText(plan.customerPhone),
+      customerAddress: _fallbackText(plan.customerAddress),
     );
+  }
+
+  static String _fallbackText(String? value) {
+    final trimmed = value?.trim() ?? '';
+    return trimmed.isEmpty ? 'Not provided' : trimmed;
   }
 }
