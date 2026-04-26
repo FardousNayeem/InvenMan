@@ -5,9 +5,14 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/sale_record.dart';
+
+import 'package:invenman/app/core/money_utils.dart';
+import 'package:invenman/app/core/domain_constants.dart';
+
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
 import 'package:invenman/services/repositories/history_repository.dart';
+
 
 class InstallmentDocumentSyncResult {
   final int saleRecordId;
@@ -25,16 +30,10 @@ class InstallmentRepository {
   const InstallmentRepository._();
 
   static DateTime _nowUtc() => DbShared.nowUtc();
-  static double _roundMoney(double value) => DbShared.roundMoney(value);
-  static double _wholeMoney(double value) => DbShared.wholeMoney(value);
   static DateTime _startOfTodayUtc() => DbShared.startOfTodayUtc();
 
   static DateTime _addMonths(DateTime date, int monthsToAdd) {
     return DbShared.addMonths(date, monthsToAdd);
-  }
-
-  static String _moneyText(double value) {
-    return _roundMoney(value).toStringAsFixed(0);
   }
 
   static List<double> _buildWholeNumberScheduleAmounts(
@@ -57,13 +56,13 @@ class InstallmentRepository {
     required double amountDue,
     required double amountPaid,
   }) {
-    const epsilon = 0.009;
+    const epsilon = MoneyUtils.epsilon;
     final today = _startOfTodayUtc();
 
-    if (amountPaid >= amountDue - epsilon) return 'paid';
-    if (amountPaid > epsilon) return 'partial';
-    if (dueDate.isBefore(today)) return 'overdue';
-    return 'pending';
+    if (amountPaid >= amountDue - epsilon) return InstallmentPaymentStatuses.paid;
+    if (amountPaid > epsilon) return InstallmentPaymentStatuses.partial;
+    if (dueDate.isBefore(today)) return InstallmentPlanStatuses.overdue;
+    return InstallmentPaymentStatuses.pending;
   }
 
   static List<String> normalizeInstallmentImages(List<String> paths) {
@@ -97,8 +96,8 @@ class InstallmentRepository {
     }
 
     final now = _nowUtc();
-    final totalAmount = _roundMoney(sale.sellPrice * sale.quantitySold);
-    final normalizedDownPayment = _roundMoney(downPayment);
+    final totalAmount = MoneyUtils.round(sale.sellPrice * sale.quantitySold);
+    final normalizedDownPayment = MoneyUtils.round(downPayment);
 
     if (normalizedDownPayment <= 0) {
       throw Exception('Down payment must be greater than zero.');
@@ -108,7 +107,7 @@ class InstallmentRepository {
       throw Exception('Down payment must be less than total sale amount.');
     }
 
-    final financedAmount = _roundMoney(totalAmount - normalizedDownPayment);
+    final financedAmount = MoneyUtils.round(totalAmount - normalizedDownPayment);
     final durationMonths = sale.installmentMonths!;
     final scheduleAmounts =
         _buildWholeNumberScheduleAmounts(financedAmount, durationMonths);
@@ -139,7 +138,7 @@ class InstallmentRepository {
       'remaining_months': durationMonths,
       'total_paid': normalizedDownPayment,
       'remaining_balance': financedAmount,
-      'status': 'active',
+      'status': InstallmentPlanStatuses.active,
       'created_at': now.toIso8601String(),
       'updated_at': now.toIso8601String(),
     });
@@ -172,7 +171,7 @@ class InstallmentRepository {
       itemName: sale.itemName,
       action: 'Installment',
       details:
-          'Plan created: $durationMonths month(s), Total: ${_moneyText(totalAmount)}, Down Payment: ${_moneyText(normalizedDownPayment)}, Financed: ${_moneyText(financedAmount)}, Monthly approx: ${_moneyText(monthlyAmount)}, Installment Docs: ${normalizedImages.length}',
+          'Plan created: $durationMonths month(s), Total: ${MoneyUtils.text(totalAmount)}, Down Payment: ${MoneyUtils.text(normalizedDownPayment)}, Financed: ${MoneyUtils.text(financedAmount)}, Monthly approx: ${MoneyUtils.text(monthlyAmount)}, Installment Docs: ${normalizedImages.length}',
       executor: txn,
     );
 
@@ -201,10 +200,10 @@ class InstallmentRepository {
     for (final payment in payments) {
       totalPaidTowardInstallments += payment.amountPaid;
     }
-    totalPaidTowardInstallments = _roundMoney(totalPaidTowardInstallments);
+    totalPaidTowardInstallments = MoneyUtils.round(totalPaidTowardInstallments);
 
     double financedRemaining =
-        _roundMoney(plan.financedAmount - totalPaidTowardInstallments);
+        MoneyUtils.round(plan.financedAmount - totalPaidTowardInstallments);
     if (financedRemaining < 0) financedRemaining = 0;
 
     double lockedOutstanding = 0.0;
@@ -222,7 +221,7 @@ class InstallmentRepository {
       );
 
       final isLocked = payment.installmentNumber <= anchorInstallmentNumber ||
-          computedStatus == 'paid';
+          computedStatus == InstallmentPaymentStatuses.paid;
 
       if (isLocked) {
         final outstanding = normalizedDue - payment.amountPaid;
@@ -234,7 +233,7 @@ class InstallmentRepository {
           await txn.update(
             'installment_payments',
             {
-              'amount_due': _wholeMoney(normalizedDue),
+              'amount_due': MoneyUtils.whole(normalizedDue),
               'updated_at': _nowUtc().toIso8601String(),
             },
             where: 'id = ?',
@@ -246,10 +245,10 @@ class InstallmentRepository {
       }
     }
 
-    lockedOutstanding = _roundMoney(lockedOutstanding);
+    lockedOutstanding = MoneyUtils.round(lockedOutstanding);
 
     double outstandingToAllocate =
-        _roundMoney(financedRemaining - lockedOutstanding);
+        MoneyUtils.round(financedRemaining - lockedOutstanding);
 
     if (outstandingToAllocate < 0) {
       outstandingToAllocate = 0;
@@ -263,7 +262,7 @@ class InstallmentRepository {
     for (int i = 0; i < redistributable.length; i++) {
       final payment = redistributable[i];
       final newAmountDue =
-          _wholeMoney(payment.amountPaid + redistributedOutstanding[i]);
+          MoneyUtils.whole(payment.amountPaid + redistributedOutstanding[i]);
 
       await txn.update(
         'installment_payments',
@@ -320,11 +319,11 @@ class InstallmentRepository {
     for (final payment in payments) {
       paymentRowsTotalPaid += payment.amountPaid;
     }
-    paymentRowsTotalPaid = _roundMoney(paymentRowsTotalPaid);
+    paymentRowsTotalPaid = MoneyUtils.round(paymentRowsTotalPaid);
 
-    final totalPaid = _roundMoney(plan.downPayment + paymentRowsTotalPaid);
+    final totalPaid = MoneyUtils.round(plan.downPayment + paymentRowsTotalPaid);
 
-    double remainingBalance = _roundMoney(plan.totalAmount - totalPaid);
+    double remainingBalance = MoneyUtils.round(plan.totalAmount - totalPaid);
     if (remainingBalance < 0) remainingBalance = 0;
 
     if (remainingBalance <= 0.009) {
@@ -333,9 +332,9 @@ class InstallmentRepository {
           'installment_payments',
           {
             'amount_due': payment.amountPaid > 0
-                ? _wholeMoney(payment.amountPaid)
+                ? MoneyUtils.whole(payment.amountPaid)
                 : 0.0,
-            'status': 'paid',
+            'status': InstallmentPaymentStatuses.paid,
             'updated_at': now.toIso8601String(),
           },
           where: 'id = ?',
@@ -344,7 +343,7 @@ class InstallmentRepository {
       }
     } else {
       for (final payment in payments) {
-        final normalizedDue = _wholeMoney(
+        final normalizedDue = MoneyUtils.whole(
           payment.amountPaid > payment.amountDue
               ? payment.amountPaid
               : payment.amountDue,
@@ -393,7 +392,7 @@ class InstallmentRepository {
     double nextMonthlyAmount = 0.0;
 
     for (final payment in finalPayments) {
-      if (payment.status == 'paid') {
+      if (payment.status == InstallmentPaymentStatuses.paid) {
         paidMonths++;
       } else {
         remainingMonths++;
@@ -401,22 +400,22 @@ class InstallmentRepository {
         nextMonthlyAmount = payment.amountDue;
       }
 
-      if (payment.status == 'overdue') {
+      if (payment.status == InstallmentPaymentStatuses.overdue) {
         hasOverdue = true;
       }
     }
 
     String planStatus;
     if (remainingBalance <= 0.009) {
-      planStatus = 'completed';
+      planStatus = InstallmentPlanStatuses.completed;
       nextDueDate = null;
       remainingMonths = 0;
       paidMonths = plan.durationMonths;
       nextMonthlyAmount = 0.0;
     } else if (hasOverdue) {
-      planStatus = 'overdue';
+      planStatus = InstallmentPlanStatuses.overdue;
     } else {
-      planStatus = 'active';
+      planStatus = InstallmentPlanStatuses.active;
     }
 
     await txn.update(
@@ -427,7 +426,7 @@ class InstallmentRepository {
         'total_paid': totalPaid,
         'remaining_balance': remainingBalance,
         'next_due_date': nextDueDate?.toIso8601String(),
-        'monthly_amount': _wholeMoney(nextMonthlyAmount),
+        'monthly_amount': MoneyUtils.whole(nextMonthlyAmount),
         'status': planStatus,
         'updated_at': now.toIso8601String(),
       },
@@ -643,13 +642,13 @@ class InstallmentRepository {
       for (final paymentMap in paymentMaps) {
         final payment = InstallmentPayment.fromMap(paymentMap);
 
-        final normalizedDue = _wholeMoney(
+        final normalizedDue = MoneyUtils.whole(
           payment.amountPaid > payment.amountDue
               ? payment.amountPaid
               : payment.amountDue,
         );
 
-        final normalizedPaid = _roundMoney(payment.amountPaid);
+        final normalizedPaid = MoneyUtils.round(payment.amountPaid);
 
         if ((normalizedDue - payment.amountDue).abs() > 0.009 ||
             (normalizedPaid - payment.amountPaid).abs() > 0.009) {

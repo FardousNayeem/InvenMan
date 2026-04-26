@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:invenman/app/core/app_normalizers.dart';
 import 'package:invenman/components/common/app_text_field.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/services/media/image_service.dart';
+
 
 class ItemFormDialog extends StatefulWidget {
   final Item? existingItem;
@@ -227,88 +229,23 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   }
 
   String _normalizeCategory(String value) {
-    return value
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .join(' ')
-        .toUpperCase();
+    return AppNormalizers.category(value);
   }
 
   String _normalizeBrand(String value) {
-    final cleaned = value
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .join(' ');
-
-    if (cleaned.isEmpty) return '';
-
-    final lower = cleaned.toLowerCase();
-    return '${lower[0].toUpperCase()}${lower.substring(1)}';
+    return AppNormalizers.brand(value);
   }
 
   List<String> _dedupeCategories(List<String> categories) {
-    final seen = <String>{};
-    final cleaned = <String>[];
-
-    for (final raw in categories) {
-      final normalized = _normalizeCategory(raw);
-      if (normalized.isEmpty) continue;
-      if (seen.contains(normalized)) continue;
-
-      seen.add(normalized);
-      cleaned.add(normalized);
-    }
-
-    cleaned.sort();
-    return cleaned;
+    return AppNormalizers.categories(categories);
   }
 
   List<String> _dedupeBrands(List<String> brands) {
-    final seen = <String>{};
-    final cleaned = <String>[];
-
-    for (final raw in brands) {
-      final normalized = _normalizeBrand(raw);
-      if (normalized.isEmpty) continue;
-
-      final key = normalized.toLowerCase();
-      if (seen.contains(key)) continue;
-
-      seen.add(key);
-      cleaned.add(normalized);
-    }
-
-    cleaned.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    return cleaned;
+    return AppNormalizers.brands(brands);
   }
 
   List<String> _normalizeColors(List<String> colors) {
-    final seen = <String>{};
-    final normalized = <String>[];
-
-    for (final raw in colors) {
-      final trimmed = raw.trim();
-      if (trimmed.isEmpty) continue;
-
-      final cleaned = trimmed
-          .split(RegExp(r'\s+'))
-          .where((e) => e.trim().isNotEmpty)
-          .map((word) {
-            if (word.length == 1) return word.toUpperCase();
-            return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
-          })
-          .join(' ');
-
-      final key = cleaned.toLowerCase();
-      if (seen.contains(key)) continue;
-
-      seen.add(key);
-      normalized.add(cleaned);
-    }
-
-    return normalized;
+    return AppNormalizers.colors(colors);
   }
 
   List<String> get _filteredCategorySuggestions {

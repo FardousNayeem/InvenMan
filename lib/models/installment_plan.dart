@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:invenman/app/core/domain_constants.dart';
 
 class InstallmentPlan {
   final int? id;
@@ -53,9 +54,9 @@ class InstallmentPlan {
     required this.updatedAt,
   });
 
-  bool get isCompleted => status == 'completed';
-  bool get isOverdue => status == 'overdue';
-  bool get isActive => status == 'active';
+  bool get isCompleted => status == InstallmentPlanStatuses.completed;
+  bool get isOverdue => status == InstallmentPlanStatuses.overdue;
+  bool get isActive => status == InstallmentPlanStatuses.active;
 
   factory InstallmentPlan.fromMap(Map<String, dynamic> map) {
     final installmentImagesJson = map['image_paths_json'] as String? ?? '[]';

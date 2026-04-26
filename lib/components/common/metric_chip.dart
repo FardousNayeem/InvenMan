@@ -25,20 +25,20 @@ class MetricChip extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 17, color: cs.onSurfaceVariant),
-          const SizedBox(width: 8),
+          Icon(icon, size: 16, color: cs.onSurfaceVariant),
+          const SizedBox(width: 6),
           Text(
             '$label: ',
             style: TextStyle(
-              fontSize: 12.8,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: cs.onSurfaceVariant,
             ),
@@ -47,7 +47,7 @@ class MetricChip extends StatelessWidget {
             SensitiveValueText(
               visibleText: sensitiveText!,
               style: TextStyle(
-                fontSize: 12.9,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 color: valueColor ?? cs.onSurface,
               ),
@@ -56,7 +56,7 @@ class MetricChip extends StatelessWidget {
             Text(
               valueText!,
               style: TextStyle(
-                fontSize: 12.9,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 color: valueColor ?? cs.onSurface,
               ),

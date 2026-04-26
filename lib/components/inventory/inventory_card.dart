@@ -227,49 +227,45 @@ class _InventoryMainInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 6,
-              child: _InventoryTitleRow(
+        Padding(
+          padding: const EdgeInsets.only(right: 300),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InventoryTitleRow(
                 item: item,
                 compact: compact,
               ),
-            ),
-            const SizedBox(width: 14),
-            Flexible(
-              flex: 4,
-              child: Align(
-                alignment: Alignment.topRight,
-                child: ResponsiveChipWrap(
-                  spacing: 12,
-                  runSpacing: 6,
-                  alignment: WrapAlignment.end,
-                  children: [
-                    MetaText(label: 'Added', value: formattedCreatedAt),
-                    MetaText(label: 'Updated', value: formattedUpdatedAt),
-                  ],
-                ),
+              const SizedBox(height: 6),
+              _InventoryMetaChips(
+                item: item,
+                brandText: brandText,
               ),
-            ),
-          ],
+              _InventoryOptionalDescriptionAndSupplier(item: item),
+              const SizedBox(height: 14),
+              _InventoryMetrics(
+                item: item,
+                stockColor: stockColor,
+                stockLabel: stockLabel,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 6),
-        _InventoryMetaChips(
-          item: item,
-          brandText: brandText,
-        ),
-        _InventoryOptionalDescriptionAndSupplier(item: item),
-        const SizedBox(height: 14),
-        _InventoryMetrics(
-          item: item,
-          stockColor: stockColor,
-          stockLabel: stockLabel,
+        Positioned(
+          top: 0,
+          right: 0,
+          child: ResponsiveChipWrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.end,
+            children: [
+              MetaText(label: 'Added', value: formattedCreatedAt),
+              MetaText(label: 'Updated', value: formattedUpdatedAt),
+            ],
+          ),
         ),
       ],
     );
@@ -325,23 +321,22 @@ class _InventoryTitleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = item.name.trim().isEmpty ? 'Unnamed item' : item.name.trim();
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Expanded(
-          child: Text(
-            title,
-            maxLines: compact ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: ResponsiveCardUtils.titleFontSize(context),
-              fontWeight: FontWeight.w800,
-              letterSpacing: compact ? -0.28 : -0.35,
-              height: compact ? 1.12 : 1.1,
-            ),
+        Text(
+          title,
+          maxLines: compact ? 2 : 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: ResponsiveCardUtils.titleFontSize(context),
+            fontWeight: FontWeight.w800,
+            letterSpacing: compact ? -0.28 : -0.35,
+            height: compact ? 1.12 : 1.1,
           ),
         ),
-        const SizedBox(width: 10),
         _CategoryPill(label: item.category),
       ],
     );
@@ -405,7 +400,7 @@ class _InventoryOptionalDescriptionAndSupplier extends StatelessWidget {
           SizedBox(height: compact ? 6 : 8),
           Text(
             description,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: compact ? 13.5 : 13.8,
@@ -469,7 +464,7 @@ class _InventoryDateAndActionsRow extends StatelessWidget {
       children: [
         Expanded(
           child: ResponsiveChipWrap(
-            spacing: 10,
+            spacing: 8,
             runSpacing: 6,
             children: [
               MetaText(label: 'Added', value: formattedCreatedAt),
@@ -504,8 +499,8 @@ class _InventoryMetrics extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsiveChipWrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         MetricChip(
           icon: Icons.shopping_bag_outlined,
@@ -697,7 +692,7 @@ class _CategoryPill extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: cs.secondaryContainer,
         borderRadius: BorderRadius.circular(16),

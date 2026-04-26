@@ -1,38 +1,35 @@
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
+
+import 'package:invenman/app/core/money_utils.dart';
+import 'package:invenman/app/core/domain_constants.dart';
+
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
 import 'package:invenman/services/repositories/history_repository.dart';
 import 'package:invenman/services/repositories/installment_repository.dart';
+
 
 class RecordInstallmentPaymentAction {
   const RecordInstallmentPaymentAction._();
 
   static DateTime _nowUtc() => DbShared.nowUtc();
 
-  static double _roundMoney(double value) => DbShared.roundMoney(value);
-
-  static double _wholeMoney(double value) => DbShared.wholeMoney(value);
-
   static DateTime _startOfTodayUtc() => DbShared.startOfTodayUtc();
-
-  static String _moneyText(double value) {
-    return _roundMoney(value).toStringAsFixed(0);
-  }
 
   static String _paymentRowStatus({
     required DateTime dueDate,
     required double amountDue,
     required double amountPaid,
   }) {
-    const epsilon = 0.009;
+    const epsilon = MoneyUtils.epsilon;
     final today = _startOfTodayUtc();
 
-    if (amountPaid >= amountDue - epsilon) return 'paid';
-    if (amountPaid > epsilon) return 'partial';
-    if (dueDate.isBefore(today)) return 'overdue';
+    if (amountPaid >= amountDue - epsilon) return InstallmentPaymentStatuses.paid;
+    if (amountPaid > epsilon) return InstallmentPaymentStatuses.partial;
+    if (dueDate.isBefore(today)) return InstallmentPaymentStatuses.overdue;
 
-    return 'pending';
+    return InstallmentPaymentStatuses.pending;
   }
 
   static Future<void> execute({
@@ -43,7 +40,7 @@ class RecordInstallmentPaymentAction {
   }) async {
     final dbClient = await AppDatabase.db;
 
-    final paymentAmount = _roundMoney(amountPaid);
+    final paymentAmount = MoneyUtils.round(amountPaid);
 
     if (paymentAmount < 0) {
       throw Exception('Amount paid cannot be negative.');
@@ -88,10 +85,10 @@ class RecordInstallmentPaymentAction {
           .map((map) => InstallmentPayment.fromMap(map))
           .toList();
 
-      final totalRemaining = _roundMoney(
+      final totalRemaining = MoneyUtils.round(
         installments.fold<double>(0, (sum, row) {
-          final amountDue = _wholeMoney(row.amountDue);
-          final alreadyPaid = _roundMoney(row.amountPaid);
+          final amountDue = MoneyUtils.whole(row.amountDue);
+          final alreadyPaid = MoneyUtils.round(row.amountPaid);
           final remaining = amountDue - alreadyPaid;
 
           return sum + (remaining > 0 ? remaining : 0);
@@ -106,9 +103,9 @@ class RecordInstallmentPaymentAction {
       double totalApplied = 0;
 
       for (final row in installments) {
-        final amountDue = _wholeMoney(row.amountDue);
-        final alreadyPaid = _roundMoney(row.amountPaid);
-        final rowRemaining = _roundMoney(amountDue - alreadyPaid);
+        final amountDue = MoneyUtils.whole(row.amountDue);
+        final alreadyPaid = MoneyUtils.round(row.amountPaid);
+        final rowRemaining = MoneyUtils.round(amountDue - alreadyPaid);
 
         if (rowRemaining <= 0) {
           continue;
@@ -118,7 +115,7 @@ class RecordInstallmentPaymentAction {
             ? rowRemaining
             : remainingPayment;
 
-        final newAmountPaid = _roundMoney(alreadyPaid + appliedAmount);
+        final newAmountPaid = MoneyUtils.round(alreadyPaid + appliedAmount);
 
         final newStatus = _paymentRowStatus(
           dueDate: row.dueDate,
@@ -142,8 +139,8 @@ class RecordInstallmentPaymentAction {
           whereArgs: [row.id],
         );
 
-        remainingPayment = _roundMoney(remainingPayment - appliedAmount);
-        totalApplied = _roundMoney(totalApplied + appliedAmount);
+        remainingPayment = MoneyUtils.round(remainingPayment - appliedAmount);
+        totalApplied = MoneyUtils.round(totalApplied + appliedAmount);
 
         if (remainingPayment <= 0) {
           break;
@@ -168,7 +165,7 @@ class RecordInstallmentPaymentAction {
 
         final details = StringBuffer()
           ..write('From month ${selectedPayment.installmentNumber}')
-          ..write(', Paid: ${_moneyText(totalApplied)}');
+          ..write(', Paid: ${MoneyUtils.text(totalApplied)}');
 
         if (normalizedPaidDate != null) {
           details.write(', Date: ${normalizedPaidDate.toIso8601String()}');

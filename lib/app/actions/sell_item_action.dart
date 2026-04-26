@@ -1,5 +1,10 @@
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
+
+import 'package:invenman/app/core/app_normalizers.dart';
+import 'package:invenman/app/core/money_utils.dart';
+import 'package:invenman/app/core/domain_constants.dart';
+
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
 import 'package:invenman/services/repositories/history_repository.dart';
@@ -7,27 +12,11 @@ import 'package:invenman/services/repositories/installment_repository.dart';
 import 'package:invenman/services/repositories/item_repository.dart';
 import 'package:invenman/services/repositories/sale_repository.dart';
 
+
 class SellItemAction {
   const SellItemAction._();
 
   static DateTime _nowUtc() => DbShared.nowUtc();
-
-  static double _roundMoney(double value) => DbShared.roundMoney(value);
-
-  static String _moneyText(double value) {
-    return _roundMoney(value).toStringAsFixed(0);
-  }
-
-  static String _titleCase(String input) {
-    return input
-        .split(RegExp(r'\s+'))
-        .where((word) => word.trim().isNotEmpty)
-        .map((word) {
-      if (word.length == 1) return word.toUpperCase();
-
-      return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
-    }).join(' ');
-  }
 
   static List<String> _normalizeSoldColors(List<String> colors) {
     final seen = <String>{};
@@ -37,7 +26,7 @@ class SellItemAction {
       final trimmed = raw.trim();
       if (trimmed.isEmpty) continue;
 
-      final normalized = _titleCase(trimmed);
+      final normalized = AppNormalizers.titleCase(trimmed);
       final key = normalized.toLowerCase();
 
       if (seen.contains(key)) continue;
@@ -89,19 +78,18 @@ class SellItemAction {
 
     final normalizedPaymentType = paymentType.trim().toLowerCase();
 
-    if (normalizedPaymentType != 'direct' &&
-        normalizedPaymentType != 'installment') {
+    if (!PaymentTypes.isValid(normalizedPaymentType)) {
       throw Exception('Payment type must be either direct or installment.');
     }
 
-    final totalSaleAmount = _roundMoney(sellPricePerUnit * quantitySold);
+    final totalSaleAmount = MoneyUtils.round(sellPricePerUnit * quantitySold);
 
-    if (normalizedPaymentType == 'installment' &&
+    if (normalizedPaymentType == PaymentTypes.installment &&
         (installmentMonths == null || installmentMonths <= 0)) {
       throw Exception('Installment duration must be greater than zero.');
     }
 
-    final normalizedInstallmentImages = normalizedPaymentType == 'installment'
+    final normalizedInstallmentImages = normalizedPaymentType == PaymentTypes.installment
         ? InstallmentRepository.normalizeInstallmentImages(
             installmentImagePaths,
           )
@@ -113,7 +101,7 @@ class SellItemAction {
       throw Exception('Please select at least one sold color.');
     }
 
-    if (normalizedPaymentType == 'installment') {
+    if (normalizedPaymentType == PaymentTypes.installment) {
       if (downPayment == null) {
         throw Exception('Down payment is required for installment sales.');
       }
@@ -131,7 +119,7 @@ class SellItemAction {
       }
     }
 
-    if (normalizedPaymentType == 'direct') {
+    if (normalizedPaymentType == PaymentTypes.direct ) {
       installmentMonths = null;
       downPayment = null;
     }
@@ -143,7 +131,7 @@ class SellItemAction {
       updatedAt: now,
     );
 
-    final profit = _roundMoney(
+    final profit = MoneyUtils.round(
       (sellPricePerUnit - item.costPrice) * quantitySold,
     );
 
@@ -177,7 +165,7 @@ class SellItemAction {
         sale,
       );
 
-      if (normalizedPaymentType == 'installment' && installmentMonths != null) {
+      if (normalizedPaymentType == PaymentTypes.installment && installmentMonths != null) {
         await InstallmentRepository.createInstallmentPlanForSaleTxn(
           txn,
           saleRecordId: saleId,
@@ -188,8 +176,8 @@ class SellItemAction {
 
       final details = StringBuffer()
         ..write('Qty: $quantitySold')
-        ..write(', Sell: ${_moneyText(sellPricePerUnit)}')
-        ..write(', Profit: ${_moneyText(profit)}')
+        ..write(', Sell: ${MoneyUtils.text(sellPricePerUnit)}')
+        ..write(', Profit: ${MoneyUtils.text(profit)}')
         ..write(', Stock: ${item.quantity} -> ${updatedItem.quantity}');
 
       if (normalizedSoldColors.isNotEmpty) {
@@ -206,9 +194,9 @@ class SellItemAction {
 
       details.write(', Payment: $normalizedPaymentType');
 
-      if (normalizedPaymentType == 'installment' && installmentMonths != null) {
+      if (normalizedPaymentType == PaymentTypes.installment && installmentMonths != null) {
         details.write(', Installment: $installmentMonths month(s)');
-        details.write(', Down Payment: ${_moneyText(downPayment ?? 0)}');
+        details.write(', Down Payment: ${MoneyUtils.text(downPayment ?? 0)}');
         details.write(', Docs: ${normalizedInstallmentImages.length}');
       }
 

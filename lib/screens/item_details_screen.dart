@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:invenman/app/core/date_time_utils.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/theme/app_ui.dart';
@@ -76,7 +76,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return DateFormat('d MMM yyyy • h:mm a').format(date.toLocal());
+    return DateTimeUtils.compactDateTime(date);
   }
 
   String get _stockLabel {

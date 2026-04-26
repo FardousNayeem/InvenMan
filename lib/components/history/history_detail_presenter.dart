@@ -1,9 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:invenman/app/core/privacy_fields.dart';
+import 'package:invenman/app/core/date_time_utils.dart';
 import 'package:invenman/app/providers/privacy_provider.dart';
 import 'package:invenman/models/history.dart';
 
@@ -14,23 +15,6 @@ class HistoryDetailPresenter extends StatelessWidget {
     super.key,
     required this.entry,
   });
-
-  static const Set<String> _sensitiveLabels = {
-    'cost',
-    'sell',
-    'sold at',
-    'profit',
-    'down payment',
-    'paid',
-    'financed',
-    'monthly approx',
-    'monthly',
-    'total',
-    'total amount',
-    'remaining',
-    'remaining balance',
-    'collected',
-  };
 
   static const Set<String> _dateLabels = {
     'date',
@@ -47,7 +31,7 @@ class HistoryDetailPresenter extends StatelessWidget {
   }
 
   bool _isSensitiveLabel(String label) {
-    return _sensitiveLabels.contains(label.trim().toLowerCase());
+    return PrivacyFields.isSensitiveLabel(label);
   }
 
   bool _isDateLabel(String label) {
@@ -70,7 +54,7 @@ class HistoryDetailPresenter extends StatelessWidget {
       return trimmedValue;
     }
 
-    return DateFormat('d MMM yyyy').format(parsed.toLocal());
+    return DateTimeUtils.compactDate(parsed);
   }
 
   List<_HistoryDetailRow> _parseRows({
@@ -184,7 +168,7 @@ class HistoryDetailPresenter extends StatelessWidget {
       final parsed = DateTime.tryParse(raw);
       if (parsed == null) return raw;
 
-      return DateFormat('d MMM yyyy').format(parsed.toLocal());
+      return DateTimeUtils.compactDate(parsed);
     });
   }
 

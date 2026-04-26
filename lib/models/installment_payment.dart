@@ -1,3 +1,5 @@
+import 'package:invenman/app/core/domain_constants.dart';
+
 class InstallmentPayment {
   final int? id;
   final int installmentPlanId;
@@ -6,7 +8,7 @@ class InstallmentPayment {
   final DateTime? paidDate;
   final double amountDue;
   final double amountPaid;
-  final String status; // pending, partial, paid, overdue
+  final String status;
   final String? note;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -25,10 +27,10 @@ class InstallmentPayment {
     required this.updatedAt,
   });
 
-  bool get isPaid => status == 'paid';
-  bool get isPartial => status == 'partial';
-  bool get isPending => status == 'pending';
-  bool get isOverdue => status == 'overdue';
+  bool get isPaid => status == InstallmentPaymentStatuses.paid;
+  bool get isPartial => status == InstallmentPaymentStatuses.partial;
+  bool get isPending => status == InstallmentPaymentStatuses.pending;
+  bool get isOverdue => status == InstallmentPaymentStatuses.overdue;
 
   factory InstallmentPayment.fromMap(Map<String, dynamic> map) {
     return InstallmentPayment(

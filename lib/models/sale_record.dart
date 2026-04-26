@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:invenman/app/core/domain_constants.dart';
 
 class SaleRecord {
   final int? id;
@@ -44,7 +45,7 @@ class SaleRecord {
     required this.soldAt,
   });
 
-  bool get isInstallment => paymentType == 'installment';
+  bool get isInstallment => paymentType == PaymentTypes.installment;
 
   factory SaleRecord.fromMap(Map<String, dynamic> map) {
     final warrantiesJson = map['warranties_json'] as String? ?? '{}';
@@ -69,7 +70,7 @@ class SaleRecord {
       customerName: map['customer_name'] as String?,
       customerPhone: map['customer_phone'] as String?,
       customerAddress: map['customer_address'] as String?,
-      paymentType: (map['payment_type'] as String?) ?? 'direct',
+      paymentType: (map['payment_type'] as String?) ?? PaymentTypes.direct,
       installmentMonths: map['installment_months'] as int?,
       soldColors: decodedSoldColors.map((e) => e.toString()).toList(),
       installmentImagePaths:

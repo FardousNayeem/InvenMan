@@ -1,40 +1,26 @@
+import 'package:invenman/app/core/money_utils.dart';
+import 'package:invenman/app/core/date_time_utils.dart';
+
 class DbShared {
   const DbShared._();
 
-  static DateTime nowUtc() => DateTime.now().toUtc();
-
-  static double roundMoney(double value) {
-    return ((value * 100).round()) / 100.0;
-  }
-
-  static double wholeMoney(double value) {
-    if (value <= 0) return 0;
-    return value.roundToDouble();
+  static DateTime nowUtc() {
+    return DateTimeUtils.nowUtc();
   }
 
   static DateTime startOfTodayUtc() {
-    final now = nowUtc();
-    return DateTime.utc(now.year, now.month, now.day);
+    return DateTimeUtils.startOfTodayUtc();
   }
 
-  static DateTime addMonths(DateTime date, int monthsToAdd) {
-    final totalMonths = (date.year * 12 + date.month - 1) + monthsToAdd;
-    final newYear = totalMonths ~/ 12;
-    final newMonth = (totalMonths % 12) + 1;
+  static DateTime addMonths(DateTime date, int months) {
+    return DateTimeUtils.addMonths(date, months);
+  }
 
-    final lastDayOfTargetMonth = DateTime.utc(newYear, newMonth + 1, 0).day;
-    final newDay =
-        date.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : date.day;
+  static double roundMoney(double value) {
+    return MoneyUtils.round(value);
+  }
 
-    return DateTime.utc(
-      newYear,
-      newMonth,
-      newDay,
-      date.hour,
-      date.minute,
-      date.second,
-      date.millisecond,
-      date.microsecond,
-    );
+  static double wholeMoney(double value) {
+    return MoneyUtils.whole(value);
   }
 }

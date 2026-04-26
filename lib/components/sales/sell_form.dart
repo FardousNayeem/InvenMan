@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:invenman/app/core/app_normalizers.dart';
 import 'package:invenman/components/common/app_text_field.dart';
 import 'package:invenman/components/common/sensitive_value_text.dart';
 import 'package:invenman/models/item.dart';
@@ -204,7 +205,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
         customerAddress: _customerAddressController.text.trim().isEmpty
             ? null
             : _customerAddressController.text.trim(),
-        paymentType: _paymentType,
+        paymentType: AppNormalizers.paymentType(_paymentType),
         installmentMonths: _paymentType == 'installment'
             ? int.parse(_installmentMonthsController.text.trim())
             : null,

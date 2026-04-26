@@ -2,8 +2,9 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'package:invenman/models/item.dart';
 import 'package:invenman/services/database/app_database.dart';
-import 'package:invenman/services/database/db_shared.dart';
 import 'package:invenman/services/repositories/history_repository.dart';
+import 'package:invenman/app/core/app_normalizers.dart';
+import 'package:invenman/app/core/money_utils.dart';
 
 class ItemRepository {
   const ItemRepository._();
@@ -29,13 +30,11 @@ class ItemRepository {
   }
 
   static String normalizeStoredCategory(String value) {
-    return value.trim().toUpperCase();
+    return AppNormalizers.category(value);
   }
 
   static String normalizeStoredBrand(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return '';
-    return _titleCase(trimmed);
+    return AppNormalizers.brand(value);
   }
 
   static Future<List<String>> fetchDistinctCategories() async {
@@ -265,40 +264,13 @@ class ItemRepository {
   }
 
   static List<String> _normalizeColors(List<String> colors) {
-    final seen = <String>{};
-    final cleaned = <String>[];
-
-    for (final raw in colors) {
-      final trimmed = raw.trim();
-      if (trimmed.isEmpty) continue;
-
-      final normalized = _titleCase(trimmed);
-      final key = normalized.toLowerCase();
-
-      if (seen.contains(key)) continue;
-
-      seen.add(key);
-      cleaned.add(normalized);
-    }
-
-    return cleaned;
+    return AppNormalizers.colors(colors);
   }
 
   static String _formatColors(List<String> colors) {
     final cleaned = _normalizeColors(colors);
     if (cleaned.isEmpty) return 'Not provided';
     return cleaned.join(', ');
-  }
-
-  static String _titleCase(String input) {
-    return input
-        .split(RegExp(r'\s+'))
-        .where((word) => word.trim().isNotEmpty)
-        .map((word) {
-      if (word.length == 1) return word.toUpperCase();
-
-      return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
-    }).join(' ');
   }
 
   static String _normalizeText(String value) => value.trim();
@@ -308,7 +280,7 @@ class ItemRepository {
   }
 
   static bool _sameMoney(double a, double b) {
-    return (DbShared.roundMoney(a) - DbShared.roundMoney(b)).abs() < 0.009;
+    return MoneyUtils.same(a, b);
   }
 
   static bool _sameWarranties(Map<String, int> a, Map<String, int> b) {
@@ -334,10 +306,6 @@ class ItemRepository {
     }
 
     return true;
-  }
-
-  static String _moneyText(double value) {
-    return DbShared.roundMoney(value).toStringAsFixed(0);
   }
 
   static String _arrowChange(String before, String after) {
@@ -373,8 +341,8 @@ class ItemRepository {
       'Brand: ${_formatBrand(item.brand)}',
       'Colors: ${_formatColors(item.colors)}',
       'Qty: ${item.quantity}',
-      'Cost: ${_moneyText(item.costPrice)}',
-      'Sell: ${_moneyText(item.sellingPrice)}',
+      'Cost: ${MoneyUtils.text(item.costPrice)}',
+      'Sell: ${MoneyUtils.text(item.sellingPrice)}',
       'Supplier: ${_formatSupplier(item.supplier)}',
       'Warranties: ${_formatWarranties(item.warranties)}',
       'Images: ${item.imagePaths.length}',
@@ -419,13 +387,13 @@ class ItemRepository {
 
     if (!_sameMoney(before.costPrice, after.costPrice)) {
       changes.add(
-        'Cost: ${_arrowChange(_moneyText(before.costPrice), _moneyText(after.costPrice))}',
+        'Cost: ${_arrowChange(MoneyUtils.text(before.costPrice), MoneyUtils.text(after.costPrice))}',
       );
     }
 
     if (!_sameMoney(before.sellingPrice, after.sellingPrice)) {
       changes.add(
-        'Sell: ${_arrowChange(_moneyText(before.sellingPrice), _moneyText(after.sellingPrice))}',
+        'Sell: ${_arrowChange(MoneyUtils.text(before.sellingPrice), MoneyUtils.text(after.sellingPrice))}',
       );
     }
 

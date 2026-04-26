@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
+import 'package:invenman/app/core/date_time_utils.dart';
 import 'package:invenman/components/installment/installment_file_editor.dart';
 import 'package:invenman/services/database/db_services.dart';
 import 'package:invenman/models/installment_payment.dart';
@@ -58,11 +58,11 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return DateFormat('d MMM yyyy').format(date.toLocal());
+    return DateTimeUtils.compactDate(date);
   }
 
   String _formatDateTime(DateTime date) {
-    return DateFormat('d MMM yyyy • h:mm a').format(date.toLocal());
+    return DateTimeUtils.compactDateTime(date);
   }
 
   String _money(double value) => value.toStringAsFixed(0);
@@ -227,7 +227,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                                 child: Text(
                                   selectedPaidDate == null
                                       ? 'Select paid date'
-                                      : 'Paid date: ${DateFormat('d MMM yyyy').format(selectedPaidDate!)}',
+                                      : 'Paid date: ${DateTimeUtils.compactDate(selectedPaidDate!)}',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
