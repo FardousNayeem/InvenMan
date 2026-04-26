@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:invenman/components/sensitive_value_text.dart';
+import 'package:invenman/components/common/sensitive_value_text.dart';
 
 class AppUi {
   static const double pageHPadding = 16;

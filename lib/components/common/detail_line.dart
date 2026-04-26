@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:invenman/app/providers/privacy_provider.dart';
-import 'package:invenman/components/sensitive_value_text.dart';
+import 'package:invenman/components/common/sensitive_value_text.dart';
 
 class DetailLine extends StatelessWidget {
   final String label;

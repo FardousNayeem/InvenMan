@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:path/path.dart';
@@ -275,22 +274,6 @@ class DBHelper {
     }
   }
 
-  static Future<void> _deleteFileIfExists(File file) async {
-    if (!await file.exists()) return;
-
-    for (var attempt = 0; attempt < 6; attempt++) {
-      try {
-        if (await file.exists()) {
-          await file.delete();
-        }
-        return;
-      } on FileSystemException {
-        if (attempt == 5) rethrow;
-        await Future.delayed(Duration(milliseconds: 120 * (attempt + 1)));
-      }
-    }
-  }
-
   static Future<Directory> _makeUniqueTempDir(
     String prefix, {
     bool createNow = true,
@@ -334,14 +317,8 @@ class DBHelper {
         }
 
         final data = entry.content;
-        if (data is Uint8List) {
-          await outFile.writeAsBytes(data, flush: true);
-        } else if (data is List<int>) {
-          await outFile.writeAsBytes(data, flush: true);
-        } else {
-          throw Exception('Could not extract backup file: $safeName');
-        }
-      } else {
+        await outFile.writeAsBytes(data, flush: true);
+            } else {
         final outDir = Directory(outPath);
         if (!await outDir.exists()) {
           await outDir.create(recursive: true);
@@ -522,9 +499,6 @@ class DBHelper {
       }
 
       final zipData = ZipEncoder().encode(archive);
-      if (zipData == null) {
-        throw Exception('Could not build backup package.');
-      }
 
       final outFile = File(destinationPath);
       if (!await outFile.parent.exists()) {
