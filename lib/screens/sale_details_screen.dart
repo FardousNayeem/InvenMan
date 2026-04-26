@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:invenman/app/core/date_time_utils.dart';
 import 'package:invenman/models/sale_record.dart';
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/sales/sales_service.dart';
+import 'package:invenman/services/installment/installment_service.dart';
 import 'package:invenman/theme/app_ui.dart';
 import 'package:invenman/components/installment/installment_file_editor.dart';
 
@@ -37,7 +38,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
 
     _isRefreshing = true;
     try {
-      final freshSale = await DBHelper.fetchSaleRecordById(sale.id!);
+      final freshSale = await SalesService.fetchSaleRecordById(sale.id!);
       if (!mounted || freshSale == null) return;
 
       setState(() {
@@ -94,7 +95,7 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
             'Add or remove installment images for this sale. The linked installment plan will update too.',
         initialPaths: sale.installmentImagePaths,
         onSave: (paths) async {
-          await DBHelper.updateInstallmentDocumentsBySaleRecordId(
+          await InstallmentService.updateInstallmentDocumentsBySaleRecordId(
             saleRecordId: sale.id!,
             imagePaths: paths,
           );

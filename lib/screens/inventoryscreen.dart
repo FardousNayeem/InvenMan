@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/inventory/inventory_service.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/components/inventory/top_controls.dart';
 import 'package:invenman/components/inventory/inventory_card.dart';
@@ -41,7 +41,7 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   void _loadItems() {
-    _itemsFuture = DBHelper.fetchItems(sortBy: _sortBy);
+    _itemsFuture = InventoryService.fetchItems(sortBy: _sortBy);
   }
 
   Future<void> _refresh() async {
@@ -171,7 +171,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
 
     if (shouldDelete == true) {
-      await DBHelper.deleteItem(item.id!, item.name);
+      await InventoryService.deleteItem(item.id!, item.name);
       if (!mounted) return;
       Navigator.of(context).maybePop();
       _notifyChanged();

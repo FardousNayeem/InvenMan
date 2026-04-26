@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/installment/installment_service.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/components/installment/installment_card.dart';
@@ -57,13 +57,13 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
   }
 
   Future<List<_InstallmentListItem>> _fetchInstallmentItems() async {
-    final plans = await DBHelper.fetchInstallmentPlans(sortBy: _sortBy);
+    final plans = await InstallmentService.fetchInstallmentPlans(sortBy: _sortBy);
 
     return Future.wait(
       plans.map((plan) async {
         final payments = plan.id == null
             ? <InstallmentPayment>[]
-            : await DBHelper.fetchInstallmentPayments(plan.id!);
+            : await InstallmentService.fetchInstallmentPayments(plan.id!);
 
         return _InstallmentListItem(
           plan: plan,

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:invenman/app/core/app_normalizers.dart';
 import 'package:invenman/components/common/app_text_field.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/inventory/inventory_service.dart';
 import 'package:invenman/services/media/image_service.dart';
 
 
@@ -139,7 +139,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   }
 
   Future<void> _loadCategorySuggestions() async {
-    final categories = await DBHelper.fetchDistinctCategories();
+    final categories = await InventoryService.fetchDistinctCategories();
     if (!mounted) return;
 
     setState(() {
@@ -148,7 +148,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
   }
 
   Future<void> _loadBrandSuggestions() async {
-    final brands = await DBHelper.fetchDistinctBrands();
+    final brands = await InventoryService.fetchDistinctBrands();
     if (!mounted) return;
 
     setState(() {
@@ -537,9 +537,9 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
           );
 
       if (_isEditing) {
-        await DBHelper.updateItem(item);
+        await InventoryService.updateItem(item);
       } else {
-        await DBHelper.insertItem(item);
+        await InventoryService.insertItem(item);
       }
 
       final deletedPaths = _removedExistingImagePaths.where(

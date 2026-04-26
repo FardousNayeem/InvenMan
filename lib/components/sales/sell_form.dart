@@ -7,7 +7,7 @@ import 'package:invenman/app/core/app_normalizers.dart';
 import 'package:invenman/components/common/app_text_field.dart';
 import 'package:invenman/components/common/sensitive_value_text.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/sales/sales_service.dart';
 import 'package:invenman/services/media/image_service.dart';
 
 class SellItemDialog extends StatefulWidget {
@@ -192,7 +192,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
     setState(() => _isSubmitting = true);
 
     try {
-      await DBHelper.sellItem(
+      await SalesService.sellItem(
         item: widget.item,
         quantitySold: int.parse(_quantityController.text.trim()),
         sellPricePerUnit: double.parse(_sellPriceController.text.trim()),

@@ -8,7 +8,7 @@ import 'package:invenman/components/history/history_insight_bar.dart';
 import 'package:invenman/components/history/history_detail_presenter.dart';
 
 import 'package:invenman/models/history.dart';
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/history/history_service.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -60,7 +60,7 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   void _loadHistory() {
-    _historyFuture = DBHelper.fetchHistoryEntries();
+    _historyFuture = HistoryService.fetchEntries();
   }
 
   Future<void> _refresh() async {

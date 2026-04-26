@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:invenman/app/core/date_time_utils.dart';
 import 'package:invenman/models/item.dart';
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/inventory/inventory_service.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class ItemDetailsScreen extends StatefulWidget {
@@ -42,7 +42,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
 
     _isRefreshingItem = true;
     try {
-      final freshItem = await DBHelper.fetchItemById(_item.id!);
+      final freshItem = await InventoryService.fetchItemById(_item.id!);
       if (!mounted || freshItem == null) return;
 
       setState(() {

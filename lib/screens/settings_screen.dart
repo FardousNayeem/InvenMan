@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/backup/backup_app_service.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -32,7 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (savePath == null || savePath.trim().isEmpty) return;
 
     await _runBusy(() async {
-      await DBHelper.exportBackupPackageToPath(savePath);
+      await BackupAppService.exportBackupPackageToPath(savePath);
 
       if (!mounted) return;
       _showSnackBar('Backup exported successfully.');
@@ -79,7 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!confirmed) return;
 
     await _runBusy(() async {
-      final summary = await DBHelper.importBackupPackageFromPath(path);
+      final summary = await BackupAppService.importBackupPackageFromPath(path);
 
       widget.onDataChanged?.call();
 
@@ -100,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!confirmed) return;
 
     await _runBusy(() async {
-      await DBHelper.deleteAllAppData();
+      await BackupAppService.deleteAllAppData();
 
       widget.onDataChanged?.call();
 

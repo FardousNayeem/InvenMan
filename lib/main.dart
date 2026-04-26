@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:invenman/app/providers/privacy_provider.dart';
 import 'package:invenman/app/providers/theme_provider.dart';
 import 'package:invenman/screens/homescreen.dart';
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/database/db_service.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 Future<void> main() async {

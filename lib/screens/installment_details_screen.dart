@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:invenman/app/core/date_time_utils.dart';
 import 'package:invenman/components/installment/installment_file_editor.dart';
-import 'package:invenman/services/database/db_services.dart';
+import 'package:invenman/services/installment/installment_service.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/theme/app_ui.dart';
@@ -38,14 +38,14 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
 
   Future<_InstallmentDetailData> _fetchData() async {
     final freshPlan = widget.plan.id != null
-        ? await DBHelper.fetchInstallmentPlanById(widget.plan.id!)
+        ? await InstallmentService.fetchInstallmentPlanById(widget.plan.id!)
         : null;
 
     final plan = freshPlan ?? widget.plan;
 
     final payments = plan.id == null
         ? <InstallmentPayment>[]
-        : await DBHelper.fetchInstallmentPayments(plan.id!);
+        : await InstallmentService.fetchInstallmentPayments(plan.id!);
 
     return _InstallmentDetailData(
       plan: plan,
@@ -291,7 +291,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       return;
                     }
 
-                    await DBHelper.saveInstallmentPayment(
+                    await InstallmentService.saveInstallmentPayment(
                       installmentPaymentId: payment.id!,
                       amountPaid: amount,
                       paidDate:
@@ -352,7 +352,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
             'Add or remove installment images for this plan. The linked sale record will update too.',
         initialPaths: plan.installmentImagePaths,
         onSave: (paths) async {
-          await DBHelper.updateInstallmentDocumentsByInstallmentPlanId(
+          await InstallmentService.updateInstallmentDocumentsByInstallmentPlanId(
             installmentPlanId: plan.id!,
             imagePaths: paths,
           );
