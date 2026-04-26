@@ -8,6 +8,12 @@ import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
 
+import 'package:invenman/app/actions/sell_item_action.dart';
+import 'package:invenman/app/actions/import_backup_action.dart';
+import 'package:invenman/app/actions/delete_all_data_action.dart';
+import 'package:invenman/app/actions/installment_payment_action.dart';
+import 'package:invenman/app/actions/update_installment_documents_action.dart';
+
 import 'package:invenman/services/backup/backup_models.dart';
 import 'package:invenman/services/backup/backup_service.dart';
 import 'package:invenman/services/database/app_database.dart';
@@ -57,7 +63,7 @@ class DBHelper {
     String sourcePath,
   ) {
     _ensureDatabaseCallbacksRegistered();
-    return BackupService.importBackupPackageFromPath(sourcePath);
+    return ImportBackupAction.execute(sourcePath);
   }
 
   static Future<DatabaseImportSummary> importDatabaseFromPath(
@@ -69,12 +75,12 @@ class DBHelper {
 
   static Future<void> deleteAllAppData() {
     _ensureDatabaseCallbacksRegistered();
-    return BackupService.deleteAllAppData();
+    return DeleteAllAppDataAction.execute();
   }
 
   static Future<void> clearAllData() {
     _ensureDatabaseCallbacksRegistered();
-    return BackupService.clearAllData();
+    return DeleteAllAppDataAction.clearAllData();
   }
 
   static Future<List<String>> fetchDistinctCategories() {
@@ -149,7 +155,7 @@ class DBHelper {
   }) {
     _ensureDatabaseCallbacksRegistered();
 
-    return SaleRepository.sellItem(
+    return SellItemAction.execute(
       item: item,
       quantitySold: quantitySold,
       sellPricePerUnit: sellPricePerUnit,
@@ -221,7 +227,7 @@ class DBHelper {
   }) {
     _ensureDatabaseCallbacksRegistered();
 
-    return InstallmentRepository.saveInstallmentPayment(
+    return RecordInstallmentPaymentAction.execute(
       installmentPaymentId: installmentPaymentId,
       amountPaid: amountPaid,
       paidDate: paidDate,
@@ -236,7 +242,7 @@ class DBHelper {
   }) {
     _ensureDatabaseCallbacksRegistered();
 
-    return InstallmentRepository.updateInstallmentDocumentsBySaleRecordId(
+    return UpdateInstallmentDocumentsAction.bySaleRecordId(
       saleRecordId: saleRecordId,
       imagePaths: imagePaths,
     );
@@ -249,7 +255,7 @@ class DBHelper {
   }) {
     _ensureDatabaseCallbacksRegistered();
 
-    return InstallmentRepository.updateInstallmentDocumentsByInstallmentPlanId(
+    return UpdateInstallmentDocumentsAction.byInstallmentPlanId(
       installmentPlanId: installmentPlanId,
       imagePaths: imagePaths,
     );
@@ -262,12 +268,12 @@ class DBHelper {
   }) {
     _ensureDatabaseCallbacksRegistered();
 
-    return InstallmentRepository.removeInstallmentDocumentBySaleRecordId(
+    return UpdateInstallmentDocumentsAction.removeBySaleRecordId(
       saleRecordId: saleRecordId,
       imagePath: imagePath,
     );
   }
-
+  
   static Future<InstallmentDocumentSyncResult>
       removeInstallmentDocumentByInstallmentPlanId({
     required int installmentPlanId,
@@ -275,7 +281,7 @@ class DBHelper {
   }) {
     _ensureDatabaseCallbacksRegistered();
 
-    return InstallmentRepository.removeInstallmentDocumentByInstallmentPlanId(
+    return UpdateInstallmentDocumentsAction.removeByInstallmentPlanId(
       installmentPlanId: installmentPlanId,
       imagePath: imagePath,
     );
