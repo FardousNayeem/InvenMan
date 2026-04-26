@@ -43,7 +43,9 @@ class RecordInstallmentPaymentAction {
   }) async {
     final dbClient = await AppDatabase.db;
 
-    if (amountPaid < 0) {
+    final paymentAmount = _roundMoney(amountPaid);
+
+    if (paymentAmount < 0) {
       throw Exception('Amount paid cannot be negative.');
     }
 
@@ -59,53 +61,105 @@ class RecordInstallmentPaymentAction {
         throw Exception('Installment payment entry not found.');
       }
 
-      final payment = InstallmentPayment.fromMap(paymentMaps.first);
-    
-      if (amountPaid > payment.amountDue) {
-        throw Exception('Payment cannot exceed due amount.');
-      }
+      final selectedPayment = InstallmentPayment.fromMap(paymentMaps.first);
 
       final normalizedPaidDate = paidDate == null
-        ? null
-        : DateTime.utc(
-            paidDate.year,
-            paidDate.month,
-            paidDate.day,
-          );
-      final normalizedNote = (note ?? '').trim().isEmpty ? null : note?.trim();
+          ? null
+          : DateTime.utc(
+              paidDate.year,
+              paidDate.month,
+              paidDate.day,
+            );
 
-      final normalizedAmountDue = _wholeMoney(payment.amountDue);
-      
-      final newStatus = _paymentRowStatus(
-        dueDate: payment.dueDate,
-        amountDue: normalizedAmountDue,
-        amountPaid: amountPaid,
-      );
+      final normalizedNote =
+          (note ?? '').trim().isEmpty ? null : note?.trim();
 
-      await txn.update(
+      final installmentMaps = await txn.query(
         'installment_payments',
-        {
-          'amount_due': normalizedAmountDue,
-          'amount_paid': _roundMoney(amountPaid),
-          'paid_date': normalizedPaidDate?.toIso8601String(),
-          'status': newStatus,
-          'note': normalizedNote,
-          'updated_at': _nowUtc().toIso8601String(),
-        },
-        where: 'id = ?',
-        whereArgs: [installmentPaymentId],
+        where: 'installment_plan_id = ? AND installment_number >= ?',
+        whereArgs: [
+          selectedPayment.installmentPlanId,
+          selectedPayment.installmentNumber,
+        ],
+        orderBy: 'installment_number ASC',
       );
+
+      final installments = installmentMaps
+          .map((map) => InstallmentPayment.fromMap(map))
+          .toList();
+
+      final totalRemaining = _roundMoney(
+        installments.fold<double>(0, (sum, row) {
+          final amountDue = _wholeMoney(row.amountDue);
+          final alreadyPaid = _roundMoney(row.amountPaid);
+          final remaining = amountDue - alreadyPaid;
+
+          return sum + (remaining > 0 ? remaining : 0);
+        }),
+      );
+
+      if (paymentAmount > totalRemaining) {
+        throw Exception('Payment cannot exceed remaining installment balance.');
+      }
+
+      double remainingPayment = paymentAmount;
+      double totalApplied = 0;
+
+      for (final row in installments) {
+        final amountDue = _wholeMoney(row.amountDue);
+        final alreadyPaid = _roundMoney(row.amountPaid);
+        final rowRemaining = _roundMoney(amountDue - alreadyPaid);
+
+        if (rowRemaining <= 0) {
+          continue;
+        }
+
+        final appliedAmount = remainingPayment >= rowRemaining
+            ? rowRemaining
+            : remainingPayment;
+
+        final newAmountPaid = _roundMoney(alreadyPaid + appliedAmount);
+
+        final newStatus = _paymentRowStatus(
+          dueDate: row.dueDate,
+          amountDue: amountDue,
+          amountPaid: newAmountPaid,
+        );
+
+        await txn.update(
+          'installment_payments',
+          {
+            'amount_due': amountDue,
+            'amount_paid': newAmountPaid,
+            'paid_date': newAmountPaid > 0
+                ? normalizedPaidDate?.toIso8601String()
+                : null,
+            'status': newStatus,
+            'note': row.id == installmentPaymentId ? normalizedNote : row.note,
+            'updated_at': _nowUtc().toIso8601String(),
+          },
+          where: 'id = ?',
+          whereArgs: [row.id],
+        );
+
+        remainingPayment = _roundMoney(remainingPayment - appliedAmount);
+        totalApplied = _roundMoney(totalApplied + appliedAmount);
+
+        if (remainingPayment <= 0) {
+          break;
+        }
+      }
 
       await InstallmentRepository.recalculateInstallmentPlanTxn(
         txn,
-        payment.installmentPlanId,
-        anchorInstallmentNumber: payment.installmentNumber,
+        selectedPayment.installmentPlanId,
+        anchorInstallmentNumber: selectedPayment.installmentNumber,
       );
 
       final planMaps = await txn.query(
         'installment_plans',
         where: 'id = ?',
-        whereArgs: [payment.installmentPlanId],
+        whereArgs: [selectedPayment.installmentPlanId],
         limit: 1,
       );
 
@@ -113,8 +167,8 @@ class RecordInstallmentPaymentAction {
         final plan = InstallmentPlan.fromMap(planMaps.first);
 
         final details = StringBuffer()
-          ..write('Month ${payment.installmentNumber}')
-          ..write(', Paid: ${_moneyText(amountPaid)}');
+          ..write('From month ${selectedPayment.installmentNumber}')
+          ..write(', Paid: ${_moneyText(totalApplied)}');
 
         if (normalizedPaidDate != null) {
           details.write(', Date: ${normalizedPaidDate.toIso8601String()}');
