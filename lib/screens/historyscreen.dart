@@ -1,15 +1,14 @@
-import 'dart:collection';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
-import 'package:invenman/services/db_services.dart';
-import 'package:invenman/app/providers/privacy_provider.dart';
+import 'package:invenman/components/history_top_controls.dart';
+import 'package:invenman/components/history_group_header.dart';
+import 'package:invenman/components/history_event_card.dart';
+import 'package:invenman/components/history_insight_bar.dart';
+import 'package:invenman/components/history_detail_presenter.dart';
+
 import 'package:invenman/models/history.dart';
-import 'package:invenman/theme/app_sort_button.dart';
-import 'package:invenman/theme/app_top_bar_buttons.dart';
+import 'package:invenman/services/db_services.dart';
 import 'package:invenman/theme/app_ui.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -28,11 +27,15 @@ class _HistoryPageState extends State<HistoryPage> {
   static const String _defaultSort = 'latest';
   static const String _defaultFilter = 'all';
 
+  final DateFormat _dateFormat = DateFormat('d MMM yyyy');
+  final DateFormat _timeFormat = DateFormat('h:mm a');
+
   late Future<List<HistoryEntry>> _historyFuture;
 
   String _sortBy = _defaultSort;
   String _filterBy = _defaultFilter;
   bool _isSearchActive = false;
+
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -50,6 +53,7 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   void didUpdateWidget(covariant HistoryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (oldWidget.refreshToken != widget.refreshToken) {
       setState(_loadHistory);
     }
@@ -65,8 +69,10 @@ class _HistoryPageState extends State<HistoryPage> {
 
   String get _searchQuery => _searchController.text.trim().toLowerCase();
 
-  bool get _isSortExpanded =>
-      !_isSearchActive && (_sortBy != _defaultSort || _filterBy != _defaultFilter);
+  bool get _isSortExpanded {
+    return !_isSearchActive &&
+        (_sortBy != _defaultSort || _filterBy != _defaultFilter);
+  }
 
   void _activateSearch() {
     setState(() {
@@ -84,23 +90,17 @@ class _HistoryPageState extends State<HistoryPage> {
     });
   }
 
-  String _formatDate(DateTime date) {
-    return DateFormat('d MMM yyyy • h:mm a').format(date.toLocal());
-  }
-
-  String _formatTime(DateTime date) {
-    return DateFormat('h:mm a').format(date.toLocal());
-  }
-
   String _dayLabel(DateTime date) {
     final local = date.toLocal();
     final now = DateTime.now();
+
     final today = DateTime(now.year, now.month, now.day);
-    final thatDay = DateTime(local.year, local.month, local.day);
-    final diff = today.difference(thatDay).inDays;
+    final entryDay = DateTime(local.year, local.month, local.day);
+    final diff = today.difference(entryDay).inDays;
 
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
+
     return DateFormat('EEEE • d MMM yyyy').format(local);
   }
 
@@ -186,22 +186,29 @@ class _HistoryPageState extends State<HistoryPage> {
       case 'oldest':
         sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
         break;
+
       case 'action':
         sorted.sort((a, b) {
           final byAction =
               a.action.toLowerCase().compareTo(b.action.toLowerCase());
+
           if (byAction != 0) return byAction;
+
           return b.createdAt.compareTo(a.createdAt);
         });
         break;
+
       case 'item':
         sorted.sort((a, b) {
           final byName =
               a.itemName.toLowerCase().compareTo(b.itemName.toLowerCase());
+
           if (byName != 0) return byName;
+
           return b.createdAt.compareTo(a.createdAt);
         });
         break;
+
       case 'latest':
       default:
         sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -210,10 +217,10 @@ class _HistoryPageState extends State<HistoryPage> {
     return sorted;
   }
 
-  LinkedHashMap<String, List<HistoryEntry>> _groupEntries(
+  Map<String, List<HistoryEntry>> _groupEntries(
     List<HistoryEntry> entries,
   ) {
-    final grouped = LinkedHashMap<String, List<HistoryEntry>>();
+    final grouped = <String, List<HistoryEntry>>{};
 
     for (final entry in entries) {
       final key = _dayLabel(entry.createdAt);
@@ -225,7 +232,9 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   int _countAction(List<HistoryEntry> history, String action) {
-    return history.where((entry) => entry.action.toLowerCase() == action).length;
+    return history.where((entry) {
+      return entry.action.toLowerCase() == action;
+    }).length;
   }
 
   int _countToday(List<HistoryEntry> history) {
@@ -234,17 +243,16 @@ class _HistoryPageState extends State<HistoryPage> {
 
     return history.where((entry) {
       final local = entry.createdAt.toLocal();
-      final day = DateTime(local.year, local.month, local.day);
-      return day == today;
+      final entryDay = DateTime(local.year, local.month, local.day);
+
+      return entryDay == today;
     }).length;
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final privacyProvider = context.watch<PrivacyProvider>();
-    final hideSensitive = privacyProvider.hideSensitiveValues;
-
+    
     return Column(
       children: [
         Padding(
@@ -254,7 +262,7 @@ class _HistoryPageState extends State<HistoryPage> {
             AppUi.pageHPadding,
             8,
           ),
-          child: _HistoryTopControls(
+          child: HistoryTopControls(
             sortBy: _sortBy,
             filterBy: _filterBy,
             isSearchActive: _isSearchActive,
@@ -262,6 +270,7 @@ class _HistoryPageState extends State<HistoryPage> {
             searchController: _searchController,
             onSortChanged: (value) {
               if (value == null) return;
+
               setState(() {
                 _sortBy = value;
               });
@@ -294,6 +303,7 @@ class _HistoryPageState extends State<HistoryPage> {
               }
 
               final allHistory = snapshot.data ?? [];
+
               final filtered = _applyFilter(allHistory);
               final searched = _applySearch(filtered);
               final history = _applySort(searched);
@@ -305,10 +315,10 @@ class _HistoryPageState extends State<HistoryPage> {
               final editedCount = _countAction(allHistory, 'edited');
               final deletedCount = _countAction(allHistory, 'deleted');
 
-              if (history.isEmpty) {
-                final isSearching =
-                    _searchQuery.isNotEmpty || _filterBy != _defaultFilter;
+              final isSearching =
+                  _searchQuery.isNotEmpty || _filterBy != _defaultFilter;
 
+              if (history.isEmpty) {
                 return RefreshIndicator(
                   onRefresh: _refresh,
                   child: ListView(
@@ -357,14 +367,13 @@ class _HistoryPageState extends State<HistoryPage> {
                           AppUi.pageHPadding,
                           12,
                         ),
-                        child: _HistoryInsightBar(
+                        child: HistoryInsightBar(
                           totalEvents: totalEvents,
                           todayCount: todayCount,
                           soldCount: soldCount,
                           editedCount: editedCount,
                           deletedCount: deletedCount,
-                          isSearching:
-                              _searchQuery.isNotEmpty || _filterBy != _defaultFilter,
+                          isSearching: isSearching,
                           resultCount: history.length,
                         ),
                       ),
@@ -379,7 +388,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       sliver: SliverList(
                         delegate: SliverChildListDelegate.fixed([
                           for (final group in grouped.entries) ...[
-                            _HistoryGroupHeader(title: group.key),
+                            HistoryGroupHeader(title: group.key),
                             const SizedBox(height: 10),
                             ...List.generate(group.value.length, (index) {
                               final entry = group.value[index];
@@ -391,13 +400,15 @@ class _HistoryPageState extends State<HistoryPage> {
                                       ? 18
                                       : AppUi.listGap,
                                 ),
-                                child: _HistoryEventCard(
+                                child: HistoryEventCard(
                                   entry: entry,
-                                  color: color,
                                   icon: _eventIcon(entry.action),
-                                  formattedDate: _formatDate(entry.createdAt),
-                                  formattedTime: _formatTime(entry.createdAt),
-                                  hideSensitive: hideSensitive,
+                                  color: color,
+                                  dateFormat: _dateFormat,
+                                  timeFormat: _timeFormat,
+                                  details: HistoryDetailPresenter(
+                                    entry: entry,
+                                  ),
                                 ),
                               );
                             }),
@@ -412,1047 +423,6 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _HistoryTopControls extends StatelessWidget {
-  final String sortBy;
-  final String filterBy;
-  final bool isSearchActive;
-  final bool isSortExpanded;
-  final TextEditingController searchController;
-  final ValueChanged<String?> onSortChanged;
-  final ValueChanged<String> onFilterChanged;
-  final VoidCallback onActivateSearch;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onCancelSearch;
-
-  const _HistoryTopControls({
-    required this.sortBy,
-    required this.filterBy,
-    required this.isSearchActive,
-    required this.isSortExpanded,
-    required this.searchController,
-    required this.onSortChanged,
-    required this.onFilterChanged,
-    required this.onActivateSearch,
-    required this.onSearchChanged,
-    required this.onCancelSearch,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 760;
-    final rowHeight = compact ? 46.0 : 52.0;
-    final gap = compact ? 8.0 : 10.0;
-
-    if (compact) {
-      return Column(
-        children: [
-          if (!isSearchActive)
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: rowHeight,
-                    child: _HistorySortControl(
-                      value: sortBy,
-                      onChanged: onSortChanged,
-                    ),
-                  ),
-                ),
-                SizedBox(width: gap),
-                SizedBox(
-                  height: rowHeight,
-                  width: rowHeight,
-                  child: AppTopBarIconButton(
-                    onPressed: onActivateSearch,
-                    icon: Icons.search_rounded,
-                    tooltip: 'Search history',
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            SizedBox(
-              height: rowHeight,
-              child: _HistorySearchBar(
-                controller: searchController,
-                onChanged: onSearchChanged,
-                onClear: onCancelSearch,
-              ),
-            ),
-            SizedBox(height: gap),
-            SizedBox(
-              height: rowHeight,
-              child: _HistorySortControl(
-                value: sortBy,
-                onChanged: onSortChanged,
-              ),
-            ),
-          ],
-          SizedBox(height: gap),
-          _HistoryFilterBar(
-            selectedValue: filterBy,
-            onChanged: onFilterChanged,
-          ),
-        ],
-      );
-    }
-
-    final sortFlex = isSearchActive ? 2 : (isSortExpanded ? 7 : 5);
-    final middleFlex = isSearchActive ? 5 : 1;
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              flex: sortFlex,
-              child: SizedBox(
-                height: rowHeight,
-                child: _HistorySortControl(
-                  value: sortBy,
-                  onChanged: onSortChanged,
-                ),
-              ),
-            ),
-            SizedBox(width: gap),
-            Expanded(
-              flex: middleFlex,
-              child: SizedBox(
-                height: rowHeight,
-                child: isSearchActive
-                    ? _HistorySearchBar(
-                        controller: searchController,
-                        onChanged: onSearchChanged,
-                        onClear: onCancelSearch,
-                      )
-                    : AppTopBarIconButton(
-                        onPressed: onActivateSearch,
-                        icon: Icons.search_rounded,
-                        tooltip: 'Search history',
-                      ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: gap),
-        _HistoryFilterBar(
-          selectedValue: filterBy,
-          onChanged: onFilterChanged,
-        ),
-      ],
-    );
-  }
-}
-
-class _HistorySortControl extends StatelessWidget {
-  final String value;
-  final ValueChanged<String?> onChanged;
-
-  const _HistorySortControl({
-    required this.value,
-    required this.onChanged,
-  });
-
-  String _label(String value) {
-    switch (value) {
-      case 'oldest':
-        return 'Oldest First';
-      case 'action':
-        return 'Action Type';
-      case 'item':
-        return 'Item Name';
-      case 'latest':
-      default:
-        return 'Latest First';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSortButton<String>(
-      value: value,
-      tooltip: 'Sort history',
-      labelBuilder: _label,
-      onSelected: (selected) => onChanged(selected),
-      items: const [
-        PopupMenuItem(value: 'latest', child: Text('Latest First')),
-        PopupMenuItem(value: 'oldest', child: Text('Oldest First')),
-        PopupMenuItem(value: 'action', child: Text('Action Type')),
-        PopupMenuItem(value: 'item', child: Text('Item Name')),
-      ],
-    );
-  }
-}
-
-class _HistorySearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  const _HistorySearchBar({
-    required this.controller,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.search_rounded, size: 20, color: cs.onSurfaceVariant),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              autofocus: true,
-              style: const TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w600,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search history',
-                hintStyle: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w500,
-                  color: cs.onSurfaceVariant,
-                ),
-                isDense: true,
-                isCollapsed: true,
-                filled: false,
-                fillColor: Colors.transparent,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: onClear,
-            tooltip: 'Cancel search',
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.close_rounded, size: 20),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryFilterBar extends StatelessWidget {
-  final String selectedValue;
-  final ValueChanged<String> onChanged;
-
-  const _HistoryFilterBar({
-    required this.selectedValue,
-    required this.onChanged,
-  });
-
-  static const _filters = <(String, String)>[
-    ('all', 'All'),
-    ('added', 'Added'),
-    ('edited', 'Edited'),
-    ('sold', 'Sold'),
-    ('installment', 'Installments'),
-    ('payment', 'Payments'),
-    ('deleted', 'Deleted'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return SizedBox(
-      height: 38,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, index) {
-          final filter = _filters[index];
-          final value = filter.$1;
-          final label = filter.$2;
-          final selected = selectedValue == value;
-
-          return ChoiceChip(
-            selected: selected,
-            label: Text(label),
-            onSelected: (_) => onChanged(value),
-            labelStyle: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: selected ? cs.onSecondaryContainer : cs.onSurface,
-            ),
-            backgroundColor: cs.surfaceContainerLow,
-            selectedColor: cs.secondaryContainer,
-            side: BorderSide(
-              color: selected ? cs.secondaryContainer : cs.outlineVariant,
-            ),
-            visualDensity: VisualDensity.compact,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _HistoryInsightBar extends StatelessWidget {
-  final int totalEvents;
-  final int todayCount;
-  final int soldCount;
-  final int editedCount;
-  final int deletedCount;
-  final bool isSearching;
-  final int resultCount;
-
-  const _HistoryInsightBar({
-    required this.totalEvents,
-    required this.todayCount,
-    required this.soldCount,
-    required this.editedCount,
-    required this.deletedCount,
-    required this.isSearching,
-    required this.resultCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 760;
-
-    if (compact) {
-      return Column(
-        children: [
-          if (isSearching) AppSearchNotice(resultCount: resultCount),
-          Row(
-            children: [
-              Expanded(
-                child: AppInsightTile(
-                  label: 'Events',
-                  value: '$totalEvents',
-                  icon: Icons.history_rounded,
-                ),
-              ),
-              const SizedBox(width: AppUi.tileGap),
-              Expanded(
-                child: AppInsightTile(
-                  label: 'Today',
-                  value: '$todayCount',
-                  icon: Icons.today_rounded,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppUi.tileGap),
-          Row(
-            children: [
-              Expanded(
-                child: AppInsightTile(
-                  label: 'Sold',
-                  value: '$soldCount',
-                  icon: Icons.point_of_sale_rounded,
-                ),
-              ),
-              const SizedBox(width: AppUi.tileGap),
-              Expanded(
-                child: AppInsightTile(
-                  label: 'Edited',
-                  value: '$editedCount',
-                  icon: Icons.edit_rounded,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppUi.tileGap),
-          Row(
-            children: [
-              Expanded(
-                child: AppInsightTile(
-                  label: 'Deleted',
-                  value: '$deletedCount',
-                  icon: Icons.delete_rounded,
-                ),
-              ),
-              const SizedBox(width: AppUi.tileGap),
-              const Expanded(child: SizedBox()),
-            ],
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: AppInsightTile(
-            label: 'Events',
-            value: '$totalEvents',
-            icon: Icons.history_rounded,
-          ),
-        ),
-        const SizedBox(width: AppUi.tileGap),
-        Expanded(
-          child: AppInsightTile(
-            label: 'Today',
-            value: '$todayCount',
-            icon: Icons.today_rounded,
-          ),
-        ),
-        const SizedBox(width: AppUi.tileGap),
-        Expanded(
-          child: AppInsightTile(
-            label: 'Sold',
-            value: '$soldCount',
-            icon: Icons.point_of_sale_rounded,
-          ),
-        ),
-        const SizedBox(width: AppUi.tileGap),
-        Expanded(
-          child: AppInsightTile(
-            label: isSearching ? 'Results' : 'Edited',
-            value: isSearching ? '$resultCount' : '$editedCount',
-            icon: isSearching ? Icons.search_rounded : Icons.edit_rounded,
-          ),
-        ),
-        if (!isSearching) ...[
-          const SizedBox(width: AppUi.tileGap),
-          Expanded(
-            child: AppInsightTile(
-              label: 'Deleted',
-              value: '$deletedCount',
-              icon: Icons.delete_rounded,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _HistoryGroupHeader extends StatelessWidget {
-  final String title;
-
-  const _HistoryGroupHeader({
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppUi.pillRadius),
-          ),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 12.3,
-              fontWeight: FontWeight.w800,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HistoryEventCard extends StatelessWidget {
-  final HistoryEntry entry;
-  final Color color;
-  final IconData icon;
-  final String formattedDate;
-  final String formattedTime;
-  final bool hideSensitive;
-
-  const _HistoryEventCard({
-    required this.entry,
-    required this.color,
-    required this.icon,
-    required this.formattedDate,
-    required this.formattedTime,
-    required this.hideSensitive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 760;
-
-    final detailPresenter = _HistoryDetailPresenter(
-      entry: entry,
-      hideSensitive: hideSensitive,
-    );
-
-    if (compact) {
-      return AppSurfaceCard(
-        padding: const EdgeInsets.all(16),
-        radius: 26,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _HistoryCardHeader(
-              entry: entry,
-              color: color,
-              icon: icon,
-              compact: true,
-            ),
-            const SizedBox(height: 12),
-            detailPresenter.buildCompact(context),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _MetaPill(
-                  icon: Icons.access_time_rounded,
-                  label: formattedTime,
-                ),
-                _MetaPill(
-                  icon: Icons.event_outlined,
-                  label: formattedDate,
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    return AppSurfaceCard(
-      padding: const EdgeInsets.all(16),
-      radius: 28,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _HistoryTimelineRail(
-            color: color,
-            icon: icon,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _HistoryCardHeader(
-                  entry: entry,
-                  color: color,
-                  icon: icon,
-                  compact: false,
-                ),
-                const SizedBox(height: 10),
-                detailPresenter.buildWide(context),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          _HistoryTimestampPanel(
-            entry: entry,
-            formattedTime: formattedTime,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryCardHeader extends StatelessWidget {
-  final HistoryEntry entry;
-  final Color color;
-  final IconData icon;
-  final bool compact;
-
-  const _HistoryCardHeader({
-    required this.entry,
-    required this.color,
-    required this.icon,
-    required this.compact,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (compact) ...[
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 21),
-          ),
-          const SizedBox(width: 12),
-        ],
-        Expanded(
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              Text(
-                entry.itemName,
-                style: TextStyle(
-                  fontSize: compact ? 17.0 : 18.0,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(AppUi.pillRadius),
-                ),
-                child: Text(
-                  entry.action,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HistoryTimelineRail extends StatelessWidget {
-  final Color color;
-  final IconData icon;
-
-  const _HistoryTimelineRail({
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Column(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          width: 2,
-          height: 42,
-          decoration: BoxDecoration(
-            color: cs.outlineVariant.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(AppUi.pillRadius),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HistoryTimestampPanel extends StatelessWidget {
-  final HistoryEntry entry;
-  final String formattedTime;
-
-  const _HistoryTimestampPanel({
-    required this.entry,
-    required this.formattedTime,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 118, maxWidth: 148),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withOpacity(0.82),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Event time',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.35,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              formattedTime,
-              style: const TextStyle(
-                fontSize: 15.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              DateFormat('d MMM yyyy').format(entry.createdAt.toLocal()),
-              style: TextStyle(
-                fontSize: 12.3,
-                fontWeight: FontWeight.w600,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HistoryDetailPresenter {
-  final HistoryEntry entry;
-  final bool hideSensitive;
-
-  const _HistoryDetailPresenter({
-    required this.entry,
-    required this.hideSensitive,
-  });
-
-  static const Set<String> _sensitiveLabels = {
-    'cost',
-    'sell',
-    'sold at',
-    'profit',
-    'down payment',
-    'paid',
-    'financed',
-    'monthly approx',
-    'monthly',
-    'total',
-    'total amount',
-    'remaining',
-    'remaining balance',
-    'collected',
-  };
-
-  bool get _isStructured {
-    return entry.details.contains(':') && entry.details.contains(',');
-  }
-
-  bool _isSensitiveLabel(String label) {
-    return _sensitiveLabels.contains(label.trim().toLowerCase());
-  }
-
-  List<_HistoryDetailRow> _parseRows() {
-    final parts = entry.details
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
-    return parts.map((part) {
-      final index = part.indexOf(':');
-      if (index == -1) {
-        return _HistoryDetailRow(
-          label: '',
-          value: _maskLooseText(part),
-          isSensitive: false,
-          hideWholeField: false,
-        );
-      }
-
-      final label = part.substring(0, index).trim();
-      final rawValue = part.substring(index + 1).trim();
-      final sensitive = _isSensitiveLabel(label);
-
-      if (sensitive && hideSensitive) {
-        return const _HistoryDetailRow(
-          label: '',
-          value: '••••',
-          isSensitive: true,
-          hideWholeField: true,
-        );
-      }
-
-      return _HistoryDetailRow(
-        label: label,
-        value: rawValue,
-        isSensitive: sensitive,
-        hideWholeField: false,
-      );
-    }).toList();
-  }
-
-  String _maskLooseText(String text) {
-    if (!hideSensitive) return text;
-
-    var masked = text;
-
-    final patterns = [
-      RegExp(r'\bprofit\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bcost\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bsell\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bsold at\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bpaid\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bdown payment\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bmonthly approx\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bmonthly\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\btotal\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\btotal amount\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bfinanced\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bremaining\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bremaining balance\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\bcollected\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-    ];
-
-    for (final pattern in patterns) {
-      masked = masked.replaceAllMapped(pattern, (_) => '••••');
-    }
-
-    return masked;
-  }
-
-  Widget buildCompact(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final rows = _isStructured ? _parseRows() : const <_HistoryDetailRow>[];
-
-    if (rows.isEmpty) {
-      return Text(
-        _maskLooseText(entry.details),
-        style: TextStyle(
-          fontSize: 14.0,
-          height: 1.45,
-          color: cs.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: rows.map((row) {
-        return _HistoryInfoChip(
-          row: row,
-          compact: true,
-        );
-      }).toList(),
-    );
-  }
-
-  Widget buildWide(BuildContext context) {
-    final rows = _isStructured ? _parseRows() : const <_HistoryDetailRow>[];
-
-    if (rows.isEmpty) {
-      return Text(
-        _maskLooseText(entry.details),
-        style: TextStyle(
-          fontSize: 14.0,
-          height: 1.45,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-        ),
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double maxChipWidth = math.min(
-          math.max(constraints.maxWidth * 0.34, 180),
-          300,
-        );
-
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: rows.map((row) {
-            return _HistoryInfoChip(
-              row: row,
-              compact: false,
-              maxWidth: maxChipWidth,
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-}
-
-class _HistoryInfoChip extends StatelessWidget {
-  final _HistoryDetailRow row;
-  final bool compact;
-  final double? maxWidth;
-
-  const _HistoryInfoChip({
-    required this.row,
-    required this.compact,
-    this.maxWidth,
-  });
-
-  bool get _isLooseOnly => row.hideWholeField || row.label.isEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        minWidth: _isLooseOnly ? 78 : 116,
-        maxWidth: maxWidth ?? double.infinity,
-      ),
-      child: IntrinsicWidth(
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 11 : 12,
-            vertical: compact ? 9 : 10,
-          ),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: _isLooseOnly
-              ? Text(
-                  row.value,
-                  style: TextStyle(
-                    fontSize: compact ? 12.8 : 13.2,
-                    height: 1.35,
-                    color: row.isSensitive ? cs.onSurface : cs.onSurfaceVariant,
-                    fontWeight: row.isSensitive ? FontWeight.w700 : FontWeight.w600,
-                  ),
-                )
-              : _ChipDetailLine(
-                  label: row.label,
-                  value: row.value,
-                  compact: compact,
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HistoryDetailRow {
-  final String label;
-  final String value;
-  final bool isSensitive;
-  final bool hideWholeField;
-
-  const _HistoryDetailRow({
-    required this.label,
-    required this.value,
-    required this.isSensitive,
-    required this.hideWholeField,
-  });
-}
-
-class _ChipDetailLine extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool compact;
-
-  const _ChipDetailLine({
-    required this.label,
-    required this.value,
-    required this.compact,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final labelStyle = TextStyle(
-      fontSize: compact ? 12.0 : 12.6,
-      fontWeight: FontWeight.w800,
-      color: cs.onSurfaceVariant,
-      height: 1.3,
-    );
-    final valueStyle = TextStyle(
-      fontSize: compact ? 12.6 : 13.2,
-      fontWeight: FontWeight.w700,
-      color: cs.onSurface,
-      height: 1.35,
-    );
-
-    return RichText(
-      text: TextSpan(
-        children: [
-          TextSpan(text: '$label: ', style: labelStyle),
-          TextSpan(text: value, style: valueStyle),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetaPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MetaPill({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: cs.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurface,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
