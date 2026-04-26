@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:invenman/main.dart';
+import 'package:invenman/app/providers/privacy_provider.dart';
+import 'package:invenman/app/providers/theme_provider.dart';
 import 'package:invenman/screens/settings_screen.dart';
 import 'package:invenman/screens/historyscreen.dart';
 import 'package:invenman/screens/installmentsscreen.dart';

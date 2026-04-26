@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:invenman/models/installment_plan.dart';
 
+import 'package:invenman/components/common/card_panel.dart';
+import 'package:invenman/components/common/detail_line.dart';
+import 'package:invenman/components/common/inline_badge.dart';
+import 'package:invenman/components/common/interactive_card_shell.dart';
+
+
 class InstallmentCard extends StatelessWidget {
   final InstallmentPlan plan;
   final String thisMonthStatus;
@@ -72,7 +78,7 @@ class InstallmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 820;
 
-    return _InteractiveCardShell(
+    return InteractiveCardShell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -139,7 +145,7 @@ class _WideCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _Panel(
+                child: CardPanel(
                   title: 'Installment Details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +164,7 @@ class _WideCard extends StatelessWidget {
                               height: 1.15,
                             ),
                           ),
-                          _InlineBadge(
+                          InlineBadge(
                             label: plan.category,
                             background: cs.secondaryContainer,
                             foreground: cs.onSecondaryContainer,
@@ -172,12 +178,12 @@ class _WideCard extends StatelessWidget {
                           Expanded(
                             child: Column(
                               children: [
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Monthly',
                                   value: money(plan.monthlyAmount),
                                 ),
                                 const SizedBox(height: 10),
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Balance',
                                   value: money(plan.remainingBalance),
                                 ),
@@ -188,7 +194,7 @@ class _WideCard extends StatelessWidget {
                           Expanded(
                             child: Column(
                               children: [
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Progress',
                                   value: plan.status == 'completed' ||
                                           plan.remainingBalance <= 0.009
@@ -196,7 +202,7 @@ class _WideCard extends StatelessWidget {
                                       : '${plan.paidMonths}/${plan.durationMonths} paid',
                                 ),
                                 const SizedBox(height: 10),
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Started',
                                   value: formattedStartDate,
                                 ),
@@ -211,26 +217,26 @@ class _WideCard extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _Panel(
+                child: CardPanel(
                   title: 'Customer Details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _DetailLine(
+                      DetailLine(
                         label: 'Name',
                         value: (plan.customerName ?? '').trim().isEmpty
                             ? 'Not provided'
                             : plan.customerName!,
                       ),
                       const SizedBox(height: 10),
-                      _DetailLine(
+                      DetailLine(
                         label: 'Phone',
                         value: (plan.customerPhone ?? '').trim().isEmpty
                             ? 'Not provided'
                             : plan.customerPhone!,
                       ),
                       const SizedBox(height: 10),
-                      _DetailLine(
+                      DetailLine(
                         label: 'Address',
                         value: (plan.customerAddress ?? '').trim().isEmpty
                             ? 'Not provided'
@@ -238,7 +244,7 @@ class _WideCard extends StatelessWidget {
                         multiline: true,
                       ),
                       const SizedBox(height: 10),
-                      _DetailLine(
+                      DetailLine(
                         label: 'Next due',
                         value: formattedNextDueDate,
                       ),
@@ -305,7 +311,7 @@ class _CompactCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Panel(
+        CardPanel(
           title: 'Installment Details',
           compact: true,
           child: Column(
@@ -325,7 +331,7 @@ class _CompactCard extends StatelessWidget {
                       height: 1.15,
                     ),
                   ),
-                  _InlineBadge(
+                  InlineBadge(
                     label: plan.category,
                     background: Theme.of(context).colorScheme.secondaryContainer,
                     foreground:
@@ -334,17 +340,17 @@ class _CompactCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _DetailLine(
+              DetailLine(
                 label: 'Monthly',
                 value: money(plan.monthlyAmount),
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Balance',
                 value: money(plan.remainingBalance),
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Progress',
                 value: plan.status == 'completed' ||
                         plan.remainingBalance <= 0.009
@@ -352,17 +358,17 @@ class _CompactCard extends StatelessWidget {
                     : '${plan.paidMonths}/${plan.durationMonths} paid',
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Started',
                 value: formattedStartDate,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Next due',
                 value: formattedNextDueDate,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Images',
                 value: '${plan.installmentImagePaths.length}',
               ),
@@ -370,27 +376,27 @@ class _CompactCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        _Panel(
+        CardPanel(
           title: 'Customer Details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _DetailLine(
+              DetailLine(
                 label: 'Name',
                 value: (plan.customerName ?? '').trim().isEmpty
                     ? 'Not provided'
                     : plan.customerName!,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Phone',
                 value: (plan.customerPhone ?? '').trim().isEmpty
                     ? 'Not provided'
                     : plan.customerPhone!,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Address',
                 value: (plan.customerAddress ?? '').trim().isEmpty
                     ? 'Not provided'
@@ -401,7 +407,7 @@ class _CompactCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        _Panel(
+        CardPanel(
           compact: true,
           title: 'Status',
           child: Column(
@@ -487,193 +493,6 @@ class _FooterBar extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _InteractiveCardShell extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-
-  const _InteractiveCardShell({
-    required this.child,
-    this.onTap,
-  });
-
-  @override
-  State<_InteractiveCardShell> createState() => _InteractiveCardShellState();
-}
-
-class _InteractiveCardShellState extends State<_InteractiveCardShell> {
-  bool _hovered = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final scale = _pressed ? 0.992 : 1.0;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() {
-        _hovered = false;
-        _pressed = false;
-      }),
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        scale: scale,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(28),
-            onTap: widget.onTap,
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color:
-                      _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: _hovered ? 22 : 18,
-                    offset: Offset(0, _hovered ? 10 : 8),
-                    color: Colors.black.withOpacity(_hovered ? 0.07 : 0.05),
-                  ),
-                ],
-              ),
-              child: widget.child,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  final String title;
-  final Widget child;
-  final bool compact;
-
-  const _Panel({
-    required this.title,
-    required this.child,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: EdgeInsets.all(compact ? 14 : 16),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.78),
-        borderRadius: BorderRadius.circular(compact ? 18 : 22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: compact ? 12.8 : 13.2,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.45,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _InlineBadge extends StatelessWidget {
-  final String label;
-  final Color background;
-  final Color foreground;
-
-  const _InlineBadge({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12.6,
-          fontWeight: FontWeight.w800,
-          color: foreground,
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailLine extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool multiline;
-
-  const _DetailLine({
-    required this.label,
-    required this.value,
-    this.multiline = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Row(
-      crossAxisAlignment:
-          multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 72,
-          child: Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: 12.9,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 13.9,
-              height: 1.4,
-              color: cs.onSurface,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

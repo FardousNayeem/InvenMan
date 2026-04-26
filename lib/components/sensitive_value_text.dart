@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:invenman/main.dart';
+import 'package:invenman/app/providers/privacy_provider.dart';
 
 class SensitiveValueText extends StatelessWidget {
   final String visibleText;

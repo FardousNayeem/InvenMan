@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:invenman/main.dart';
-import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/sale_record.dart';
+
+import 'package:invenman/components/common/card_panel.dart';
+import 'package:invenman/components/common/detail_line.dart';
+import 'package:invenman/components/common/inline_badge.dart';
+import 'package:invenman/components/common/interactive_card_shell.dart';
+import 'package:invenman/components/common/status_pill.dart';
+
 
 class SaleCard extends StatelessWidget {
   final SaleRecord sale;
@@ -28,7 +32,7 @@ class SaleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 820;
 
-    return _InteractiveCardShell(
+    return InteractiveCardShell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -87,7 +91,7 @@ class _SaleCardWide extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: _Panel(
+                child: CardPanel(
                   title: 'Purchase details',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +109,7 @@ class _SaleCardWide extends StatelessWidget {
                               letterSpacing: -0.4,
                             ),
                           ),
-                          _InlineBadge(
+                          InlineBadge(
                             label: sale.category,
                             background: cs.secondaryContainer,
                             foreground: cs.onSecondaryContainer,
@@ -119,13 +123,13 @@ class _SaleCardWide extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Cost',
                                   sensitiveValue: sale.costPrice.toStringAsFixed(0),
                                   isSensitive: true,
                                 ),
                                 const SizedBox(height: 8),
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Sold At',
                                   value: sale.sellPrice.toStringAsFixed(0),
                                 ),
@@ -137,12 +141,12 @@ class _SaleCardWide extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Qty',
                                   value: '${sale.quantitySold}',
                                 ),
                                 const SizedBox(height: 8),
-                                _DetailLine(
+                                DetailLine(
                                   label: 'Profit',
                                   sensitiveValue: sale.profit.toStringAsFixed(0),
                                   isSensitive: true,
@@ -159,7 +163,7 @@ class _SaleCardWide extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _Panel(
+                child: CardPanel(
                   title: 'Customer details',
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,19 +172,19 @@ class _SaleCardWide extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DetailLine(
+                            DetailLine(
                               label: 'Name',
                               value: customerName,
                               labelMinWidth: 68,
                             ),
                             const SizedBox(height: 8),
-                            _DetailLine(
+                            DetailLine(
                               label: 'Phone',
                               value: customerPhone,
                               labelMinWidth: 68,
                             ),
                             const SizedBox(height: 8),
-                            _DetailLine(
+                            DetailLine(
                               label: 'Address',
                               value: customerAddress,
                               labelMinWidth: 68,
@@ -194,20 +198,20 @@ class _SaleCardWide extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DetailLine(
+                            DetailLine(
                               label: 'Payment',
                               value: paymentText,
                               valueColor: paymentColor,
                               labelMinWidth: 78,
                             ),
                             const SizedBox(height: 8),
-                            _DetailLine(
+                            DetailLine(
                               label: 'Docs',
                               value: '${sale.installmentImagePaths.length}',
                               labelMinWidth: 78,
                             ),
                             const SizedBox(height: 8),
-                            _DetailLine(
+                            DetailLine(
                               label: 'Date',
                               value: formattedDate,
                               labelMinWidth: 78,
@@ -227,17 +231,17 @@ class _SaleCardWide extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _StatusPill(
+            StatusPill(
               label: sale.isInstallment ? 'Installment' : 'Direct',
               color: paymentColor,
             ),
             if (sale.soldColors.isNotEmpty)
-              _StatusPill(
+              StatusPill(
                 label: 'Colors: ${sale.soldColors.join(', ')}',
                 color: Colors.indigo.shade700,
               ),
             if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty)
-              _StatusPill(
+              StatusPill(
                 label: 'Docs: ${sale.installmentImagePaths.length}',
                 color: Colors.teal.shade700,
               ),
@@ -314,7 +318,7 @@ class _SaleCardCompact extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Panel(
+        CardPanel(
           title: 'Purchase details',
           compact: true,
           child: Column(
@@ -333,7 +337,7 @@ class _SaleCardCompact extends StatelessWidget {
                       letterSpacing: -0.35,
                     ),
                   ),
-                  _InlineBadge(
+                  InlineBadge(
                     label: sale.category,
                     background: cs.secondaryContainer,
                     foreground: cs.onSecondaryContainer,
@@ -341,23 +345,23 @@ class _SaleCardCompact extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _DetailLine(
+              DetailLine(
                 label: 'Cost',
                 sensitiveValue: sale.costPrice.toStringAsFixed(0),
                 isSensitive: true,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Sold At',
                 value: sale.sellPrice.toStringAsFixed(0),
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Qty',
                 value: '${sale.quantitySold}',
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Profit',
                 sensitiveValue: sale.profit.toStringAsFixed(0),
                 isSensitive: true,
@@ -367,40 +371,40 @@ class _SaleCardCompact extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        _Panel(
+        CardPanel(
           title: 'Customer details',
           compact: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _DetailLine(
+              DetailLine(
                 label: 'Name',
                 value: customerName,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Phone',
                 value: customerPhone,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Address',
                 value: customerAddress,
                 multiline: true,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Payment',
                 value: paymentText,
                 valueColor: paymentColor,
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Docs',
                 value: '${sale.installmentImagePaths.length}',
               ),
               const SizedBox(height: 8),
-              _DetailLine(
+              DetailLine(
                 label: 'Date',
                 value: formattedDate,
               ),
@@ -412,17 +416,17 @@ class _SaleCardCompact extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _StatusPill(
+            StatusPill(
               label: sale.isInstallment ? 'Installment' : 'Direct',
               color: paymentColor,
             ),
             if (sale.soldColors.isNotEmpty)
-              _StatusPill(
+              StatusPill(
                 label: 'Colors: ${sale.soldColors.join(', ')}',
                 color: Colors.indigo.shade700,
               ),
             if (sale.isInstallment && sale.installmentImagePaths.isNotEmpty)
-              _StatusPill(
+              StatusPill(
                 label: 'Docs: ${sale.installmentImagePaths.length}',
                 color: Colors.teal.shade700,
               ),
@@ -455,254 +459,6 @@ class _SaleCardCompact extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _InteractiveCardShell extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-
-  const _InteractiveCardShell({
-    required this.child,
-    this.onTap,
-  });
-
-  @override
-  State<_InteractiveCardShell> createState() => _InteractiveCardShellState();
-}
-
-class _InteractiveCardShellState extends State<_InteractiveCardShell> {
-  bool _hovered = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final scale = _pressed ? 0.992 : 1.0;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() {
-        _hovered = false;
-        _pressed = false;
-      }),
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        scale: scale,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(28),
-            onTap: widget.onTap,
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: _hovered ? cs.primary.withOpacity(0.22) : cs.outlineVariant,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: _hovered ? 22 : 18,
-                    offset: Offset(0, _hovered ? 10 : 8),
-                    color: Colors.black.withOpacity(_hovered ? 0.07 : 0.05),
-                  ),
-                ],
-              ),
-              child: widget.child,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  final String title;
-  final Widget child;
-  final bool compact;
-
-  const _Panel({
-    required this.title,
-    required this.child,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: EdgeInsets.all(compact ? 14 : 15),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.78),
-        borderRadius: BorderRadius.circular(compact ? 18 : 20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12.8,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.45,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _InlineBadge extends StatelessWidget {
-  final String label;
-  final Color background;
-  final Color foreground;
-
-  const _InlineBadge({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12.2,
-          fontWeight: FontWeight.w800,
-          color: foreground,
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailLine extends StatelessWidget {
-  final String label;
-  final String? value;
-  final String? sensitiveValue;
-  final bool isSensitive;
-  final Color? valueColor;
-  final bool multiline;
-  final double labelMinWidth;
-
-  const _DetailLine({
-    required this.label,
-    this.value,
-    this.sensitiveValue,
-    this.isSensitive = false,
-    this.valueColor,
-    this.multiline = false,
-    this.labelMinWidth = 56,
-  }) : assert(value != null || sensitiveValue != null);
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final hideSensitive = context.watch<PrivacyProvider>().hideSensitiveValues;
-
-    if (isSensitive && hideSensitive) {
-      return Text(
-        '••••',
-        style: TextStyle(
-          fontSize: 13.4,
-          height: 1.4,
-          color: cs.onSurface,
-          fontWeight: FontWeight.w700,
-        ),
-      );
-    }
-
-    final textWidget = isSensitive
-        ? SensitiveValueText(
-            visibleText: sensitiveValue!,
-            style: TextStyle(
-              fontSize: 13.4,
-              height: 1.4,
-              color: valueColor ?? cs.onSurface,
-              fontWeight: FontWeight.w700,
-            ),
-          )
-        : Text(
-            value!,
-            style: TextStyle(
-              fontSize: 13.4,
-              height: 1.4,
-              color: valueColor ?? cs.onSurface,
-              fontWeight: FontWeight.w700,
-            ),
-          );
-
-    return Row(
-      crossAxisAlignment:
-          multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-      children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(minWidth: labelMinWidth),
-          child: Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        if (multiline)
-          Expanded(child: textWidget)
-        else
-          Flexible(child: textWidget),
-      ],
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _StatusPill({
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12.4,
-          fontWeight: FontWeight.w800,
-          color: color,
-        ),
-      ),
     );
   }
 }

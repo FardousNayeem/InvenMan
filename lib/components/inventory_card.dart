@@ -1,8 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:invenman/components/sensitive_value_text.dart';
 import 'package:invenman/models/item.dart';
+
+import 'package:invenman/components/common/interactive_card_shell.dart';
+import 'package:invenman/components/common/meta_inline_chip.dart';
+import 'package:invenman/components/common/meta_text.dart';
+import 'package:invenman/components/common/metric_chip.dart';
 
 class InventoryCard extends StatelessWidget {
   final Item item;
@@ -40,7 +44,7 @@ class InventoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.of(context).size.width < 760;
 
-    return _InteractiveCardShell(
+    return InteractiveCardShell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -147,8 +151,8 @@ class _InventoryCardWide extends StatelessWidget {
                         spacing: 12,
                         runSpacing: 6,
                         children: [
-                          _MetaText(label: 'Added', value: formattedCreatedAt),
-                          _MetaText(label: 'Updated', value: formattedUpdatedAt),
+                          MetaText(label: 'Added', value: formattedCreatedAt),
+                          MetaText(label: 'Updated', value: formattedUpdatedAt),
                         ],
                       ),
                     ),
@@ -160,12 +164,12 @@ class _InventoryCardWide extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 8,
                 children: [
-                  _MetaInlineChip(
+                  MetaInlineChip(
                     icon: Icons.workspace_premium_outlined,
                     text: _brandText,
                   ),
                   if (item.colors.isNotEmpty)
-                    _MetaInlineChip(
+                    MetaInlineChip(
                       icon: Icons.palette_outlined,
                       text: item.colors.join(', '),
                     ),
@@ -215,31 +219,31 @@ class _InventoryCardWide extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  _MetricChip(
+                  MetricChip(
                     icon: Icons.shopping_bag_outlined,
                     label: 'Cost',
                     sensitiveText: item.costPrice.toStringAsFixed(0),
                     isSensitive: true,
                   ),
-                  _MetricChip(
+                  MetricChip(
                     icon: Icons.sell_outlined,
                     label: 'MRP',
                     valueText: item.sellingPrice.toStringAsFixed(0),
                   ),
-                  _MetricChip(
+                  MetricChip(
                     icon: Icons.inventory_2_outlined,
                     label: 'Stock',
                     valueText: '${item.quantity} • $stockLabel',
                     valueColor: stockColor,
                   ),
                   if (item.warranties.isNotEmpty)
-                    _MetricChip(
+                    MetricChip(
                       icon: Icons.verified_outlined,
                       label: 'Warranty',
                       valueText: '${item.warranties.length} type(s)',
                     ),
                   if (item.imagePaths.isNotEmpty)
-                    _MetricChip(
+                    MetricChip(
                       icon: Icons.image_outlined,
                       label: 'Images',
                       valueText: '${item.imagePaths.length}',
@@ -346,12 +350,12 @@ class _InventoryCardCompact extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _MetaInlineChip(
+                      MetaInlineChip(
                         icon: Icons.workspace_premium_outlined,
                         text: _brandText,
                       ),
                       if (item.colors.isNotEmpty)
-                        _MetaInlineChip(
+                        MetaInlineChip(
                           icon: Icons.palette_outlined,
                           text: item.colors.join(', '),
                         ),
@@ -410,8 +414,8 @@ class _InventoryCardCompact extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 6,
                 children: [
-                  _MetaText(label: 'Added', value: formattedCreatedAt),
-                  _MetaText(label: 'Updated', value: formattedUpdatedAt),
+                  MetaText(label: 'Added', value: formattedCreatedAt),
+                  MetaText(label: 'Updated', value: formattedUpdatedAt),
                 ],
               ),
             ),
@@ -440,31 +444,31 @@ class _InventoryCardCompact extends StatelessWidget {
           spacing: 10,
           runSpacing: 10,
           children: [
-            _MetricChip(
+            MetricChip(
               icon: Icons.shopping_bag_outlined,
               label: 'Cost',
               sensitiveText: item.costPrice.toStringAsFixed(0),
               isSensitive: true,
             ),
-            _MetricChip(
+            MetricChip(
               icon: Icons.sell_outlined,
               label: 'MRP',
               valueText: item.sellingPrice.toStringAsFixed(0),
             ),
-            _MetricChip(
+            MetricChip(
               icon: Icons.inventory_2_outlined,
               label: 'Stock',
               valueText: '${item.quantity} • $stockLabel',
               valueColor: stockColor,
             ),
             if (item.warranties.isNotEmpty)
-              _MetricChip(
+              MetricChip(
                 icon: Icons.verified_outlined,
                 label: 'Warranty',
                 valueText: '${item.warranties.length} type(s)',
               ),
             if (item.imagePaths.isNotEmpty)
-              _MetricChip(
+              MetricChip(
                 icon: Icons.image_outlined,
                 label: 'Images',
                 valueText: '${item.imagePaths.length}',
@@ -476,79 +480,7 @@ class _InventoryCardCompact extends StatelessWidget {
   }
 }
 
-class _InteractiveCardShell extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
 
-  const _InteractiveCardShell({
-    required this.child,
-    this.onTap,
-  });
-
-  @override
-  State<_InteractiveCardShell> createState() => _InteractiveCardShellState();
-}
-
-class _InteractiveCardShellState extends State<_InteractiveCardShell> {
-  bool _hovered = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final translateY = _pressed ? 1.5 : (_hovered ? -1.5 : 0.0);
-    final scale = _pressed ? 0.992 : 1.0;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() {
-        _hovered = false;
-        _pressed = false;
-      }),
-      child: AnimatedSlide(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        offset: Offset(0, translateY / 100),
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          scale: scale,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(26),
-              onTap: widget.onTap,
-              onTapDown: (_) => setState(() => _pressed = true),
-              onTapUp: (_) => setState(() => _pressed = false),
-              onTapCancel: () => setState(() => _pressed = false),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(26),
-                  color: cs.surfaceContainerLow,
-                  border: Border.all(
-                    color: _hovered
-                        ? cs.primary.withOpacity(0.22)
-                        : cs.outlineVariant,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      blurRadius: _hovered ? 22 : 16,
-                      offset: Offset(0, _hovered ? 10 : 6),
-                      color: Colors.black.withOpacity(_hovered ? 0.07 : 0.05),
-                    ),
-                  ],
-                ),
-                child: widget.child,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _InventoryItemVisual extends StatelessWidget {
   final Item item;
@@ -651,68 +583,6 @@ class _CategoryPill extends StatelessWidget {
           fontWeight: FontWeight.w700,
           fontSize: 12,
         ),
-      ),
-    );
-  }
-}
-
-class _MetaText extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _MetaText({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Text(
-      '$label: $value',
-      style: TextStyle(
-        fontSize: 11.8,
-        color: cs.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-}
-
-class _MetaInlineChip extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _MetaInlineChip({
-    required this.icon,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: cs.onSurfaceVariant),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 12.4,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurface,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -831,70 +701,6 @@ class _OverflowActionButton extends StatelessWidget {
           ),
         ),
         child: const Icon(Icons.more_horiz_rounded),
-      ),
-    );
-  }
-}
-
-class _MetricChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String? valueText;
-  final String? sensitiveText;
-  final bool isSensitive;
-  final Color? valueColor;
-
-  const _MetricChip({
-    required this.icon,
-    required this.label,
-    this.valueText,
-    this.sensitiveText,
-    this.isSensitive = false,
-    this.valueColor,
-  }) : assert(valueText != null || sensitiveText != null);
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: cs.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 12.8,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          if (isSensitive)
-            SensitiveValueText(
-              visibleText: sensitiveText!,
-              style: TextStyle(
-                fontSize: 12.9,
-                fontWeight: FontWeight.w800,
-                color: valueColor ?? cs.onSurface,
-              ),
-            )
-          else
-            Text(
-              valueText!,
-              style: TextStyle(
-                fontSize: 12.9,
-                fontWeight: FontWeight.w800,
-                color: valueColor ?? cs.onSurface,
-              ),
-            ),
-        ],
       ),
     );
   }

@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:invenman/services/db_services.dart';
-import 'package:invenman/main.dart';
+import 'package:invenman/app/providers/privacy_provider.dart';
 import 'package:invenman/models/history.dart';
 import 'package:invenman/theme/app_sort_button.dart';
 import 'package:invenman/theme/app_top_bar_buttons.dart';
