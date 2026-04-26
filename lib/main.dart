@@ -10,7 +10,7 @@ import 'package:invenman/theme/app_ui.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await DBHelper.db;
+  await DBHelper.initialize();
 
   runApp(
     MultiProvider(

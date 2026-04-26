@@ -7,10 +7,4 @@ class ImportBackupAction {
   static Future<DatabaseImportSummary> execute(String sourcePath) {
     return BackupService.importBackupPackageFromPath(sourcePath);
   }
-
-  static Future<DatabaseImportSummary> executeDatabaseImport(
-    String sourcePath,
-  ) {
-    return BackupService.importDatabaseFromPath(sourcePath);
-  }
 }

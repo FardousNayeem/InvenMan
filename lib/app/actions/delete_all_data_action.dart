@@ -6,8 +6,4 @@ class DeleteAllAppDataAction {
   static Future<void> execute() {
     return BackupService.deleteAllAppData();
   }
-
-  static Future<void> clearAllData() {
-    return BackupService.clearAllData();
-  }
 }

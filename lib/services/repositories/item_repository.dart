@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart' as sqflite;
+
 import 'package:invenman/models/item.dart';
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
@@ -5,6 +7,26 @@ import 'package:invenman/services/repositories/history_repository.dart';
 
 class ItemRepository {
   const ItemRepository._();
+
+  // ---------------------------------------------------------------------------
+  // Transaction-scoped writes. Business workflows in actions.
+  // ---------------------------------------------------------------------------
+
+  static Future<int> updateItemRowTxn(
+    sqflite.DatabaseExecutor executor,
+    Item item,
+  ) {
+    if (item.id == null) {
+      throw Exception('Cannot update an item without an id.');
+    }
+
+    return executor.update(
+      'items',
+      item.toMap(),
+      where: 'id = ?',
+      whereArgs: [item.id],
+    );
+  }
 
   static String normalizeStoredCategory(String value) {
     return value.trim().toUpperCase();

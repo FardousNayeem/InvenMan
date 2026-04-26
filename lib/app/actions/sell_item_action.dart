@@ -4,6 +4,8 @@ import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
 import 'package:invenman/services/repositories/history_repository.dart';
 import 'package:invenman/services/repositories/installment_repository.dart';
+import 'package:invenman/services/repositories/item_repository.dart';
+import 'package:invenman/services/repositories/sale_repository.dart';
 
 class SellItemAction {
   const SellItemAction._();
@@ -160,16 +162,14 @@ class SellItemAction {
     );
 
     await dbClient.transaction((txn) async {
-      await txn.update(
-        'items',
-        updatedItem.toMap(),
-        where: 'id = ?',
-        whereArgs: [item.id],
+      await ItemRepository.updateItemRowTxn(
+        txn,
+        updatedItem,
       );
 
-      final saleId = await txn.insert(
-        'sale_records',
-        sale.toMap(),
+      final saleId = await SaleRepository.insertSaleRecordTxn(
+        txn,
+        sale,
       );
 
       if (paymentType == 'installment' && installmentMonths != null) {

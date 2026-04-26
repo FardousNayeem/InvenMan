@@ -305,8 +305,6 @@ class BackupService {
       }
 
       final outFile = File(destinationPath);
-      await outFile.writeAsBytes(zipData);
-
 
       if (!await outFile.parent.exists()) {
         await outFile.parent.create(recursive: true);
@@ -317,6 +315,7 @@ class BackupService {
       }
 
       await outFile.writeAsBytes(zipData, flush: true);
+
       return outFile;
     } finally {
       try {
@@ -393,12 +392,6 @@ class BackupService {
         await _deleteDirectoryIfExists(extractDir);
       } catch (_) {}
     }
-  }
-
-  static Future<DatabaseImportSummary> importDatabaseFromPath(
-    String sourcePath,
-  ) {
-    return importBackupPackageFromPath(sourcePath);
   }
 
   static Future<Map<String, String>> _restoreBackupAssets({
@@ -696,9 +689,5 @@ class BackupService {
     }
 
     await AppDatabase.db;
-  }
-
-  static Future<void> clearAllData() async {
-    await deleteAllAppData();
   }
 }

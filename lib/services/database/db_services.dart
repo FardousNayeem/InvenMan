@@ -1,17 +1,15 @@
 import 'dart:io';
 
-import 'package:sqflite/sqflite.dart' as sqflite;
-
 import 'package:invenman/models/history.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
 
-import 'package:invenman/app/actions/sell_item_action.dart';
-import 'package:invenman/app/actions/import_backup_action.dart';
 import 'package:invenman/app/actions/delete_all_data_action.dart';
+import 'package:invenman/app/actions/import_backup_action.dart';
 import 'package:invenman/app/actions/installment_payment_action.dart';
+import 'package:invenman/app/actions/sell_item_action.dart';
 import 'package:invenman/app/actions/update_installment_documents_action.dart';
 
 import 'package:invenman/services/backup/backup_models.dart';
@@ -25,6 +23,10 @@ import 'package:invenman/services/repositories/sale_repository.dart';
 class DBHelper {
   static bool _registeredDatabaseCallbacks = false;
 
+  // ---------------------------------------------------------------------------
+  // Database lifecycle
+  // ---------------------------------------------------------------------------
+
   static void _ensureDatabaseCallbacksRegistered() {
     if (_registeredDatabaseCallbacks) return;
 
@@ -35,9 +37,9 @@ class DBHelper {
     _registeredDatabaseCallbacks = true;
   }
 
-  static Future<sqflite.Database> get db async {
+  static Future<void> initialize() async {
     _ensureDatabaseCallbacksRegistered();
-    return AppDatabase.db;
+    await AppDatabase.db;
   }
 
   static Future<String> getDatabasePath() {
@@ -48,6 +50,10 @@ class DBHelper {
   static Future<void> close() {
     return AppDatabase.close();
   }
+
+  // ---------------------------------------------------------------------------
+  // Backup / import / export
+  // ---------------------------------------------------------------------------
 
   static Future<File> exportDatabaseToPath(String destinationPath) {
     _ensureDatabaseCallbacksRegistered();
@@ -66,21 +72,27 @@ class DBHelper {
     return ImportBackupAction.execute(sourcePath);
   }
 
-  static Future<DatabaseImportSummary> importDatabaseFromPath(
-    String sourcePath,
-  ) {
-    _ensureDatabaseCallbacksRegistered();
-    return BackupService.importDatabaseFromPath(sourcePath);
-  }
+  // ---------------------------------------------------------------------------
+  // App-level destructive operations
+  // ---------------------------------------------------------------------------
 
   static Future<void> deleteAllAppData() {
     _ensureDatabaseCallbacksRegistered();
     return DeleteAllAppDataAction.execute();
   }
 
-  static Future<void> clearAllData() {
+  // ---------------------------------------------------------------------------
+  // Inventory reads
+  // ---------------------------------------------------------------------------
+
+  static Future<List<Item>> fetchItems({String sortBy = 'name'}) {
     _ensureDatabaseCallbacksRegistered();
-    return DeleteAllAppDataAction.clearAllData();
+    return ItemRepository.fetchItems(sortBy: sortBy);
+  }
+
+  static Future<Item?> fetchItemById(int id) {
+    _ensureDatabaseCallbacksRegistered();
+    return ItemRepository.fetchItemById(id);
   }
 
   static Future<List<String>> fetchDistinctCategories() {
@@ -92,6 +104,14 @@ class DBHelper {
     _ensureDatabaseCallbacksRegistered();
     return ItemRepository.fetchDistinctBrands();
   }
+
+  // ---------------------------------------------------------------------------
+  // Inventory writes
+  //
+  // These still delegate directly to ItemRepository for now.
+  // Later they should move behind CreateItemAction, UpdateItemAction,
+  // and DeleteItemAction.
+  // ---------------------------------------------------------------------------
 
   static Future<void> insertItem(Item item) {
     _ensureDatabaseCallbacksRegistered();
@@ -108,27 +128,9 @@ class DBHelper {
     return ItemRepository.deleteItem(id, name);
   }
 
-  static Future<List<Item>> fetchItems({String sortBy = 'name'}) {
-    _ensureDatabaseCallbacksRegistered();
-    return ItemRepository.fetchItems(sortBy: sortBy);
-  }
-
-  static Future<Item?> fetchItemById(int id) {
-    _ensureDatabaseCallbacksRegistered();
-    return ItemRepository.fetchItemById(id);
-  }
-
-  static Future<void> insertSaleRecord(
-    SaleRecord sale, {
-    double? downPayment,
-  }) {
-    _ensureDatabaseCallbacksRegistered();
-
-    return SaleRepository.insertSaleRecord(
-      sale,
-      downPayment: downPayment,
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Sales reads
+  // ---------------------------------------------------------------------------
 
   static Future<List<SaleRecord>> fetchSaleRecords() {
     _ensureDatabaseCallbacksRegistered();
@@ -139,6 +141,14 @@ class DBHelper {
     _ensureDatabaseCallbacksRegistered();
     return SaleRepository.fetchSaleRecordById(id);
   }
+
+  // ---------------------------------------------------------------------------
+  // Sales workflows
+  //
+  // Important:
+  // Sale creation must go through sellItem().
+  // Do not expose raw sale insertion from this facade.
+  // ---------------------------------------------------------------------------
 
   static Future<void> sellItem({
     required Item item,
@@ -170,26 +180,18 @@ class DBHelper {
     );
   }
 
-  static Future<void> logHistory(
-    String itemName,
-    String action,
-    String details, {
-    sqflite.DatabaseExecutor? executor,
-  }) {
-    _ensureDatabaseCallbacksRegistered();
-
-    return HistoryRepository.logHistory(
-      itemName: itemName,
-      action: action,
-      details: details,
-      executor: executor,
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // History
+  // ---------------------------------------------------------------------------
 
   static Future<List<HistoryEntry>> fetchHistoryEntries() {
     _ensureDatabaseCallbacksRegistered();
     return HistoryRepository.fetchHistoryEntries();
   }
+
+  // ---------------------------------------------------------------------------
+  // Installment reads
+  // ---------------------------------------------------------------------------
 
   static Future<List<InstallmentPlan>> fetchInstallmentPlans({
     String sortBy = 'next_due_asc',
@@ -207,6 +209,7 @@ class DBHelper {
     int saleRecordId,
   ) {
     _ensureDatabaseCallbacksRegistered();
+
     return InstallmentRepository.fetchInstallmentPlanBySaleRecordId(
       saleRecordId,
     );
@@ -218,6 +221,10 @@ class DBHelper {
     _ensureDatabaseCallbacksRegistered();
     return InstallmentRepository.fetchInstallmentPayments(installmentPlanId);
   }
+
+  // ---------------------------------------------------------------------------
+  // Installment workflows
+  // ---------------------------------------------------------------------------
 
   static Future<void> saveInstallmentPayment({
     required int installmentPaymentId,
@@ -273,7 +280,7 @@ class DBHelper {
       imagePath: imagePath,
     );
   }
-  
+
   static Future<InstallmentDocumentSyncResult>
       removeInstallmentDocumentByInstallmentPlanId({
     required int installmentPlanId,
