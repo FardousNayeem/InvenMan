@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:invenman/app/providers/privacy_provider.dart';
@@ -31,12 +32,45 @@ class HistoryDetailPresenter extends StatelessWidget {
     'collected',
   };
 
+  static const Set<String> _dateLabels = {
+    'date',
+    'paid date',
+    'due date',
+    'next due',
+    'started',
+    'start date',
+    'sold at date',
+  };
+
   bool get _isStructured {
     return entry.details.contains(':') && entry.details.contains(',');
   }
 
   bool _isSensitiveLabel(String label) {
     return _sensitiveLabels.contains(label.trim().toLowerCase());
+  }
+
+  bool _isDateLabel(String label) {
+    return _dateLabels.contains(label.trim().toLowerCase());
+  }
+
+  String _formatDisplayValue({
+    required String label,
+    required String value,
+  }) {
+    final trimmedValue = value.trim();
+
+    if (!_isDateLabel(label)) {
+      return trimmedValue;
+    }
+
+    final parsed = DateTime.tryParse(trimmedValue);
+
+    if (parsed == null) {
+      return trimmedValue;
+    }
+
+    return DateFormat('d MMM yyyy').format(parsed.toLocal());
   }
 
   List<_HistoryDetailRow> _parseRows({
@@ -78,7 +112,10 @@ class HistoryDetailPresenter extends StatelessWidget {
 
       return _HistoryDetailRow(
         label: label,
-        value: rawValue,
+        value: _formatDisplayValue(
+          label: label,
+          value: rawValue,
+        ),
         isSensitive: sensitive,
         hideWholeField: false,
       );
@@ -89,9 +126,9 @@ class HistoryDetailPresenter extends StatelessWidget {
     String text, {
     required bool hideSensitive,
   }) {
-    if (!hideSensitive) return text;
+    if (!hideSensitive) return _formatLooseDates(text);
 
-    var masked = text;
+    var masked = _formatLooseDates(text);
 
     final patterns = [
       RegExp(r'\bprofit\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
@@ -108,18 +145,24 @@ class HistoryDetailPresenter extends StatelessWidget {
         caseSensitive: false,
       ),
       RegExp(r'\bmonthly\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
-      RegExp(r'\btotal amount\b\s*:?\s*[-]?\d+(\.\d+)?',
-          caseSensitive: false),
+      RegExp(
+        r'\btotal amount\b\s*:?\s*[-]?\d+(\.\d+)?',
+        caseSensitive: false,
+      ),
       RegExp(r'\btotal\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
       RegExp(r'\bfinanced\b\s*:?\s*[-]?\d+(\.\d+)?', caseSensitive: false),
       RegExp(
         r'\bremaining balance\b\s*:?\s*[-]?\d+(\.\d+)?',
         caseSensitive: false,
       ),
-      RegExp(r'\bremaining\b\s*:?\s*[-]?\d+(\.\d+)?',
-          caseSensitive: false),
-      RegExp(r'\bcollected\b\s*:?\s*[-]?\d+(\.\d+)?',
-          caseSensitive: false),
+      RegExp(
+        r'\bremaining\b\s*:?\s*[-]?\d+(\.\d+)?',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'\bcollected\b\s*:?\s*[-]?\d+(\.\d+)?',
+        caseSensitive: false,
+      ),
     ];
 
     for (final pattern in patterns) {
@@ -127,6 +170,22 @@ class HistoryDetailPresenter extends StatelessWidget {
     }
 
     return masked;
+  }
+
+  String _formatLooseDates(String text) {
+    final isoDatePattern = RegExp(
+      r'\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z)?\b',
+    );
+
+    return text.replaceAllMapped(isoDatePattern, (match) {
+      final raw = match.group(0);
+      if (raw == null) return match.group(0) ?? '';
+
+      final parsed = DateTime.tryParse(raw);
+      if (parsed == null) return raw;
+
+      return DateFormat('d MMM yyyy').format(parsed.toLocal());
+    });
   }
 
   @override

@@ -93,7 +93,7 @@ class _HistoryEventCardState extends State<HistoryEventCard> {
 
   Widget _buildWideLayout(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _HistoryTimelineRail(
           icon: widget.icon,
