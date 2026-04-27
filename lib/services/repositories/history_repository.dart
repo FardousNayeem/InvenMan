@@ -11,6 +11,7 @@ class HistoryRepository {
     required String itemName,
     required String action,
     required String details,
+    Map<String, dynamic>? meta,
     sqflite.DatabaseExecutor? executor,
   }) async {
     final dbClient = executor ?? await AppDatabase.db;
@@ -22,6 +23,7 @@ class HistoryRepository {
         action: action,
         details: details,
         createdAt: DbShared.nowUtc(),
+        meta: meta,
       ).toMap(),
     );
   }

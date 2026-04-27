@@ -105,7 +105,8 @@ Future<void> createDbTables(sqflite.Database db) async {
       item_name TEXT NOT NULL,
       action TEXT NOT NULL,
       details TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      meta TEXT
     )
   ''');
 }
@@ -222,6 +223,10 @@ Future<void> runDbMigrations(
 
   if (oldVersion < 12) {
     await _migrateToV12(db);
+  }
+
+  if (oldVersion < 13) {
+    await _migrateToV13(db);
   }
 
   await ensureDbIndexes(db);
@@ -432,9 +437,12 @@ Future<void> _migrateToV10(
           item_name TEXT NOT NULL,
           action TEXT NOT NULL,
           details TEXT NOT NULL,
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          meta TEXT
         )
       ''');
+    } else {
+      await _ensureColumn(txn, 'history_entries', 'meta', 'TEXT');
     }
 
     await _backfillMissingTimestamps(txn, nowIsoString);
@@ -544,6 +552,17 @@ Future<void> _migrateToV12(sqflite.Database db) async {
       SET sold_colors_json = '[]'
       WHERE sold_colors_json IS NULL OR sold_colors_json = ''
     """);
+  });
+}
+
+Future<void> _migrateToV13(sqflite.Database db) async {
+  await db.transaction((txn) async {
+    await _ensureColumn(
+      txn,
+      'history_entries',
+      'meta',
+      'TEXT',
+    );
   });
 }
 

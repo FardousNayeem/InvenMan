@@ -16,7 +16,7 @@ class AppDatabase {
   static bool _isInitialized = false;
 
   static const String databaseName = 'inventory.db';
-  static const int databaseVersion = 12;
+  static const int databaseVersion = 13;
 
   static NormalizeExistingInstallmentValues?
       _normalizeExistingInstallmentValues;

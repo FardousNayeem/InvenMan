@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'package:invenman/app/core/date_time_utils.dart';
+import 'package:invenman/components/common/copyable_text.dart';
 import 'package:invenman/components/installment/installment_file_editor.dart';
 import 'package:invenman/services/installment/installment_service.dart';
 import 'package:invenman/models/installment_payment.dart';
@@ -299,7 +300,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       note: noteController.text.trim(),
                     );
 
-                    if (!mounted) return;
+                    if (!dialogContext.mounted) return;
                     Navigator.pop(dialogContext, true);
                   },
                   child: const Text('Save payment'),
@@ -384,7 +385,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         _handleBack();
       },
@@ -447,8 +448,8 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              cs.primary.withOpacity(0.22),
-                              cs.secondaryContainer.withOpacity(0.55),
+                              cs.primary.withValues(alpha:0.22),
+                              cs.secondaryContainer.withValues(alpha:0.55),
                               cs.surfaceContainerHighest,
                             ],
                           ),
@@ -737,7 +738,7 @@ class _InstallmentImageGallery extends StatelessWidget {
                                         vertical: 5,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.55),
+                                        color: Colors.black.withValues(alpha:0.55),
                                         borderRadius:
                                             BorderRadius.circular(999),
                                       ),
@@ -868,9 +869,9 @@ class _FullscreenInstallmentImageViewerState
                   onPressed: _currentIndex > 0 ? _goPrevious : null,
                   icon: const Icon(Icons.chevron_left_rounded, size: 30),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.42),
+                    backgroundColor: Colors.black.withValues(alpha:0.42),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.black.withOpacity(0.16),
+                    disabledBackgroundColor: Colors.black.withValues(alpha:0.16),
                     disabledForegroundColor: Colors.white38,
                     minimumSize: const Size(48, 48),
                   ),
@@ -887,9 +888,9 @@ class _FullscreenInstallmentImageViewerState
                       _currentIndex < widget.imagePaths.length - 1 ? _goNext : null,
                   icon: const Icon(Icons.chevron_right_rounded, size: 30),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.42),
+                    backgroundColor: Colors.black.withValues(alpha:0.42),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.black.withOpacity(0.16),
+                    disabledBackgroundColor: Colors.black.withValues(alpha:0.16),
                     disabledForegroundColor: Colors.white38,
                     minimumSize: const Size(48, 48),
                   ),
@@ -1042,11 +1043,9 @@ class _CustomerCard extends StatelessWidget {
             labelWidth: 108,
           ),
           const SizedBox(height: 8),
-          AppLineItem(
+          CopyableText(
             label: 'Phone',
-            value: (plan.customerPhone ?? '').trim().isEmpty
-                ? 'Not provided'
-                : plan.customerPhone!,
+            value: plan.customerPhone ?? '',
             labelWidth: 108,
           ),
           const SizedBox(height: 8),
@@ -1203,7 +1202,7 @@ class _ScheduleCard extends StatelessWidget {
                           vertical: 7,
                         ),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.12),
+                          color: statusColor.withValues(alpha:0.12),
                           borderRadius:
                               BorderRadius.circular(AppUi.pillRadius),
                         ),
@@ -1305,10 +1304,10 @@ class _HeaderChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.10),
+        color: Colors.black.withValues(alpha:0.10),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha:0.08),
         ),
       ),
       child: Row(

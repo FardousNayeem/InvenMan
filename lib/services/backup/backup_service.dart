@@ -6,12 +6,13 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
+import 'package:invenman/app/core/app_exception.dart';
+import 'package:invenman/models/backup_models.dart';
 import 'package:invenman/models/history.dart';
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
-import 'package:invenman/models/backup_models.dart';
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
 
@@ -22,7 +23,7 @@ class BackupService {
   static const String _backupDatabaseFileName = 'database.sqlite';
   static const int _backupFormatVersion = 1;
   static int _importAssetSequence = 0;
-  
+
   static Map<String, dynamic> _withoutId(Map<String, dynamic> map) {
     final copy = Map<String, dynamic>.from(map);
     copy.remove('id');
@@ -63,7 +64,10 @@ class BackupService {
       }
     }
 
-    throw Exception('Could not allocate a temporary working directory.');
+    throw const AppException.storage(
+      code: 'temp_directory_allocation_failed',
+      message: 'Could not allocate a temporary working directory.',
+    );
   }
 
   static Future<void> _extractArchiveManually(
@@ -81,7 +85,10 @@ class BackupService {
       if (safeName.isEmpty) continue;
 
       if (safeName.startsWith('/') || safeName.contains('../')) {
-        throw Exception('Selected file is not a valid InvenMan backup.');
+        throw const AppException.backup(
+          code: 'invalid_backup_file',
+          message: 'Selected file is not a valid InvenMan backup.',
+        );
       }
 
       final outPath = p.join(outputPath, safeName);
@@ -94,9 +101,8 @@ class BackupService {
         }
 
         final data = entry.content;
-
         await outFile.writeAsBytes(data, flush: true);
-            } else {
+      } else {
         final outDir = Directory(outPath);
 
         if (!await outDir.exists()) {
@@ -302,7 +308,10 @@ class BackupService {
       final zipData = ZipEncoder().encode(archive);
 
       if (zipData.isEmpty) {
-        throw Exception('Backup package is empty.');
+        throw const AppException.backup(
+          code: 'backup_package_empty',
+          message: 'Backup package is empty.',
+        );
       }
 
       final outFile = File(destinationPath);
@@ -331,7 +340,10 @@ class BackupService {
     final sourceFile = File(sourcePath);
 
     if (!await sourceFile.exists()) {
-      throw Exception('Selected backup file could not be found.');
+      throw const AppException.notFound(
+        code: 'backup_file_not_found',
+        message: 'Selected backup file could not be found.',
+      );
     }
 
     final extractDir = await _makeUniqueTempDir('invenman_import');
@@ -347,7 +359,10 @@ class BackupService {
       );
 
       if (!await manifestFile.exists()) {
-        throw Exception('Selected file is not a valid InvenMan backup.');
+        throw const AppException.backup(
+          code: 'invalid_backup_file',
+          message: 'Selected file is not a valid InvenMan backup.',
+        );
       }
 
       final manifestMap = jsonDecode(
@@ -357,11 +372,17 @@ class BackupService {
       final manifest = BackupManifest.fromMap(manifestMap);
 
       if (manifest.app.trim().toLowerCase() != 'invenman') {
-        throw Exception('Selected file is not a valid InvenMan backup.');
+        throw const AppException.backup(
+          code: 'invalid_backup_file',
+          message: 'Selected file is not a valid InvenMan backup.',
+        );
       }
 
       if (manifest.databaseFile.trim().isEmpty) {
-        throw Exception('Backup database is missing.');
+        throw const AppException.backup(
+          code: 'backup_database_missing',
+          message: 'Backup database is missing.',
+        );
       }
 
       final extractedDbFile = File(
@@ -369,29 +390,41 @@ class BackupService {
       );
 
       if (!await extractedDbFile.exists()) {
-        throw Exception('Backup database is missing.');
+        throw const AppException.backup(
+          code: 'backup_database_missing',
+          message: 'Backup database is missing.',
+        );
       }
 
-    final pathRemap = await _restoreBackupAssets(
-      extractDir: extractDir,
-      manifest: manifest,
-    );
-
-    try {
-      return await _importDatabaseFromPreparedPath(
-        extractedDbFile.path,
-        pathRemap: pathRemap,
+      final pathRemap = await _restoreBackupAssets(
+        extractDir: extractDir,
+        manifest: manifest,
       );
-    } catch (_) {
-      await _deleteImportedAssets(pathRemap.values);
-      rethrow;
-    }  
+
+      try {
+        return await _importDatabaseFromPreparedPath(
+          extractedDbFile.path,
+          pathRemap: pathRemap,
+        );
+      } catch (_) {
+        await _deleteImportedAssets(pathRemap.values);
+        rethrow;
+      }
     } on ArchiveException {
-      throw Exception('Selected file is not a valid InvenMan backup.');
+      throw const AppException.backup(
+        code: 'invalid_backup_file',
+        message: 'Selected file is not a valid InvenMan backup.',
+      );
     } on FormatException {
-      throw Exception('Selected file is not a valid InvenMan backup.');
+      throw const AppException.backup(
+        code: 'invalid_backup_file',
+        message: 'Selected file is not a valid InvenMan backup.',
+      );
     } on FileSystemException catch (e) {
-      throw Exception('Import failed: ${e.message}');
+      throw AppException.backup(
+        code: 'backup_import_filesystem_error',
+        message: 'Import failed: ${e.message}',
+      );
     } finally {
       try {
         await Future.delayed(const Duration(milliseconds: 120));
@@ -465,7 +498,10 @@ class BackupService {
     final sourceFile = File(sourcePath);
 
     if (!await sourceFile.exists()) {
-      throw Exception('Prepared import database could not be found.');
+      throw const AppException.notFound(
+        code: 'prepared_import_database_missing',
+        message: 'Prepared import database could not be found.',
+      );
     }
 
     await _assertImportFileLooksValid(sourcePath);
@@ -492,14 +528,22 @@ class BackupService {
       final planIdMap = <int, int>{};
 
       final itemRows = await importDb.query('items', orderBy: 'id ASC');
-      final saleRows =
-          await importDb.query('sale_records', orderBy: 'id ASC');
-      final planRows =
-          await importDb.query('installment_plans', orderBy: 'id ASC');
-      final paymentRows =
-          await importDb.query('installment_payments', orderBy: 'id ASC');
-      final historyRows =
-          await importDb.query('history_entries', orderBy: 'id ASC');
+      final saleRows = await importDb.query(
+        'sale_records',
+        orderBy: 'id ASC',
+      );
+      final planRows = await importDb.query(
+        'installment_plans',
+        orderBy: 'id ASC',
+      );
+      final paymentRows = await importDb.query(
+        'installment_payments',
+        orderBy: 'id ASC',
+      );
+      final historyRows = await importDb.query(
+        'history_entries',
+        orderBy: 'id ASC',
+      );
 
       await targetDb.transaction((txn) async {
         for (final row in itemRows) {
@@ -615,7 +659,10 @@ class BackupService {
         historyInserted: historyInserted,
       );
     } on sqflite.DatabaseException {
-      throw Exception('Selected file is not a valid InvenMan backup.');
+      throw const AppException.backup(
+        code: 'invalid_backup_file',
+        message: 'Selected file is not a valid InvenMan backup.',
+      );
     } finally {
       await importDb?.close();
 
@@ -678,7 +725,10 @@ class BackupService {
       };
 
       if (!tableNames.containsAll(requiredTables)) {
-        throw Exception('Selected file is not a valid InvenMan backup.');
+        throw const AppException.backup(
+          code: 'invalid_backup_file',
+          message: 'Selected file is not a valid InvenMan backup.',
+        );
       }
     } finally {
       await validationDb?.close();
@@ -695,9 +745,7 @@ class BackupService {
         if (await file.exists()) {
           await file.delete();
         }
-      } catch (_) {
-
-      }
+      } catch (_) {}
     }
   }
 

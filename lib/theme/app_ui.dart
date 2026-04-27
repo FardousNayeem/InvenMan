@@ -26,7 +26,7 @@ class AppUi {
     BoxShadow(
       blurRadius: 16,
       offset: const Offset(0, 6),
-      color: Colors.black.withOpacity(0.045),
+      color: Colors.black.withValues(alpha:0.045),
     ),
   ];
 
@@ -34,7 +34,7 @@ class AppUi {
     BoxShadow(
       blurRadius: 18,
       offset: const Offset(0, 8),
-      color: Colors.black.withOpacity(0.07),
+      color: Colors.black.withValues(alpha:0.07),
     ),
   ];
 }
@@ -114,7 +114,7 @@ ThemeData buildAppTheme(Brightness brightness) {
         fontWeight: FontWeight.w600,
       ),
       hintStyle: TextStyle(
-        color: cs.onSurfaceVariant.withOpacity(0.9),
+        color: cs.onSurfaceVariant.withValues(alpha:0.9),
         fontWeight: FontWeight.w500,
       ),
       border: OutlineInputBorder(
@@ -464,7 +464,7 @@ class AppHeaderIconButton extends StatelessWidget {
         onPressed: onPressed,
         icon: Icon(icon),
         style: IconButton.styleFrom(
-          backgroundColor: Colors.black.withOpacity(0.18),
+          backgroundColor: Colors.black.withValues(alpha:0.18),
           foregroundColor: Colors.white,
         ),
       ),
@@ -493,9 +493,9 @@ class AppHeroPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
+        color: Colors.white.withValues(alpha:0.14),
         borderRadius: BorderRadius.circular(AppUi.pillRadius),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

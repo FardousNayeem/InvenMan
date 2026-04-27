@@ -6,11 +6,12 @@ import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/sale_record.dart';
 
+import 'package:invenman/app/core/app_exception.dart';
 import 'package:invenman/app/core/money_utils.dart';
 import 'package:invenman/app/core/domain_constants.dart';
+import 'package:invenman/app/core/installment_calculator.dart';
 
 import 'package:invenman/services/database/app_database.dart';
-import 'package:invenman/services/database/db_shared.dart';
 import 'package:invenman/services/repositories/history_repository.dart';
 
 
@@ -29,27 +30,6 @@ class InstallmentDocumentSyncResult {
 class InstallmentRepository {
   const InstallmentRepository._();
 
-  static DateTime _nowUtc() => DbShared.nowUtc();
-  static DateTime _startOfTodayUtc() => DbShared.startOfTodayUtc();
-
-  static DateTime _addMonths(DateTime date, int monthsToAdd) {
-    return DbShared.addMonths(date, monthsToAdd);
-  }
-
-  static List<double> _buildWholeNumberScheduleAmounts(
-    double totalAmount,
-    int months,
-  ) {
-    if (months <= 0) return const [];
-
-    final totalUnits = totalAmount <= 0 ? 0 : totalAmount.round();
-    final base = totalUnits ~/ months;
-    final remainder = totalUnits % months;
-
-    return List<double>.generate(months, (index) {
-      return (base + (index < remainder ? 1 : 0)).toDouble();
-    });
-  }
 
   static String _paymentRowStatus({
     required DateTime dueDate,
@@ -57,12 +37,24 @@ class InstallmentRepository {
     required double amountPaid,
   }) {
     const epsilon = MoneyUtils.epsilon;
-    final today = _startOfTodayUtc();
+    final today = InstallmentCalculator.nowUtc();
 
     if (amountPaid >= amountDue - epsilon) return InstallmentPaymentStatuses.paid;
     if (amountPaid > epsilon) return InstallmentPaymentStatuses.partial;
     if (dueDate.isBefore(today)) return InstallmentPlanStatuses.overdue;
     return InstallmentPaymentStatuses.pending;
+  }
+
+  static String resolvePaymentRowStatus({
+    required DateTime dueDate,
+    required double amountDue,
+    required double amountPaid,
+  }) {
+    return _paymentRowStatus(
+      dueDate: dueDate,
+      amountDue: amountDue,
+      amountPaid: amountPaid,
+    );
   }
 
   static List<String> normalizeInstallmentImages(List<String> paths) {
@@ -92,30 +84,39 @@ class InstallmentRepository {
     required double downPayment,
   }) async {
     if (sale.installmentMonths == null || sale.installmentMonths! <= 0) {
-      throw Exception('Installment duration is required for installment plans.');
+      throw const AppException.validation(
+        code: 'installment_plan_missing_duration',
+        message: 'Installment duration is required for installment plans.',
+      );
     }
 
-    final now = _nowUtc();
+    final now = InstallmentCalculator.nowUtc();
     final totalAmount = MoneyUtils.round(sale.sellPrice * sale.quantitySold);
     final normalizedDownPayment = MoneyUtils.round(downPayment);
 
     if (normalizedDownPayment <= 0) {
-      throw Exception('Down payment must be greater than zero.');
+      throw const AppException.validation(
+        code: 'installment_plan_invalid_down_payment',
+        message: 'Down payment must be greater than zero.',
+      );
     }
 
     if (normalizedDownPayment >= totalAmount) {
-      throw Exception('Down payment must be less than total sale amount.');
+      throw const AppException.validation(
+        code: 'installment_plan_down_payment_too_high',
+        message: 'Down payment must be less than total sale amount.',
+      );
     }
 
     final financedAmount = MoneyUtils.round(totalAmount - normalizedDownPayment);
     final durationMonths = sale.installmentMonths!;
     final scheduleAmounts =
-        _buildWholeNumberScheduleAmounts(financedAmount, durationMonths);
+        InstallmentCalculator.buildWholeNumberScheduleAmounts(financedAmount, durationMonths);
 
     final monthlyAmount =
         scheduleAmounts.isNotEmpty ? scheduleAmounts.first : 0.0;
 
-    final nextDueDate = _addMonths(sale.soldAt, 1);
+    final nextDueDate = InstallmentCalculator.addMonths(sale.soldAt, 1);
     final normalizedImages =
         normalizeInstallmentImages(sale.installmentImagePaths);
 
@@ -144,7 +145,7 @@ class InstallmentRepository {
     });
 
     for (int i = 0; i < durationMonths; i++) {
-      final dueDate = _addMonths(sale.soldAt, i + 1);
+      final dueDate = InstallmentCalculator.addMonths(sale.soldAt, i + 1);
       final amountDue = scheduleAmounts[i];
 
       final status = _paymentRowStatus(
@@ -210,9 +211,7 @@ class InstallmentRepository {
     final redistributable = <InstallmentPayment>[];
 
     for (final payment in payments) {
-      final normalizedDue = payment.amountPaid > payment.amountDue
-          ? payment.amountPaid
-          : payment.amountDue;
+      final normalizedDue = MoneyUtils.whole(payment.amountDue);
 
       final computedStatus = _paymentRowStatus(
         dueDate: payment.dueDate,
@@ -234,7 +233,7 @@ class InstallmentRepository {
             'installment_payments',
             {
               'amount_due': MoneyUtils.whole(normalizedDue),
-              'updated_at': _nowUtc().toIso8601String(),
+              'updated_at': InstallmentCalculator.nowUtc().toIso8601String(),
             },
             where: 'id = ?',
             whereArgs: [payment.id],
@@ -254,7 +253,7 @@ class InstallmentRepository {
       outstandingToAllocate = 0;
     }
 
-    final redistributedOutstanding = _buildWholeNumberScheduleAmounts(
+    final redistributedOutstanding = InstallmentCalculator.buildWholeNumberScheduleAmounts(
       outstandingToAllocate,
       redistributable.length,
     );
@@ -268,7 +267,7 @@ class InstallmentRepository {
         'installment_payments',
         {
           'amount_due': newAmountDue,
-          'updated_at': _nowUtc().toIso8601String(),
+          'updated_at': InstallmentCalculator.nowUtc().toIso8601String(),
         },
         where: 'id = ?',
         whereArgs: [payment.id],
@@ -313,7 +312,7 @@ class InstallmentRepository {
         .map((map) => InstallmentPayment.fromMap(map))
         .toList();
 
-    final now = _nowUtc();
+    final now = InstallmentCalculator.nowUtc();
 
     double paymentRowsTotalPaid = 0.0;
     for (final payment in payments) {
@@ -331,9 +330,7 @@ class InstallmentRepository {
         await txn.update(
           'installment_payments',
           {
-            'amount_due': payment.amountPaid > 0
-                ? MoneyUtils.whole(payment.amountPaid)
-                : 0.0,
+            'amount_due': MoneyUtils.whole(payment.amountDue),
             'status': InstallmentPaymentStatuses.paid,
             'updated_at': now.toIso8601String(),
           },
@@ -343,11 +340,7 @@ class InstallmentRepository {
       }
     } else {
       for (final payment in payments) {
-        final normalizedDue = MoneyUtils.whole(
-          payment.amountPaid > payment.amountDue
-              ? payment.amountPaid
-              : payment.amountDue,
-        );
+        final normalizedDue = MoneyUtils.whole(payment.amountDue);
 
         final computedStatus = _paymentRowStatus(
           dueDate: payment.dueDate,
@@ -549,7 +542,7 @@ class InstallmentRepository {
     required int saleRecordId,
     required List<String> imagePaths,
   }) async {
-    final nowIso = _nowUtc().toIso8601String();
+    final nowIso = InstallmentCalculator.nowUtc().toIso8601String();
     final normalizedImages = normalizeInstallmentImages(imagePaths);
     final encodedImages = jsonEncode(normalizedImages);
 
@@ -561,13 +554,19 @@ class InstallmentRepository {
     );
 
     if (saleMaps.isEmpty) {
-      throw Exception('Sale record not found.');
+      throw const AppException.notFound(
+        code: 'sale_record_not_found',
+        message: 'Sale record not found.',
+      );
     }
 
     final sale = SaleRecord.fromMap(saleMaps.first);
 
     if (!sale.isInstallment) {
-      throw Exception('Only installment sales can have installment documents.');
+      throw const AppException.validation(
+        code: 'installment_documents_non_installment_sale',
+        message: 'Only installment sales can have installment documents.',
+      );
     }
 
     await txn.update(
@@ -642,11 +641,7 @@ class InstallmentRepository {
       for (final paymentMap in paymentMaps) {
         final payment = InstallmentPayment.fromMap(paymentMap);
 
-        final normalizedDue = MoneyUtils.whole(
-          payment.amountPaid > payment.amountDue
-              ? payment.amountPaid
-              : payment.amountDue,
-        );
+        final normalizedDue = MoneyUtils.whole(payment.amountDue);
 
         final normalizedPaid = MoneyUtils.round(payment.amountPaid);
 
@@ -657,7 +652,7 @@ class InstallmentRepository {
             {
               'amount_due': normalizedDue,
               'amount_paid': normalizedPaid,
-              'updated_at': _nowUtc().toIso8601String(),
+              'updated_at': InstallmentCalculator.nowUtc().toIso8601String(),
             },
             where: 'id = ?',
             whereArgs: [payment.id],

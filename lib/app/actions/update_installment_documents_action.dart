@@ -1,5 +1,8 @@
+import 'package:invenman/app/core/app_exception.dart';
+
 import 'package:invenman/models/installment_plan.dart';
 import 'package:invenman/models/sale_record.dart';
+
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/repositories/installment_repository.dart';
 
@@ -37,13 +40,19 @@ class UpdateInstallmentDocumentsAction {
       );
 
       if (planMaps.isEmpty) {
-        throw Exception('Installment plan not found.');
+        throw const AppException.notFound(
+          code: 'installment_plan_not_found',
+          message: 'Installment plan not found.',
+        );
       }
 
       final saleRecordId = planMaps.first['sale_record_id'] as int?;
 
       if (saleRecordId == null) {
-        throw Exception('Linked sale record not found.');
+        throw const AppException.notFound(
+          code: 'installment_plan_missing_sale_record',
+          message: 'Linked sale record not found.',
+        );
       }
 
       return InstallmentRepository.syncInstallmentDocumentsTxn(
@@ -68,7 +77,10 @@ class UpdateInstallmentDocumentsAction {
     );
 
     if (saleMaps.isEmpty) {
-      throw Exception('Sale record not found.');
+      throw const AppException.notFound(
+        code: 'sale_record_not_found',
+        message: 'Sale record not found.',
+      );
     }
 
     final sale = SaleRecord.fromMap(saleMaps.first);
@@ -96,7 +108,10 @@ class UpdateInstallmentDocumentsAction {
     );
 
     if (planMaps.isEmpty) {
-      throw Exception('Installment plan not found.');
+      throw const AppException.notFound(
+        code: 'installment_plan_not_found',
+        message: 'Installment plan not found.',
+      );
     }
 
     final plan = InstallmentPlan.fromMap(planMaps.first);

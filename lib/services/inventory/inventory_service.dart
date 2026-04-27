@@ -1,3 +1,6 @@
+import 'package:invenman/app/actions/create_item_action.dart';
+import 'package:invenman/app/actions/delete_item_action.dart';
+import 'package:invenman/app/actions/update_item_action.dart';
 import 'package:invenman/models/item.dart';
 import 'package:invenman/services/repositories/item_repository.dart';
 
@@ -25,21 +28,18 @@ class InventoryService {
   }
 
   // ---------------------------------------------------------------------------
-  // Writes
-  //
-  // For now these intentionally delegate to ItemRepository.
-  // Later, create/update/delete should move behind dedicated action classes.
+  // Workflows
   // ---------------------------------------------------------------------------
 
   static Future<void> insertItem(Item item) {
-    return ItemRepository.insertItem(item);
+    return CreateItemAction.execute(item);
   }
 
   static Future<void> updateItem(Item item) {
-    return ItemRepository.updateItem(item);
+    return UpdateItemAction.execute(item);
   }
 
   static Future<void> deleteItem(int id, String name) {
-    return ItemRepository.deleteItem(id, name);
+    return DeleteItemAction.execute(id, name);
   }
 }

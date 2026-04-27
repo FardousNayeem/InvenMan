@@ -51,6 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final path = picked?.files.single.path;
     if (path == null || path.trim().isEmpty) return;
 
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) {
@@ -312,7 +313,7 @@ class _SettingsActionTile extends StatelessWidget {
             color: cs.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(AppUi.innerRadius),
             border: Border.all(
-              color: danger ? cs.error.withOpacity(0.22) : cs.outlineVariant,
+              color: danger ? cs.error.withValues(alpha:0.22) : cs.outlineVariant,
             ),
           ),
           child: Padding(
@@ -325,8 +326,8 @@ class _SettingsActionTile extends StatelessWidget {
                   height: 42,
                   decoration: BoxDecoration(
                     color: danger
-                        ? cs.errorContainer.withOpacity(0.8)
-                        : cs.primaryContainer.withOpacity(0.9),
+                        ? cs.errorContainer.withValues(alpha:0.8)
+                        : cs.primaryContainer.withValues(alpha:0.9),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: iconColor, size: 20),

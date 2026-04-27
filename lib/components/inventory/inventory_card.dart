@@ -665,7 +665,7 @@ class _InventoryItemVisual extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant.withOpacity(0.55)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha:0.55)),
       ),
       alignment: Alignment.center,
       child: Icon(
@@ -700,12 +700,12 @@ class _ItemImagePreview extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant.withOpacity(0.45)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha:0.45)),
         boxShadow: [
           BoxShadow(
             blurRadius: 14,
             offset: const Offset(0, 7),
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha:0.08),
           ),
         ],
       ),
@@ -746,7 +746,7 @@ class _CategoryPill extends StatelessWidget {
         color: cs.secondaryContainer,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: cs.onSecondaryContainer.withOpacity(0.06),
+          color: cs.onSecondaryContainer.withValues(alpha:0.06),
         ),
       ),
       child: Text(
@@ -875,7 +875,7 @@ class _OverflowActionButton extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: cs.surfaceContainerLow.withOpacity(0.68),
+          color: cs.surfaceContainerLow.withValues(alpha:0.68),
           borderRadius: BorderRadius.circular(compact ? 14 : 16),
           border: Border.all(color: cs.outlineVariant),
         ),

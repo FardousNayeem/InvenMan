@@ -70,14 +70,14 @@ class _HistoryEventCardState extends State<HistoryEventCard> {
                 borderRadius: BorderRadius.circular(radius),
                 border: Border.all(
                   color: _hovered
-                      ? widget.color.withOpacity(0.35)
+                      ? widget.color.withValues(alpha:0.35)
                       : cs.outlineVariant,
                 ),
                 boxShadow: [
                   BoxShadow(
                     blurRadius: _hovered ? 24 : 18,
                     offset: Offset(0, _hovered ? 12 : 8),
-                    color: Colors.black.withOpacity(_hovered ? 0.075 : 0.05),
+                    color: Colors.black.withValues(alpha:_hovered ? 0.075 : 0.05),
                   ),
                 ],
               ),
@@ -186,7 +186,7 @@ class _HistoryCardHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.13),
+            color: color.withValues(alpha:0.13),
             borderRadius: BorderRadius.circular(AppUi.pillRadius),
           ),
           child: Text(
@@ -263,12 +263,12 @@ class _HistoryTimelineRail extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            color.withOpacity(0.24),
-            color.withOpacity(isDangerAction ? 0.17 : 0.12),
+            color.withValues(alpha:0.24),
+            color.withValues(alpha:isDangerAction ? 0.17 : 0.12),
           ],
         ),
         border: Border.all(
-          color: color.withOpacity(0.35),
+          color: color.withValues(alpha:0.35),
         ),
       ),
       child: Icon(
@@ -321,7 +321,7 @@ class _HistoryTimestampPanel extends StatelessWidget {
       width: 112,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.78),
+        color: cs.surfaceContainerHighest.withValues(alpha:0.78),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(

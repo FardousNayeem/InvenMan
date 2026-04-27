@@ -312,7 +312,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
                             'This stays hidden when sensitive values are disabled.',
                             style: TextStyle(
                               fontSize: 12.5,
-                              color: cs.onSecondaryContainer.withOpacity(0.82),
+                              color: cs.onSecondaryContainer.withValues(alpha:0.82),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -605,7 +605,7 @@ class _SellItemDialogState extends State<SellItemDialog> {
                                     child: Container(
                                       padding: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.65),
+                                        color: Colors.black.withValues(alpha:0.65),
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(

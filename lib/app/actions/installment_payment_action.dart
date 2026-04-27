@@ -1,36 +1,16 @@
+import 'package:invenman/app/core/app_exception.dart';
+import 'package:invenman/app/core/installment_calculator.dart';
+import 'package:invenman/app/core/money_utils.dart';
+
 import 'package:invenman/models/installment_payment.dart';
 import 'package:invenman/models/installment_plan.dart';
 
-import 'package:invenman/app/core/money_utils.dart';
-import 'package:invenman/app/core/domain_constants.dart';
-
 import 'package:invenman/services/database/app_database.dart';
-import 'package:invenman/services/database/db_shared.dart';
 import 'package:invenman/services/repositories/history_repository.dart';
 import 'package:invenman/services/repositories/installment_repository.dart';
 
-
 class RecordInstallmentPaymentAction {
   const RecordInstallmentPaymentAction._();
-
-  static DateTime _nowUtc() => DbShared.nowUtc();
-
-  static DateTime _startOfTodayUtc() => DbShared.startOfTodayUtc();
-
-  static String _paymentRowStatus({
-    required DateTime dueDate,
-    required double amountDue,
-    required double amountPaid,
-  }) {
-    const epsilon = MoneyUtils.epsilon;
-    final today = _startOfTodayUtc();
-
-    if (amountPaid >= amountDue - epsilon) return InstallmentPaymentStatuses.paid;
-    if (amountPaid > epsilon) return InstallmentPaymentStatuses.partial;
-    if (dueDate.isBefore(today)) return InstallmentPaymentStatuses.overdue;
-
-    return InstallmentPaymentStatuses.pending;
-  }
 
   static Future<void> execute({
     required int installmentPaymentId,
@@ -43,7 +23,10 @@ class RecordInstallmentPaymentAction {
     final paymentAmount = MoneyUtils.round(amountPaid);
 
     if (paymentAmount < 0) {
-      throw Exception('Amount paid cannot be negative.');
+      throw const AppException.validation(
+        code: 'installment_payment_negative_amount',
+        message: 'Amount paid cannot be negative.',
+      );
     }
 
     await dbClient.transaction((txn) async {
@@ -55,7 +38,10 @@ class RecordInstallmentPaymentAction {
       );
 
       if (paymentMaps.isEmpty) {
-        throw Exception('Installment payment entry not found.');
+        throw const AppException.notFound(
+          code: 'installment_payment_not_found',
+          message: 'Installment payment entry not found.',
+        );
       }
 
       final selectedPayment = InstallmentPayment.fromMap(paymentMaps.first);
@@ -71,7 +57,7 @@ class RecordInstallmentPaymentAction {
       final normalizedNote =
           (note ?? '').trim().isEmpty ? null : note?.trim();
 
-      final installmentMaps = await txn.query(
+      final futurePaymentMaps = await txn.query(
         'installment_payments',
         where: 'installment_plan_id = ? AND installment_number >= ?',
         whereArgs: [
@@ -81,12 +67,12 @@ class RecordInstallmentPaymentAction {
         orderBy: 'installment_number ASC',
       );
 
-      final installments = installmentMaps
+      final futurePayments = futurePaymentMaps
           .map((map) => InstallmentPayment.fromMap(map))
           .toList();
 
       final totalRemaining = MoneyUtils.round(
-        installments.fold<double>(0, (sum, row) {
+        futurePayments.fold<double>(0, (sum, row) {
           final amountDue = MoneyUtils.whole(row.amountDue);
           final alreadyPaid = MoneyUtils.round(row.amountPaid);
           final remaining = amountDue - alreadyPaid;
@@ -96,56 +82,39 @@ class RecordInstallmentPaymentAction {
       );
 
       if (paymentAmount > totalRemaining) {
-        throw Exception('Payment cannot exceed remaining installment balance.');
+        throw const AppException.validation(
+          code: 'installment_payment_exceeds_remaining_balance',
+          message: 'Payment cannot exceed remaining installment balance.',
+        );
       }
 
-      double remainingPayment = paymentAmount;
-      double totalApplied = 0;
+      final selectedAmountDue = MoneyUtils.whole(selectedPayment.amountDue);
 
-      for (final row in installments) {
-        final amountDue = MoneyUtils.whole(row.amountDue);
-        final alreadyPaid = MoneyUtils.round(row.amountPaid);
-        final rowRemaining = MoneyUtils.round(amountDue - alreadyPaid);
+      final newSelectedAmountPaid = MoneyUtils.round(
+        selectedPayment.amountPaid + paymentAmount,
+      );
 
-        if (rowRemaining <= 0) {
-          continue;
-        }
+      final selectedStatus = InstallmentRepository.resolvePaymentRowStatus(
+        dueDate: selectedPayment.dueDate,
+        amountDue: selectedAmountDue,
+        amountPaid: newSelectedAmountPaid,
+      );
 
-        final appliedAmount = remainingPayment >= rowRemaining
-            ? rowRemaining
-            : remainingPayment;
-
-        final newAmountPaid = MoneyUtils.round(alreadyPaid + appliedAmount);
-
-        final newStatus = _paymentRowStatus(
-          dueDate: row.dueDate,
-          amountDue: amountDue,
-          amountPaid: newAmountPaid,
-        );
-
-        await txn.update(
-          'installment_payments',
-          {
-            'amount_due': amountDue,
-            'amount_paid': newAmountPaid,
-            'paid_date': newAmountPaid > 0
-                ? normalizedPaidDate?.toIso8601String()
-                : null,
-            'status': newStatus,
-            'note': row.id == installmentPaymentId ? normalizedNote : row.note,
-            'updated_at': _nowUtc().toIso8601String(),
-          },
-          where: 'id = ?',
-          whereArgs: [row.id],
-        );
-
-        remainingPayment = MoneyUtils.round(remainingPayment - appliedAmount);
-        totalApplied = MoneyUtils.round(totalApplied + appliedAmount);
-
-        if (remainingPayment <= 0) {
-          break;
-        }
-      }
+      await txn.update(
+        'installment_payments',
+        {
+          'amount_due': selectedAmountDue,
+          'amount_paid': newSelectedAmountPaid,
+          'paid_date': newSelectedAmountPaid > 0
+              ? normalizedPaidDate?.toIso8601String()
+              : null,
+          'status': selectedStatus,
+          'note': normalizedNote,
+          'updated_at': InstallmentCalculator.nowUtc().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [selectedPayment.id],
+      );
 
       await InstallmentRepository.recalculateInstallmentPlanTxn(
         txn,
@@ -164,8 +133,8 @@ class RecordInstallmentPaymentAction {
         final plan = InstallmentPlan.fromMap(planMaps.first);
 
         final details = StringBuffer()
-          ..write('From month ${selectedPayment.installmentNumber}')
-          ..write(', Paid: ${MoneyUtils.text(totalApplied)}');
+          ..write('Month ${selectedPayment.installmentNumber}')
+          ..write(', Paid: ${MoneyUtils.text(paymentAmount)}');
 
         if (normalizedPaidDate != null) {
           details.write(', Date: ${normalizedPaidDate.toIso8601String()}');
@@ -179,6 +148,22 @@ class RecordInstallmentPaymentAction {
           itemName: plan.itemName,
           action: 'Installment Payment',
           details: details.toString(),
+          meta: {
+            'eventType': 'installment_payment',
+            'installmentPlanId': plan.id,
+            'installmentPaymentId': selectedPayment.id,
+            'installmentNumber': selectedPayment.installmentNumber,
+            'amountDueBefore': selectedPayment.amountDue,
+            'amountPaidBefore': selectedPayment.amountPaid,
+            'amountPaidNow': paymentAmount,
+            'amountPaidAfter': newSelectedAmountPaid,
+            'statusAfter': selectedStatus,
+            'paidDate': normalizedPaidDate?.toIso8601String(),
+            'note': normalizedNote,
+            'itemName': plan.itemName,
+            'customerName': plan.customerName,
+            'customerPhone': plan.customerPhone,
+          },
           executor: txn,
         );
       }

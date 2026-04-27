@@ -6,6 +6,7 @@ import 'package:invenman/models/sale_record.dart';
 import 'package:invenman/services/sales/sales_service.dart';
 import 'package:invenman/services/installment/installment_service.dart';
 import 'package:invenman/theme/app_ui.dart';
+import 'package:invenman/components/common/copyable_text.dart';
 import 'package:invenman/components/installment/installment_file_editor.dart';
 
 class SaleDetailsScreen extends StatefulWidget {
@@ -103,8 +104,11 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
       ),
     );
 
-    if (didSave == true && mounted) {
+    if (didSave == true) {
       await _reloadSale();
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Installment documents updated successfully.'),
@@ -165,8 +169,8 @@ class _SaleDetailsScreenState extends State<SaleDetailsScreen> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withOpacity(0.08),
-                            Colors.black.withOpacity(0.58),
+                            Colors.black.withValues(alpha:0.08),
+                            Colors.black.withValues(alpha:0.58),
                           ],
                         ),
                       ),
@@ -470,7 +474,7 @@ class _SaleInstallmentImageGallery extends StatelessWidget {
                                     vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.55),
+                                    color: Colors.black.withValues(alpha:0.55),
                                     borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(
@@ -596,11 +600,10 @@ class _CustomerCard extends StatelessWidget {
                 : sale.customerName!,
           ),
           const SizedBox(height: 8),
-          AppLineItem(
+          CopyableText(
             label: 'Phone',
-            value: (sale.customerPhone ?? '').trim().isEmpty
-                ? 'Not provided'
-                : sale.customerPhone!,
+            value: sale.customerPhone ?? '',
+            labelWidth: 92,
           ),
           const SizedBox(height: 8),
           AppLineItem(
@@ -872,9 +875,9 @@ class _FullscreenInstallmentImageViewerState
                   onPressed: _currentIndex > 0 ? _goToPrevious : null,
                   icon: const Icon(Icons.chevron_left_rounded, size: 30),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.45),
+                    backgroundColor: Colors.black.withValues(alpha:0.45),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.black.withOpacity(0.18),
+                    disabledBackgroundColor: Colors.black.withValues(alpha:0.18),
                     disabledForegroundColor: Colors.white38,
                     minimumSize: const Size(48, 48),
                   ),
@@ -892,9 +895,9 @@ class _FullscreenInstallmentImageViewerState
                       : null,
                   icon: const Icon(Icons.chevron_right_rounded, size: 30),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.45),
+                    backgroundColor: Colors.black.withValues(alpha:0.45),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.black.withOpacity(0.18),
+                    disabledBackgroundColor: Colors.black.withValues(alpha:0.18),
                     disabledForegroundColor: Colors.white38,
                     minimumSize: const Size(48, 48),
                   ),

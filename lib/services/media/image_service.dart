@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +7,8 @@ import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+import 'package:invenman/app/core/app_exception.dart';
 
 enum AppImageType {
   product,
@@ -28,7 +29,10 @@ class ImageService {
     final existing = List<String>.from(existingPaths);
 
     if (existing.length >= maxImagesPerSet) {
-      throw Exception('Maximum $maxImagesPerSet images allowed.');
+      throw const AppException.validation(
+        code: 'image_limit_reached',
+        message: 'Maximum 5 images allowed.',
+      );
     }
 
     final remaining = maxImagesPerSet - existing.length;
@@ -196,7 +200,10 @@ class ImageService {
     final decoded = img.decodeImage(bytes);
 
     if (decoded == null) {
-      throw Exception('Could not read selected image.');
+      throw const AppException.validation(
+        code: 'image_decode_failed',
+        message: 'Could not read selected image.',
+      );
     }
 
     final resized = _resizePreservingAspect(decoded);

@@ -1014,7 +1014,7 @@ class _ItemFormDialogState extends State<ItemFormDialog> {
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.65),
+                                      color: Colors.black.withValues(alpha:0.65),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(

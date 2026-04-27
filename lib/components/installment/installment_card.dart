@@ -575,10 +575,10 @@ class _ProgressPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.40),
+        color: cs.surfaceContainerHighest.withValues(alpha:0.40),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.35),
+          color: cs.outlineVariant.withValues(alpha:0.35),
         ),
       ),
       child: child,

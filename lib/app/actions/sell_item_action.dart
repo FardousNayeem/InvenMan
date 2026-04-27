@@ -1,9 +1,10 @@
+import 'package:invenman/app/core/app_exception.dart';
+import 'package:invenman/app/core/app_normalizers.dart';
+import 'package:invenman/app/core/domain_constants.dart';
+import 'package:invenman/app/core/money_utils.dart';
+
 import 'package:invenman/models/item.dart';
 import 'package:invenman/models/sale_record.dart';
-
-import 'package:invenman/app/core/app_normalizers.dart';
-import 'package:invenman/app/core/money_utils.dart';
-import 'package:invenman/app/core/domain_constants.dart';
 
 import 'package:invenman/services/database/app_database.dart';
 import 'package:invenman/services/database/db_shared.dart';
@@ -11,7 +12,6 @@ import 'package:invenman/services/repositories/history_repository.dart';
 import 'package:invenman/services/repositories/installment_repository.dart';
 import 'package:invenman/services/repositories/item_repository.dart';
 import 'package:invenman/services/repositories/sale_repository.dart';
-
 
 class SellItemAction {
   const SellItemAction._();
@@ -41,12 +41,10 @@ class SellItemAction {
   static String _formatWarranties(Map<String, int> warranties) {
     if (warranties.isEmpty) return 'No warranty';
 
-    return warranties.entries
-        .map((entry) {
-          final suffix = entry.value == 1 ? '' : 's';
-          return '${entry.key}: ${entry.value} month$suffix';
-        })
-        .join(', ');
+    return warranties.entries.map((entry) {
+      final suffix = entry.value == 1 ? '' : 's';
+      return '${entry.key}: ${entry.value} month$suffix';
+    }).join(', ');
   }
 
   static Future<void> execute({
@@ -65,61 +63,92 @@ class SellItemAction {
     final dbClient = await AppDatabase.db;
 
     if (item.id == null) {
-      throw Exception('Cannot sell an item without an id.');
+      throw const AppException.validation(
+        code: 'sell_item_missing_id',
+        message: 'Cannot sell an item without an id.',
+      );
     }
 
     if (quantitySold <= 0) {
-      throw Exception('Quantity sold must be greater than zero.');
+      throw const AppException.validation(
+        code: 'sell_item_invalid_quantity',
+        message: 'Quantity sold must be greater than zero.',
+      );
     }
 
     if (item.quantity < quantitySold) {
-      throw Exception('Not enough stock available.');
+      throw const AppException.conflict(
+        code: 'sell_item_insufficient_stock',
+        message: 'Not enough stock available.',
+      );
     }
 
     final normalizedPaymentType = paymentType.trim().toLowerCase();
 
     if (!PaymentTypes.isValid(normalizedPaymentType)) {
-      throw Exception('Payment type must be either direct or installment.');
+      throw const AppException.validation(
+        code: 'sell_item_invalid_payment_type',
+        message: 'Payment type must be either direct or installment.',
+      );
     }
 
     final totalSaleAmount = MoneyUtils.round(sellPricePerUnit * quantitySold);
 
     if (normalizedPaymentType == PaymentTypes.installment &&
         (installmentMonths == null || installmentMonths <= 0)) {
-      throw Exception('Installment duration must be greater than zero.');
+      throw const AppException.validation(
+        code: 'sell_item_invalid_installment_duration',
+        message: 'Installment duration must be greater than zero.',
+      );
     }
 
-    final normalizedInstallmentImages = normalizedPaymentType == PaymentTypes.installment
-        ? InstallmentRepository.normalizeInstallmentImages(
-            installmentImagePaths,
-          )
-        : const <String>[];
+    final normalizedInstallmentImages =
+        normalizedPaymentType == PaymentTypes.installment
+            ? InstallmentRepository.normalizeInstallmentImages(
+                installmentImagePaths,
+              )
+            : const <String>[];
 
     final normalizedSoldColors = _normalizeSoldColors(soldColors);
 
     if (item.colors.isNotEmpty && normalizedSoldColors.isEmpty) {
-      throw Exception('Please select at least one sold color.');
+      throw const AppException.validation(
+        code: 'sell_item_missing_color',
+        message: 'Please select at least one sold color.',
+      );
     }
 
     if (normalizedPaymentType == PaymentTypes.installment) {
       if (downPayment == null) {
-        throw Exception('Down payment is required for installment sales.');
+        throw const AppException.validation(
+          code: 'sell_item_missing_down_payment',
+          message: 'Down payment is required for installment sales.',
+        );
       }
 
       if (downPayment < 0) {
-        throw Exception('Down payment cannot be negative.');
+        throw const AppException.validation(
+          code: 'sell_item_negative_down_payment',
+          message: 'Down payment cannot be negative.',
+        );
       }
 
       if (downPayment <= 0) {
-        throw Exception('Down payment must be greater than zero.');
+        throw const AppException.validation(
+          code: 'sell_item_zero_down_payment',
+          message: 'Down payment must be greater than zero.',
+        );
       }
 
       if (downPayment >= totalSaleAmount) {
-        throw Exception('Down payment must be less than total sale amount.');
+        throw const AppException.validation(
+          code: 'sell_item_down_payment_too_high',
+          message: 'Down payment must be less than total sale amount.',
+        );
       }
     }
 
-    if (normalizedPaymentType == PaymentTypes.direct ) {
+    if (normalizedPaymentType == PaymentTypes.direct) {
       installmentMonths = null;
       downPayment = null;
     }
@@ -165,7 +194,8 @@ class SellItemAction {
         sale,
       );
 
-      if (normalizedPaymentType == PaymentTypes.installment && installmentMonths != null) {
+      if (normalizedPaymentType == PaymentTypes.installment &&
+          installmentMonths != null) {
         await InstallmentRepository.createInstallmentPlanForSaleTxn(
           txn,
           saleRecordId: saleId,
@@ -194,7 +224,8 @@ class SellItemAction {
 
       details.write(', Payment: $normalizedPaymentType');
 
-      if (normalizedPaymentType == PaymentTypes.installment && installmentMonths != null) {
+      if (normalizedPaymentType == PaymentTypes.installment &&
+          installmentMonths != null) {
         details.write(', Installment: $installmentMonths month(s)');
         details.write(', Down Payment: ${MoneyUtils.text(downPayment ?? 0)}');
         details.write(', Docs: ${normalizedInstallmentImages.length}');
@@ -206,6 +237,30 @@ class SellItemAction {
         itemName: item.name,
         action: 'Sold',
         details: details.toString(),
+        meta: {
+          'eventType': 'sale',
+          'itemId': item.id,
+          'saleRecordId': saleId,
+          'itemName': item.name,
+          'category': item.category,
+          'quantitySold': quantitySold,
+          'stockBefore': item.quantity,
+          'stockAfter': updatedItem.quantity,
+          'costPricePerUnit': item.costPrice,
+          'sellPricePerUnit': sellPricePerUnit,
+          'totalSaleAmount': totalSaleAmount,
+          'profit': profit,
+          'paymentType': normalizedPaymentType,
+          'installmentMonths': installmentMonths,
+          'downPayment': downPayment,
+          'soldColors': normalizedSoldColors,
+          'installmentDocumentCount': normalizedInstallmentImages.length,
+          'customerName': customerName,
+          'customerPhone': customerPhone,
+          'customerAddress': customerAddress,
+          'warranties': item.warranties,
+          'soldAt': now.toIso8601String(),
+        },
         executor: txn,
       );
     });

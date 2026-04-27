@@ -177,8 +177,8 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withOpacity(0.02),
-                            Colors.black.withOpacity(0.48),
+                            Colors.black.withValues(alpha:0.02),
+                            Colors.black.withValues(alpha:0.48),
                           ],
                         ),
                       ),
@@ -576,7 +576,7 @@ class _ThumbnailRail extends StatelessWidget {
                         BoxShadow(
                           blurRadius: 12,
                           offset: const Offset(0, 5),
-                          color: cs.primary.withOpacity(0.16),
+                          color: cs.primary.withValues(alpha:0.16),
                         ),
                       ]
                     : null,
@@ -961,7 +961,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
     final canGoRight = _currentIndex < widget.imagePaths.length - 1;
 
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.96),
+      backgroundColor: Colors.black.withValues(alpha:0.96),
       body: SafeArea(
         child: Stack(
           children: [
@@ -988,7 +988,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
               child: IconButton.filledTonal(
                 onPressed: () => Navigator.of(context).pop(),
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.12),
+                  backgroundColor: Colors.white.withValues(alpha:0.12),
                   foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.close_rounded),
@@ -1002,9 +1002,9 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
                 child: IconButton.filledTonal(
                   onPressed: canGoLeft ? _goPrevious : null,
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.12),
+                    backgroundColor: Colors.white.withValues(alpha:0.12),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.white.withOpacity(0.06),
+                    disabledBackgroundColor: Colors.white.withValues(alpha:0.06),
                     disabledForegroundColor: Colors.white24,
                   ),
                   icon: const Icon(Icons.chevron_left_rounded),
@@ -1019,9 +1019,9 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
                 child: IconButton.filledTonal(
                   onPressed: canGoRight ? _goNext : null,
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.12),
+                    backgroundColor: Colors.white.withValues(alpha:0.12),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.white.withOpacity(0.06),
+                    disabledBackgroundColor: Colors.white.withValues(alpha:0.06),
                     disabledForegroundColor: Colors.white24,
                   ),
                   icon: const Icon(Icons.chevron_right_rounded),
@@ -1039,7 +1039,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.10),
+                    color: Colors.white.withValues(alpha:0.10),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(

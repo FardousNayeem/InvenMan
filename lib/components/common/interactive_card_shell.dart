@@ -57,14 +57,14 @@ class _InteractiveCardShellState extends State<InteractiveCardShell> {
                   borderRadius: BorderRadius.circular(widget.borderRadius),
                   border: Border.all(
                     color: _hovered
-                        ? cs.primary.withOpacity(0.22)
+                        ? cs.primary.withValues(alpha:0.22)
                         : cs.outlineVariant,
                   ),
                   boxShadow: [
                     BoxShadow(
                       blurRadius: _hovered ? 22 : 18,
                       offset: Offset(0, _hovered ? 10 : 8),
-                      color: Colors.black.withOpacity(
+                      color: Colors.black.withValues(alpha:
                         _hovered ? 0.07 : 0.05,
                       ),
                     ),

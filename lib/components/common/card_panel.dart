@@ -21,7 +21,7 @@ class CardPanel extends StatelessWidget {
     return Container(
       padding: padding ?? EdgeInsets.all(compact ? 12 : 14),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.78),
+        color: cs.surfaceContainerHighest.withValues(alpha:0.78),
         borderRadius: BorderRadius.circular(compact ? 16 : 18),
       ),
       child: Column(
